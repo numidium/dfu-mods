@@ -1,0 +1,98 @@
+using UnityEngine;
+using DaggerfallWorkshop.Game;
+
+namespace MightyFoot
+{
+    public class MightyFootBehaviour : MonoBehaviour
+    {
+        public FPSWeapon Kicker { get; set; }
+        public string BindText { get; set; }
+        private GameObject mainCamera;
+        private int playerLayerMask;
+        private WeaponManager weaponManager;
+        private KeyCode kickKey = KeyCode.K;
+        private const float messageCooldownTime = 5.0f;
+        private float timeSinceLastKick;
+        private bool isDamageFinished;
+
+        void Start()
+        {
+            weaponManager = GameManager.Instance.WeaponManager;
+            var player = GameManager.Instance.PlayerObject;
+            Kicker = player.AddComponent<FPSWeapon>();
+            Kicker.WeaponType = DaggerfallWorkshop.WeaponTypes.Melee;
+            Kicker.ShowWeapon = false;
+            Kicker.FlipHorizontal = weaponManager.ScreenWeapon.FlipHorizontal;
+            mainCamera = GameObject.FindGameObjectWithTag("MainCamera");
+            playerLayerMask = ~(1 << LayerMask.NameToLayer("Player"));
+            SetKickKeyFromText(BindText);
+            timeSinceLastKick = messageCooldownTime;
+            isDamageFinished = false;
+        }
+
+        void OnGUI()
+        {
+            // Needs to be executed here to prevent the player's fist from drawing.
+            Kicker.ShowWeapon = !(Kicker.WeaponState == DaggerfallWorkshop.WeaponStates.Idle);
+        }
+
+        void Update()
+        {
+            // Perform forward kick on keypress and hide weapon from HUD when attack finishes.
+            var weaponManager = GameManager.Instance.WeaponManager;
+            if (InputManager.Instance.GetKey(kickKey) && !Kicker.IsAttacking() &&  !weaponManager.ScreenWeapon.IsAttacking())
+            {
+                Kicker.ShowWeapon = true;
+                Kicker.OnAttackDirection(WeaponManager.MouseDirections.Up);
+                if (timeSinceLastKick >= messageCooldownTime)
+                    DaggerfallUI.AddHUDText("Mighty foot engaged");
+                timeSinceLastKick = 0.0f;
+            }
+            else
+                timeSinceLastKick += Time.deltaTime;
+
+            // Damage the target on hit.
+            if (isDamageFinished && Kicker.GetCurrentFrame() == 0)
+                isDamageFinished = false;
+            if (!isDamageFinished && Kicker.GetCurrentFrame() == Kicker.GetHitFrame())
+            {
+                bool hitEnemy;
+                MeleeDamage(Kicker, out hitEnemy);
+                if (!hitEnemy)
+                    Kicker.PlaySwingSound();
+                isDamageFinished = true;
+            }
+        }
+
+        // The following method is a pared down version of WeaponManager.MeleeDamage as of version 0.10.27
+        private void MeleeDamage(FPSWeapon weapon, out bool hitEnemy)
+        {
+            hitEnemy = false;
+
+            if (!mainCamera || !weapon)
+                return;
+
+            // Fire ray along player facing using weapon range
+            Ray ray = new Ray(mainCamera.transform.position, mainCamera.transform.forward);
+            RaycastHit hit;
+            if (Physics.SphereCast(ray, 0.25f, out hit, weapon.Reach, playerLayerMask))
+            {
+                if (!GameManager.Instance.WeaponManager.WeaponEnvDamage(null, hit)
+                   // Fall back to simple ray for narrow cages https://forums.dfworkshop.net/viewtopic.php?f=5&t=2195#p39524
+                   || Physics.Raycast(ray, out hit, weapon.Reach, playerLayerMask))
+                {
+                    hitEnemy = weaponManager.WeaponDamage(null, false, hit.transform, hit.point, mainCamera.transform.forward);
+                }
+            }
+        }
+
+        private void SetKickKeyFromText(string text)
+        {
+            KeyCode result;
+            if (System.Enum.TryParse(text, out result))
+                kickKey = result;
+            else
+                kickKey = KeyCode.K;
+        }
+    }
+}

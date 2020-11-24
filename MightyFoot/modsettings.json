@@ -1,0 +1,20 @@
+{
+    "Version": "v1",
+    "Sections": [
+        {
+            "Name": "Controls",
+            "Description": null,
+            "IsAdvanced": false,
+            "Keys": [
+                {
+                    "Value": "K",
+                    "Name": "Keybind",
+                    "Description": "Which key activates the kick",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.TextKey"
+                }
+            ],
+            "$version": "v1"
+        }
+    ]
+}
