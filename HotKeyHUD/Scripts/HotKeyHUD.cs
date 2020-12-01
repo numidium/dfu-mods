@@ -40,6 +40,8 @@ namespace HotKeyHUD
                 hud.ParentPanel.Components.Add(displayComponent);
                 componentAdded = true;
             }
+
+            displayComponent.Enabled = hud.Enabled;
         }
 
         public static void InitMod()
