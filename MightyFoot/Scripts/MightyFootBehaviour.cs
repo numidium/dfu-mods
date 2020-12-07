@@ -1,5 +1,7 @@
-using UnityEngine;
+using DaggerfallConnect;
+using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
+using UnityEngine;
 
 namespace MightyFoot
 {
@@ -20,7 +22,7 @@ namespace MightyFoot
             weaponManager = GameManager.Instance.WeaponManager;
             var player = GameManager.Instance.PlayerObject;
             Kicker = player.AddComponent<FPSWeapon>();
-            Kicker.WeaponType = DaggerfallWorkshop.WeaponTypes.Melee;
+            Kicker.WeaponType = WeaponTypes.Melee;
             Kicker.ShowWeapon = false;
             Kicker.FlipHorizontal = weaponManager.ScreenWeapon.FlipHorizontal;
             mainCamera = GameObject.FindGameObjectWithTag("MainCamera");
@@ -33,14 +35,19 @@ namespace MightyFoot
         void OnGUI()
         {
             // Needs to be executed here to prevent the player's fist from drawing.
-            Kicker.ShowWeapon = !(Kicker.WeaponState == DaggerfallWorkshop.WeaponStates.Idle);
+            Kicker.ShowWeapon = !(Kicker.WeaponState == WeaponStates.Idle);
         }
 
         void Update()
         {
             // Perform forward kick on keypress and hide weapon from HUD when attack finishes.
+            var playerEntity = GameManager.Instance.PlayerEntity;
             var weaponManager = GameManager.Instance.WeaponManager;
-            if (InputManager.Instance.GetKey(kickKey) && !Kicker.IsAttacking() &&  !weaponManager.ScreenWeapon.IsAttacking())
+            if (InputManager.Instance.GetKey(kickKey) &&
+                !Kicker.IsAttacking() &&
+                !weaponManager.ScreenWeapon.IsAttacking() &&
+                weaponManager.ScreenWeapon.WeaponType != WeaponTypes.Melee &&
+                weaponManager.ScreenWeapon.WeaponType != WeaponTypes.Werecreature)
             {
                 Kicker.ShowWeapon = true;
                 Kicker.OnAttackDirection(WeaponManager.MouseDirections.Up);
@@ -61,6 +68,12 @@ namespace MightyFoot
                 if (!hitEnemy)
                     Kicker.PlaySwingSound();
                 isDamageFinished = true;
+                if (hitEnemy)
+                {
+                    // Advance skills
+                    playerEntity.TallySkill(DFCareer.Skills.HandToHand, 1);
+                    playerEntity.TallySkill(DFCareer.Skills.CriticalStrike, 1);
+                }
             }
         }
 
@@ -78,11 +91,8 @@ namespace MightyFoot
             if (Physics.SphereCast(ray, 0.25f, out hit, weapon.Reach, playerLayerMask))
             {
                 if (!GameManager.Instance.WeaponManager.WeaponEnvDamage(null, hit)
-                   // Fall back to simple ray for narrow cages https://forums.dfworkshop.net/viewtopic.php?f=5&t=2195#p39524
                    || Physics.Raycast(ray, out hit, weapon.Reach, playerLayerMask))
-                {
                     hitEnemy = weaponManager.WeaponDamage(null, false, hit.transform, hit.point, mainCamera.transform.forward);
-                }
             }
         }
 
