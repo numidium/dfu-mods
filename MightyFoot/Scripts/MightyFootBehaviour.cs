@@ -1,7 +1,9 @@
 using DaggerfallConnect;
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
+using DaggerfallWorkshop.Game.Serialization;
 using UnityEngine;
+using Wenzil.Console;
 
 namespace MightyFoot
 {
@@ -16,6 +18,7 @@ namespace MightyFoot
         private const float messageCooldownTime = 5.0f;
         private float timeSinceLastKick;
         private bool isDamageFinished;
+        private ConsoleController consoleController;
 
         void Start()
         {
@@ -30,6 +33,7 @@ namespace MightyFoot
             SetKickKeyFromText(BindText);
             timeSinceLastKick = messageCooldownTime;
             isDamageFinished = false;
+            consoleController = GameObject.Find("Console").GetComponent<ConsoleController>();
         }
 
         void OnGUI()
@@ -40,6 +44,10 @@ namespace MightyFoot
 
         void Update()
         {
+            // Prevent kicking while in menus. Thanks, |3lessed.
+            if (consoleController.ui.isConsoleOpen || GameManager.IsGamePaused || SaveLoadManager.Instance.LoadInProgress || DaggerfallUI.UIManager.WindowCount != 0)
+                return;
+
             // Perform forward kick on keypress and hide weapon from HUD when attack finishes.
             var playerEntity = GameManager.Instance.PlayerEntity;
             var weaponManager = GameManager.Instance.WeaponManager;
