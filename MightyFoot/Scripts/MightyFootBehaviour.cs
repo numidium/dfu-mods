@@ -100,7 +100,7 @@ namespace MightyFoot
             {
                 if (!GameManager.Instance.WeaponManager.WeaponEnvDamage(null, hit)
                    || Physics.Raycast(ray, out hit, weapon.Reach, playerLayerMask))
-                    hitEnemy = weaponManager.WeaponDamage(null, false, hit.transform, hit.point, mainCamera.transform.forward);
+                    hitEnemy = weaponManager.WeaponDamage(null, false, false, hit.transform, hit.point, mainCamera.transform.forward);
             }
         }
 
