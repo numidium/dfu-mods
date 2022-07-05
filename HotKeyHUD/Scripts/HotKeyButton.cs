@@ -16,7 +16,7 @@ namespace HotKeyHUD
             // Button Backdrop
             Panel = new Panel
             {
-                Parent = parentPanel,
+                //Parent = parentPanel,
                 BackgroundColor = Color.black,
                 BackgroundTexture = backdrop,
                 Size = size,
@@ -26,7 +26,7 @@ namespace HotKeyHUD
             // Payload Icon - Note: doesn't always fit vertically despite scaling.
             Panel.Components.Add(new Panel
             {
-                Parent = Panel,
+                //Parent = Panel,
                 BackgroundColor = Color.clear,
                 AutoSize = AutoSizeModes.ScaleToFit,
                 MaxAutoScale = 1f,
@@ -37,7 +37,7 @@ namespace HotKeyHUD
             // Key # Label
             Panel.Components.Add(new TextLabel
             {
-                Parent = Panel,
+                //Parent = Panel,
                 Position = new Vector2(1f, 1f),
                 HorizontalAlignment = HorizontalAlignment.None,
                 Text = keyIndex.ToString(),

@@ -42,7 +42,6 @@ namespace HotKeyHUD
                 displayComponent = new HotKeyDisplay()
                 {
                     AutoSize = DaggerfallWorkshop.Game.UserInterface.AutoSizeModes.Scale,
-                    Parent = hud.ParentPanel,
                     Size = hud.ParentPanel.Size
                 };
                 hud.ParentPanel.Components.Add(displayComponent);
@@ -64,7 +63,7 @@ namespace HotKeyHUD
 
             return new HotKeyHUDSaveData
             {
-                payloadTypes = new List<HotKeyHUDSaveData.PayloadType>(),
+                payloadTypes = new List<PayloadType>(),
                 forceUseSlots = new List<bool>(),
                 itemUids = new List<ulong>(),
                 spells = new List<EffectBundleSettings>()
@@ -75,7 +74,7 @@ namespace HotKeyHUD
         {
             var data = new HotKeyHUDSaveData
             {
-                payloadTypes = new List<HotKeyHUDSaveData.PayloadType>(),
+                payloadTypes = new List<PayloadType>(),
                 forceUseSlots = new List<bool>(),
                 itemUids = new List<ulong>(),
                 spells = new List<EffectBundleSettings>()
@@ -86,16 +85,16 @@ namespace HotKeyHUD
             {
                 if (button.Payload is DaggerfallUnityItem item)
                 {
-                    data.payloadTypes.Add(HotKeyHUDSaveData.PayloadType.Item);
+                    data.payloadTypes.Add(PayloadType.Item);
                     data.itemUids.Add(item.UID);
                 }
                 else if (button.Payload is EffectBundleSettings settings)
                 {
-                    data.payloadTypes.Add(HotKeyHUDSaveData.PayloadType.Spell);
+                    data.payloadTypes.Add(PayloadType.Spell);
                     data.spells.Add(settings);
                 }
                 else
-                    data.payloadTypes.Add(HotKeyHUDSaveData.PayloadType.None);
+                    data.payloadTypes.Add(PayloadType.None);
                 data.forceUseSlots.Add(button.ForceUse);
             }
 
@@ -110,15 +109,15 @@ namespace HotKeyHUD
             var spellIndex = 0;
             for (var i = 0; i < data.payloadTypes.Count; i++)
             {
-                if (data.payloadTypes[i] == HotKeyHUDSaveData.PayloadType.None)
+                if (data.payloadTypes[i] == PayloadType.None)
                     displayComponent.SetItemAtSlot(null, i);
-                else if (data.payloadTypes[i] == HotKeyHUDSaveData.PayloadType.Item)
+                else if (data.payloadTypes[i] == PayloadType.Item)
                 {
                     var item = player.Items.GetItem(data.itemUids[itemIndex++]);
                     if (item != null)
                         displayComponent.SetItemAtSlot(item, i, data.forceUseSlots[i]);
                 }
-                else if (data.payloadTypes[i] == HotKeyHUDSaveData.PayloadType.Spell)
+                else if (data.payloadTypes[i] == PayloadType.Spell)
                     displayComponent.SetSpellAtSlot(data.spells[spellIndex++], i);
             }
         }

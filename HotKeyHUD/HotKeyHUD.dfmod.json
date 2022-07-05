@@ -2,10 +2,15 @@
     "ModTitle": "Hot Key HUD",
     "ModVersion": "0.0.1",
     "ModAuthor": "numidium3rd",
-    "DFUnity_Version": "0.10.27",
+    "DFUnity_Version": "0.14.0",
     "GUID": "1c604516-f19e-4840-a161-77894e2e9c50",
     "Files": [
         "Assets/Game/Mods/HotKeyHUD/Scripts/HotKeyHUD.cs",
-        "Assets/Game/Mods/HotKeyHUD/Scripts/HotKeyDisplay.cs"
+        "Assets/Game/Mods/HotKeyHUD/Scripts/HotKeyDisplay.cs",
+        "Assets/Game/Mods/HotKeyHUD/Scripts/HotKeyButton.cs",
+        "Assets/Game/Mods/HotKeyHUD/Scripts/HotkeyHUDInventoryMenu.cs",
+        "Assets/Game/Mods/HotKeyHUD/Scripts/HotKeyHUDSpellbookWindow.cs",
+        "Assets/Game/Mods/HotKeyHUD/HotKeyHUD.dfmod.json",
+        "Assets/Game/Mods/HotKeyHUD/Scripts/HotKeyHUDSaveData.cs"
     ]
 }
