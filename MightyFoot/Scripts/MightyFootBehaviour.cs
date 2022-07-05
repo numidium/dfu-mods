@@ -11,6 +11,7 @@ namespace MightyFoot
     {
         public FPSWeapon Kicker { get; set; }
         public string BindText { get; set; }
+        public bool ShowMessage { get; set; }
         private GameObject mainCamera;
         private int playerLayerMask;
         private WeaponManager weaponManager;
@@ -59,7 +60,7 @@ namespace MightyFoot
             {
                 Kicker.ShowWeapon = true;
                 Kicker.OnAttackDirection(WeaponManager.MouseDirections.Up);
-                if (timeSinceLastKick >= messageCooldownTime)
+                if (ShowMessage && timeSinceLastKick >= messageCooldownTime)
                     DaggerfallUI.AddHUDText("Mighty foot engaged");
                 timeSinceLastKick = 0.0f;
             }

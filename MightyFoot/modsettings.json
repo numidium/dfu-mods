@@ -2,7 +2,7 @@
     "Version": "v1",
     "Sections": [
         {
-            "Name": "Controls",
+            "Name": "Options",
             "Description": null,
             "IsAdvanced": false,
             "Keys": [
@@ -12,7 +12,14 @@
                     "Description": "Which key activates the kick",
                     "$version": "v1",
                     "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.TextKey"
-                }
+                },
+				{
+					"Value": "true",
+                    "Name": "Display HUD Text",
+                    "Description": "Display HUD text on activation",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
+				}
             ],
             "$version": "v1"
         }

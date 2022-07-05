@@ -27,7 +27,8 @@ namespace MightyFoot
             var settings = mod.GetSettings();
             var player = GameObject.FindGameObjectWithTag("Player");
             var behaviour = player.AddComponent<MightyFootBehaviour>();
-            behaviour.BindText = settings.GetValue<string>("Controls", "Keybind");
+            behaviour.BindText = settings.GetValue<string>("Options", "Keybind");
+            behaviour.ShowMessage = settings.GetValue<bool>("Options", "Display HUD Text");
             Debug.Log("Mighty Foot initialized.");
         }
     }
