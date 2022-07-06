@@ -110,7 +110,7 @@ namespace HotKeyHUD
             for (var i = 0; i < data.payloadTypes.Count; i++)
             {
                 if (data.payloadTypes[i] == PayloadType.None)
-                    displayComponent.SetItemAtSlot(null, i);
+                    displayComponent.SetItemAtSlot(null, i, true);
                 else if (data.payloadTypes[i] == PayloadType.Item)
                 {
                     var item = player.Items.GetItem(data.itemUids[itemIndex++]);
@@ -118,7 +118,7 @@ namespace HotKeyHUD
                         displayComponent.SetItemAtSlot(item, i, data.forceUseSlots[i]);
                 }
                 else if (data.payloadTypes[i] == PayloadType.Spell)
-                    displayComponent.SetSpellAtSlot(data.spells[spellIndex++], i);
+                    displayComponent.SetSpellAtSlot(data.spells[spellIndex++], i, true);
             }
         }
     }

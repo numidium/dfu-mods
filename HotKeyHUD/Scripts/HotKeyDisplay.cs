@@ -54,20 +54,22 @@ namespace HotKeyHUD
             if (!Enabled)
                 return;
             if (!initialized)
-            {
                 Initialize();
-                initialized = true;
-            }
 
             base.Update();
-            var gameManager = GameManager.Instance;
             var hud = DaggerfallUI.Instance.DaggerfallHUD;
             if (Scale != hud.HUDCompass.Scale)
                 SetScale(hud.HUDCompass.Scale); // Compass is an arbitrary choice to get scale. Doesn't matter which HUD element is used.
             var keyDown = InputManager.Instance.GetAnyKeyDown();
             if (keyDown >= KeyCode.Alpha1 && keyDown <= KeyCode.Alpha9)
                 OnHotKeyPress(keyDown);
-            Enabled = gameManager.IsPlayingGame() && hud.Enabled; // Only stay visible when the normal HUD is.
+            foreach (var button in hotKeyButtons)
+            {
+                if (button.Payload is DaggerfallUnityItem item)
+                    button.UpdateCondition(item.ConditionPercentage, Scale);
+                else
+                    button.UpdateCondition(0, new Vector2(0,0));
+            }
         }
 
         public override void Draw()
@@ -90,7 +92,10 @@ namespace HotKeyHUD
             hotKeyButtons[index].ForceUse = forceUse;
             var icon = hotKeyButtons[index].Icon;
             if (item == null)
+            {
                 icon.BackgroundTexture = null;
+                hotKeyButtons[index].UpdateCondition(0, Scale);
+            }
             else
             {
                 // If already in hotbar, delete from old slot.
@@ -106,12 +111,11 @@ namespace HotKeyHUD
             }
         }
 
-        public void SetSpellAtSlot(in EffectBundleSettings spell, int index)
+        public void SetSpellAtSlot(in EffectBundleSettings spell, int index, bool suppressNotif = false)
         {
             if (hotKeyButtons[index].Payload is EffectBundleSettings settings && spell.Equals(settings))
             {
-                hotKeyButtons[index].Payload = null;
-                hotKeyButtons[index].Icon.BackgroundTexture = null;
+                SetItemAtSlot(null, index);
                 return;
             }
 
@@ -121,6 +125,8 @@ namespace HotKeyHUD
 
         public void ResetButtons()
         {
+            if (!initialized)
+                return;
             var i = 0;
             foreach (var button in hotKeyButtons)
                 SetItemAtSlot(null, i++);
@@ -213,12 +219,11 @@ namespace HotKeyHUD
             hotKeyButtons = new HotKeyButton[iconCount];
             originalPositions = new Vector2[iconCount];
             float xPosition = 0f;
-            var hud = DaggerfallUI.Instance.DaggerfallHUD;
             for (int i = 0; i < hotKeyButtons.Length; i++)
             {
                 var size = new Vector2 { x = iconWidth, y = iconHeight };
                 var position = new Vector2 { x = xPosition, y = iconsY };
-                hotKeyButtons[i] = new HotKeyButton(hud.ParentPanel, itemBackdrops[i], size, position, i + 1);
+                hotKeyButtons[i] = new HotKeyButton(itemBackdrops[i], size, position, i + 1);
                 xPosition += iconWidth;
                 Components.Add(hotKeyButtons[i].Panel);
                 originalPositions[i] = hotKeyButtons[i].Position;
@@ -228,6 +233,7 @@ namespace HotKeyHUD
             var player = GameManager.Instance.PlayerEntity;
             lastRightHandItem = player.ItemEquipTable.GetItem(EquipSlots.RightHand);
             lastLeftHandItem = player.ItemEquipTable.GetItem(EquipSlots.LeftHand);
+            initialized = true;
         }
 
         private void SetScale(Vector2 scale)
@@ -241,6 +247,8 @@ namespace HotKeyHUD
                 hotKeyButtons[i].Size = size;
                 hotKeyButtons[i].Icon.Size = size;
                 hotKeyButtons[i].Label.Position = new Vector2((float)Math.Round(scale.x + .5f), (float)Math.Round(scale.y + .5f));
+                hotKeyButtons[i].ConditionBar.Position = new Vector2((float)Math.Round(scale.x + .5f), (float)Math.Round(iconHeight * scale.y - 2f * scale.y + .5f));
+                hotKeyButtons[i].ConditionBar.Size = new Vector2((float)Math.Round((iconWidth - 3f) * scale.x + .5f), (float)Math.Round(scale.y + .5f));
             }
         }
 
