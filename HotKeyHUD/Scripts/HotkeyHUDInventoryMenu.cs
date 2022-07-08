@@ -11,14 +11,54 @@ namespace HotKeyHUD
     public class HotkeyHUDInventoryMenu : DaggerfallInventoryWindow
     {
         int slotNum;
+        int lastSelectedSlot = -1;
         DaggerfallUnityItem hotKeyItem;
-
-        HotKeyDisplay hotKeyDisplay;
+        readonly HotKeyDisplay hotKeyDisplay;
+        readonly HotKeyMenuPopup hotKeyMenuPopup;
         const string actionTypeSelect = "This item can be either Used or Equipped. Key as Use?";
 
         public HotkeyHUDInventoryMenu(IUserInterfaceManager uiManager, DaggerfallBaseWindow previous = null) : base(uiManager, previous)
         {
             hotKeyDisplay = (HotKeyDisplay)DaggerfallUI.Instance.DaggerfallHUD.ParentPanel.Components.FirstOrDefault(x => x.GetType() == typeof(HotKeyDisplay));
+            hotKeyMenuPopup = new HotKeyMenuPopup();
+        }
+
+        protected override void Setup()
+        {
+            base.Setup();
+            NativePanel.Components.Add(hotKeyMenuPopup);
+        }
+
+        public override void OnPush()
+        {
+            base.OnPush();
+            if (hotKeyMenuPopup.Initialized)
+                hotKeyMenuPopup.SyncIcons();
+        }
+
+        public override void Update()
+        {
+            base.Update();
+            // Show hotkey popup when hotkey is pressed and hide when released.
+            var hotKey = KeyCode.Alpha1 - 1;
+            var input = InputManager.Instance;
+            for (var i = 0; i <= (int)KeyCode.Alpha9; i++)
+            {
+                var key = KeyCode.Alpha1 + i;
+                if (input.GetKey(key))
+                    hotKey = key;
+            }
+
+            if (hotKey >= KeyCode.Alpha1 && hotKey <= KeyCode.Alpha9)
+            {
+                hotKeyMenuPopup.Enabled = true;
+                var slotNum = hotKey - KeyCode.Alpha1;
+                if (slotNum != lastSelectedSlot)
+                    hotKeyMenuPopup.SetSelectedSlot(slotNum);
+                lastSelectedSlot = slotNum;
+            }
+            else
+                hotKeyMenuPopup.Enabled = false;
         }
 
         protected override void LocalItemListScroller_OnItemClick(DaggerfallUnityItem item, ActionModes actionMode)
@@ -32,21 +72,25 @@ namespace HotKeyHUD
                     hotKeyDown = key;
             }
 
-            if (hotKeyDown >= KeyCode.Alpha1 && hotKeyDown <= KeyCode.Alpha9
-                    && !GetProhibited(item) && item.currentCondition > 0) // Item must not be class-restricted or broken.
+            if (hotKeyDown >= KeyCode.Alpha1 && hotKeyDown <= KeyCode.Alpha9 &&
+                !GetProhibited(item) && item.currentCondition > 0) // Item must not be class-restricted or broken.
             {
                 slotNum = hotKeyDown - KeyCode.Alpha1;
                 hotKeyItem = item;
                 var equipTable = GameManager.Instance.PlayerEntity.ItemEquipTable;
                 // Show prompt if enchanted item can be either equipped or used.
-                if (item.IsEnchanted && equipTable.GetEquipSlot(item) != EquipSlots.None && GetEnchantedItemIsUseable(item))
+                if (item != hotKeyDisplay.GetItemAtSlot(slotNum) && item.IsEnchanted && equipTable.GetEquipSlot(item) != EquipSlots.None && GetEnchantedItemIsUseable(item))
                 {
                     var actionSelectDialog = new DaggerfallMessageBox(uiManager, DaggerfallMessageBox.CommonMessageBoxButtons.YesNo, actionTypeSelect, this);
                     actionSelectDialog.OnButtonClick += ActionSelectDialog_OnButtonClick;
                     actionSelectDialog.Show();
                 }
                 else
+                {
+                    DaggerfallUI.Instance.PlayOneShot(DaggerfallWorkshop.SoundClips.ButtonClick);
                     hotKeyDisplay.SetItemAtSlot(hotKeyItem, slotNum);
+                    hotKeyMenuPopup.SyncIcons();
+                }
             }
             else
                 base.LocalItemListScroller_OnItemClick(item, actionMode);
@@ -60,6 +104,7 @@ namespace HotKeyHUD
                 forceUse = true;
 
             hotKeyDisplay.SetItemAtSlot(hotKeyItem, slotNum, forceUse);
+            hotKeyMenuPopup.SyncIcons();
         }
 
         // Adapted from DaggerfallInventoryWindow

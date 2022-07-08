@@ -6,16 +6,51 @@ using System;
 using System.Collections.Generic;
 using DaggerfallWorkshop.Game.MagicAndEffects;
 using DaggerfallWorkshop.Game.Items;
+using DaggerfallWorkshop.Utility;
+using DaggerfallConnect.Utility;
 
 namespace HotKeyHUD
 {
     public class HotKeyHUD : MonoBehaviour, IHasModSaveData
     {
+        public const byte iconCount = 9;
+        const string baseInvTextureName = "INVE00I0.IMG";
+        const float iconWidth = 22f;
+        const float iconHeight = 22f;
+
         static Mod mod;
         bool componentAdded;
         HotKeyDisplay displayComponent;
+        static Texture2D[] itemBackdrops;
+        static readonly Rect[] backdropCutouts = new Rect[]
+        {
+            new Rect(0, 10, iconWidth, iconHeight),  new Rect(23, 10, iconWidth, iconHeight),
+            new Rect(0, 41, iconWidth, iconHeight),  new Rect(23, 41, iconWidth, iconHeight),
+            new Rect(0, 72, iconWidth, iconHeight),  new Rect(23, 72, iconWidth, iconHeight),
+            new Rect(0, 103, iconWidth, iconHeight), new Rect(23, 103, iconWidth, iconHeight),
+            new Rect(0, 134, iconWidth, iconHeight), new Rect(23, 134, iconWidth, iconHeight),
+        };
 
         public Type SaveDataType => typeof(HotKeyHUDSaveData);
+        public static string ModTitle => mod.Title;
+        public static Texture2D[] ItemBackdrops
+        {
+            get
+            {
+                // Note: Textures live in memory as long as program is running.
+                if (itemBackdrops == null)
+                {
+                    var inventoryTexture = ImageReader.GetTexture(baseInvTextureName);
+                    itemBackdrops = new Texture2D[iconCount];
+                    for (int i = 0; i < itemBackdrops.Length; i++)
+                        itemBackdrops[i] = ImageReader.GetSubTexture(inventoryTexture, backdropCutouts[i], new DFSize(320, 200));
+                }
+
+                return itemBackdrops;
+            }
+        }
+
+        public Rect[] BackdropCutouts => backdropCutouts;
 
         [Invoke(StateManager.StateTypes.Start, 0)]
         public static void Init(InitParams initParams)
@@ -44,6 +79,7 @@ namespace HotKeyHUD
                     AutoSize = DaggerfallWorkshop.Game.UserInterface.AutoSizeModes.Scale,
                     Size = hud.ParentPanel.Size
                 };
+
                 hud.ParentPanel.Components.Add(displayComponent);
                 componentAdded = true;
             }
@@ -118,7 +154,7 @@ namespace HotKeyHUD
                         displayComponent.SetItemAtSlot(item, i, data.forceUseSlots[i]);
                 }
                 else if (data.payloadTypes[i] == PayloadType.Spell)
-                    displayComponent.SetSpellAtSlot(data.spells[spellIndex++], i, true);
+                    displayComponent.SetSpellAtSlot(data.spells[spellIndex++], i);
             }
         }
     }

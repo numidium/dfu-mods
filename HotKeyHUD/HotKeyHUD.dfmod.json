@@ -11,6 +11,7 @@
         "Assets/Game/Mods/HotKeyHUD/Scripts/HotkeyHUDInventoryMenu.cs",
         "Assets/Game/Mods/HotKeyHUD/Scripts/HotKeyHUDSpellbookWindow.cs",
         "Assets/Game/Mods/HotKeyHUD/HotKeyHUD.dfmod.json",
-        "Assets/Game/Mods/HotKeyHUD/Scripts/HotKeyHUDSaveData.cs"
+        "Assets/Game/Mods/HotKeyHUD/Scripts/HotKeyHUDSaveData.cs",
+        "Assets/Game/Mods/HotKeyHUD/Scripts/HotKeyMenuPopup.cs"
     ]
 }

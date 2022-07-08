@@ -1,48 +1,47 @@
+using DaggerfallWorkshop;
+using DaggerfallWorkshop.Game;
+using DaggerfallWorkshop.Game.Entity;
+using DaggerfallWorkshop.Game.Items;
+using DaggerfallWorkshop.Game.MagicAndEffects;
 using DaggerfallWorkshop.Game.UserInterface;
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace HotKeyHUD
 {
-    public class HotKeyButton
+    public class HotKeyButton : Panel
     {
+        public const float iconWidth = 22f;
+        public const float iconHeight = 22f;
+        const float maxCondBarWidth = iconWidth - 3f;
         const int iconPanelSlot = 1;
-        const int buttonLabelSlot = 2;
-        const int buttonConditionBarSlot = 3;
+        const int buttonKeyLabelSlot = 2;
+        const int buttonStackLabelSlot = 3;
+        const int buttonConditionBarSlot = 4;
         const float condBarHeight = 1f;
-        float maxCondBarWidth;
-
-        public Vector2 Position
-        {
-            get => Panel.Position;
-            set => Panel.Position = value;
-        }
-
-        public Vector2 Size
-        {
-            get => Panel.Size;
-            set => Panel.Size = value;
-        }
+        const float iconsWidth = iconWidth * 10f;
+        const float iconsY = 177f;
+        readonly Vector2 originalPosition;
 
         public bool ForceUse { get; set; }
         public object Payload { get; set; }
-        public Panel Panel { get; set; }
-        public Panel Icon => (Panel)Panel.Components[iconPanelSlot];
-        public TextLabel Label => (TextLabel)Panel.Components[buttonLabelSlot];
-        public Panel ConditionBar => (Panel)Panel.Components[buttonConditionBarSlot];
+        public Panel Icon => (Panel)Components[iconPanelSlot];
+        public TextLabel KeyLabel => (TextLabel)Components[buttonKeyLabelSlot];
+        public TextLabel StackLabel => (TextLabel)Components[buttonStackLabelSlot];
+        public Panel ConditionBar => (Panel)Components[buttonConditionBarSlot];
 
-        public HotKeyButton(Texture2D backdrop, Vector2 size, Vector2 position, int keyIndex)
+        public HotKeyButton(Texture2D backdrop, Vector2 position, int keyIndex, float textScale = 2f)
         {
             // Button Backdrop
-            Panel = new Panel
-            {
-                BackgroundColor = Color.black,
-                BackgroundTexture = backdrop,
-                Size = size,
-                Position = position
-            };
+            BackgroundColor = Color.black;
+            BackgroundTexture = backdrop;
+            Size = new Vector2 { x = iconWidth, y = iconHeight };
+            Position = position;
+            originalPosition = position;
 
             // Payload Icon - Note: doesn't always fit vertically despite scaling.
-            Panel.Components.Add(new Panel
+            Components.Add(new Panel
             {
                 BackgroundColor = Color.clear,
                 AutoSize = AutoSizeModes.ScaleToFit,
@@ -52,35 +51,54 @@ namespace HotKeyHUD
             });
 
             // Key # Label
-            Panel.Components.Add(new TextLabel
+            Components.Add(new TextLabel
             {
                 Position = new Vector2(1f, 1f),
                 HorizontalAlignment = HorizontalAlignment.None,
                 Text = keyIndex.ToString(),
-                TextScale = 2f
+                TextScale = textScale,
+                ShadowColor = DaggerfallUI.DaggerfallDefaultShadowColor,
+                ShadowPosition = DaggerfallUI.DaggerfallDefaultShadowPos
+            });
+
+            // Stack # Label
+            Components.Add(new TextLabel
+            {
+                Position = new Vector2(1f, 1f),
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Bottom,
+                Text = string.Empty,
+                TextScale = textScale,
+                Enabled = false,
+                ShadowColor = DaggerfallUI.DaggerfallDefaultShadowColor,
+                ShadowPosition = DaggerfallUI.DaggerfallDefaultShadowPos
             });
 
             // Item condition bar
-            maxCondBarWidth = size.x - 3f;
-            Panel.Components.Add(new Panel
+            Components.Add(new Panel
             {
-                Position = new Vector2(1f, size.y - 4f),
+                Position = new Vector2(2f, iconHeight - 3f),
                 Size = new Vector2(maxCondBarWidth, condBarHeight),
                 BackgroundColor = Color.green,
                 Enabled = false
             });
         }
 
+        public override void Update()
+        {
+            base.Update();
+            if (StackLabel.Enabled && Payload is DaggerfallUnityItem item)
+                StackLabel.Text = item.stackCount.ToString();
+        }
+
         public void UpdateCondition(int percentage, in Vector2 scale)
-        {;
+        {
             if (percentage <= 0)
             {
                 ConditionBar.Enabled = false;
                 return;
             }
 
-            if (!ConditionBar.Enabled)
-                ConditionBar.Enabled = true;
             // Shrink bar as value decreases.
             ConditionBar.Size = new Vector2(percentage / 100f * (maxCondBarWidth * scale.x), condBarHeight * scale.y);
             if (percentage >= 75)
@@ -89,6 +107,121 @@ namespace HotKeyHUD
                 ConditionBar.BackgroundColor = Color.yellow;
             else
                 ConditionBar.BackgroundColor = Color.red;
+        }
+
+        public void SetItem(DaggerfallUnityItem item, bool forceUse = false)
+        {
+            // Toggle clear slot.
+            if (item != null && item == Payload)
+            {
+                SetItem(null);
+                return;
+            }
+
+            Payload = item;
+            ForceUse = forceUse;
+            if (item == null)
+            {
+                Icon.BackgroundTexture = null;
+                ConditionBar.Enabled = false;
+                StackLabel.Enabled = false;
+            }
+            else
+            {
+                var image = DaggerfallUnity.Instance.ItemHelper.GetInventoryImage(item);
+                Icon.BackgroundTexture = image.texture;
+                Icon.Size = new Vector2(image.width, image.height);
+                StackLabel.Enabled = item.IsStackable();
+                // I'm assuming there aren't any stackables with condition worth tracking.
+                ConditionBar.Enabled = !StackLabel.Enabled;
+            }
+        }
+
+        public void SetSpell(in EffectBundleSettings spell)
+        {
+            const float spellIconScale = .9f;
+            // Toggle clear slot.
+            if (Payload is EffectBundleSettings settings && spell.Equals(settings))
+            {
+                SetItem(null);
+                return;
+            }
+
+            Payload = spell;
+            Icon.BackgroundTexture = DaggerfallUI.Instance.SpellIconCollection.GetSpellIcon(spell.Icon);
+            Icon.Size = new Vector2(Icon.Parent.Size.x * spellIconScale, Icon.Parent.Size.y * spellIconScale);
+            ConditionBar.Enabled = false;
+        }
+
+        public void HandleItemHotkeyPress(DaggerfallUnityItem item)
+        {
+            var equipTable = GameManager.Instance.PlayerEntity.ItemEquipTable;
+            var player = GameManager.Instance.PlayerEntity;
+            List<DaggerfallUnityItem> unequippedList = null;
+            // Toggle light source.
+            if (item.IsLightSource)
+                player.LightSource = (player.LightSource == item ? null : item);
+            // Use enchanted item.
+            if (item.IsEnchanted && (equipTable.GetEquipSlot(item) == EquipSlots.None || ForceUse))
+            {
+                GameManager.Instance.PlayerEffectManager.DoItemEnchantmentPayloads(EnchantmentPayloadFlags.Used, item, player.Items);
+                // Remove item if broken by use.
+                if (item.currentCondition <= 0)
+                    SetItem(null);
+            }
+            // Consume potion.
+            else if (item.IsPotion)
+            {
+                GameManager.Instance.PlayerEffectManager.DrinkPotion(item);
+                player.Items.RemoveOne(item);
+                if (item.stackCount == 0) // Camel-case public fields? :)
+                    SetItem(null);
+            }
+            // Toggle item unequipped.
+            else if (equipTable.IsEquipped(item))
+            {
+                equipTable.UnequipItem(item);
+                player.UpdateEquippedArmorValues(item, false);
+            }
+            // Remove broken item from menu.
+            else if (item.currentCondition <= 0)
+                SetItem(null);
+            // Toggle item equipped.
+            else
+                unequippedList = equipTable.EquipItem(item);
+
+            // Handle equipped armor and list of unequipped items.
+            if (unequippedList != null)
+            {
+                foreach (DaggerfallUnityItem unequippedItem in unequippedList)
+                    player.UpdateEquippedArmorValues(unequippedItem, false);
+                player.UpdateEquippedArmorValues(item, true);
+            }
+        }
+
+        public void HandleSpellHotkeyPress(ref EffectBundleSettings spell)
+        {
+            // Note: Copied from DaggerfallSpellBookWindow with slight modification
+            // Lycanthropes cast for free
+            bool noSpellPointCost = spell.Tag == PlayerEntity.lycanthropySpellTag;
+
+            // Assign to player effect manager as ready spell
+            EntityEffectManager playerEffectManager = GameManager.Instance.PlayerEffectManager;
+            if (playerEffectManager)
+                playerEffectManager.SetReadySpell(new EntityEffectBundle(spell, GameManager.Instance.PlayerEntityBehaviour), noSpellPointCost);
+        }
+
+        public void SetScale(Vector2 scale)
+        {
+            var position = new Vector2((float)Math.Round((160f - iconsWidth / 2f + originalPosition.x + 0.5f) * scale.x) + .5f, (float)Math.Round(iconsY * scale.y) + .5f);
+            var size = new Vector2((float)Math.Round(iconWidth * scale.x + .5f), (float)Math.Round(iconHeight * scale.y) + .5f);
+            Position = position;
+            Size = size;
+            Icon.Size = size;
+            KeyLabel.Position = new Vector2((float)Math.Round(KeyLabel.Position.x * scale.x + .5f), (float)Math.Round(KeyLabel.Position.y * scale.y + .5f));
+            StackLabel.Position = new Vector2((float)Math.Round(StackLabel.Position.x * scale.x + .5f), (float)Math.Round(StackLabel.Position.y * scale.y + .5f));
+            ConditionBar.Position = new Vector2((float)Math.Round(ConditionBar.Position.x * scale.x + .5f), (float)Math.Round(ConditionBar.Position.y * scale.y + .5f));
+            ConditionBar.Size = new Vector2((float)Math.Round(ConditionBar.Size.x * scale.x + .5f), (float)Math.Round(ConditionBar.Size.y * scale.y + .5f));
         }
     }
 }
