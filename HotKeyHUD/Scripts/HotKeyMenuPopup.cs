@@ -70,6 +70,30 @@ namespace HotKeyHUD
             }
         }
 
+        public void ShowOrHide(ref int lastSelectedSlot)
+        {
+            // Show hotkey popup when hotkey is pressed and hide when released.
+            var hotKey = KeyCode.Alpha1 - 1;
+            var input = InputManager.Instance;
+            for (var i = 0; i <= (int)KeyCode.Alpha9; i++)
+            {
+                var key = KeyCode.Alpha1 + i;
+                if (input.GetKey(key))
+                    hotKey = key;
+            }
+
+            if (hotKey >= KeyCode.Alpha1 && hotKey <= KeyCode.Alpha9)
+            {
+                Enabled = true;
+                var slotNum = hotKey - KeyCode.Alpha1;
+                if (slotNum != lastSelectedSlot)
+                    SetSelectedSlot(slotNum);
+                lastSelectedSlot = slotNum;
+            }
+            else
+                Enabled = false;
+        }
+
         private void Initialize()
         {
             hotKeyButtons = new HotKeyButton[HotKeyHUD.iconCount];
@@ -78,7 +102,7 @@ namespace HotKeyHUD
             {
                 hotKeyButtons[i] = new HotKeyButton(itemBackdrops[i],
                     new Vector2(xOffset + (float)((i % 3) * HotKeyButton.iconWidth), yOffset + (i / 3) * HotKeyButton.iconHeight + .5f),
-                                i + 1, 1f);
+                                i + 1);
                 Components.Add(hotKeyButtons[i]);
             }
 

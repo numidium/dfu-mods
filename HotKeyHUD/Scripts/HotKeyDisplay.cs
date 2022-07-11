@@ -15,7 +15,6 @@ namespace HotKeyHUD
         HotKeyButton[] hotKeyButtons;
         DaggerfallUnityItem lastRightHandItem;
         DaggerfallUnityItem lastLeftHandItem;
-
         public List<HotKeyButton> ButtonList => hotKeyButtons.ToList();
 
         public HotKeyDisplay() : base()

@@ -39,26 +39,7 @@ namespace HotKeyHUD
         public override void Update()
         {
             base.Update();
-            // Show hotkey popup when hotkey is pressed and hide when released.
-            var hotKey = KeyCode.Alpha1 - 1;
-            var input = InputManager.Instance;
-            for (var i = 0; i <= (int)KeyCode.Alpha9; i++)
-            {
-                var key = KeyCode.Alpha1 + i;
-                if (input.GetKey(key))
-                    hotKey = key;
-            }
-
-            if (hotKey >= KeyCode.Alpha1 && hotKey <= KeyCode.Alpha9)
-            {
-                hotKeyMenuPopup.Enabled = true;
-                var slotNum = hotKey - KeyCode.Alpha1;
-                if (slotNum != lastSelectedSlot)
-                    hotKeyMenuPopup.SetSelectedSlot(slotNum);
-                lastSelectedSlot = slotNum;
-            }
-            else
-                hotKeyMenuPopup.Enabled = false;
+            hotKeyMenuPopup.ShowOrHide(ref lastSelectedSlot);
         }
 
         protected override void LocalItemListScroller_OnItemClick(DaggerfallUnityItem item, ActionModes actionMode)

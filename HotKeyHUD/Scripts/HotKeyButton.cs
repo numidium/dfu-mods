@@ -30,8 +30,11 @@ namespace HotKeyHUD
         public TextLabel KeyLabel => (TextLabel)Components[buttonKeyLabelSlot];
         public TextLabel StackLabel => (TextLabel)Components[buttonStackLabelSlot];
         public Panel ConditionBar => (Panel)Components[buttonConditionBarSlot];
+        private static Vector2 KeyLabelOriginalPos => new Vector2(1f, 1f);
+        private static Vector2 StackLabelOriginalPos => new Vector2(1f, 1f);
+        private static Vector2 CondBarOriginalPos => new Vector2(2f, iconHeight - 3f);
 
-        public HotKeyButton(Texture2D backdrop, Vector2 position, int keyIndex, float textScale = 2f)
+        public HotKeyButton(Texture2D backdrop, Vector2 position, int keyIndex)
         {
             // Button Backdrop
             BackgroundColor = Color.black;
@@ -53,10 +56,9 @@ namespace HotKeyHUD
             // Key # Label
             Components.Add(new TextLabel
             {
-                Position = new Vector2(1f, 1f),
+                Position = KeyLabelOriginalPos,
                 HorizontalAlignment = HorizontalAlignment.None,
                 Text = keyIndex.ToString(),
-                TextScale = textScale,
                 ShadowColor = DaggerfallUI.DaggerfallDefaultShadowColor,
                 ShadowPosition = DaggerfallUI.DaggerfallDefaultShadowPos
             });
@@ -64,11 +66,10 @@ namespace HotKeyHUD
             // Stack # Label
             Components.Add(new TextLabel
             {
-                Position = new Vector2(1f, 1f),
+                Position = StackLabelOriginalPos,
                 HorizontalAlignment = HorizontalAlignment.Right,
                 VerticalAlignment = VerticalAlignment.Bottom,
                 Text = string.Empty,
-                TextScale = textScale,
                 Enabled = false,
                 ShadowColor = DaggerfallUI.DaggerfallDefaultShadowColor,
                 ShadowPosition = DaggerfallUI.DaggerfallDefaultShadowPos
@@ -77,11 +78,19 @@ namespace HotKeyHUD
             // Item condition bar
             Components.Add(new Panel
             {
-                Position = new Vector2(2f, iconHeight - 3f),
+                Position = CondBarOriginalPos,
                 Size = new Vector2(maxCondBarWidth, condBarHeight),
                 BackgroundColor = Color.green,
                 Enabled = false
             });
+        }
+
+        public override void Draw()
+        {
+            // It seems like I shouldn't have to do this. I think it's a bug in DFU.
+            if (Icon.Size.y > Size.y)
+                Icon.Size = Size * 0.9f;
+            base.Draw();
         }
 
         public override void Update()
@@ -139,7 +148,7 @@ namespace HotKeyHUD
 
         public void SetSpell(in EffectBundleSettings spell)
         {
-            const float spellIconScale = .9f;
+            const float spellIconScale = .8f;
             // Toggle clear slot.
             if (Payload is EffectBundleSettings settings && spell.Equals(settings))
             {
@@ -217,10 +226,14 @@ namespace HotKeyHUD
             var size = new Vector2((float)Math.Round(iconWidth * scale.x + .5f), (float)Math.Round(iconHeight * scale.y) + .5f);
             Position = position;
             Size = size;
-            Icon.Size = size;
-            KeyLabel.Position = new Vector2((float)Math.Round(KeyLabel.Position.x * scale.x + .5f), (float)Math.Round(KeyLabel.Position.y * scale.y + .5f));
-            StackLabel.Position = new Vector2((float)Math.Round(StackLabel.Position.x * scale.x + .5f), (float)Math.Round(StackLabel.Position.y * scale.y + .5f));
-            ConditionBar.Position = new Vector2((float)Math.Round(ConditionBar.Position.x * scale.x + .5f), (float)Math.Round(ConditionBar.Position.y * scale.y + .5f));
+            KeyLabel.Scale = scale;
+            KeyLabel.Position = new Vector2((float)Math.Round(KeyLabelOriginalPos.x * scale.x + .5f), (float)Math.Round(KeyLabelOriginalPos.y * scale.y + .5f));
+            KeyLabel.TextScale = scale.x;
+            StackLabel.Scale = scale;
+            StackLabel.Position = new Vector2((float)Math.Round(StackLabelOriginalPos.x * scale.x + .5f), (float)Math.Round(StackLabelOriginalPos.y * scale.y + .5f));
+            StackLabel.TextScale = scale.x;
+            ConditionBar.Scale = scale;
+            ConditionBar.Position = new Vector2((float)Math.Round(CondBarOriginalPos.x * scale.x + .5f), (float)Math.Round(CondBarOriginalPos.y * scale.y + .5f));
             ConditionBar.Size = new Vector2((float)Math.Round(ConditionBar.Size.x * scale.x + .5f), (float)Math.Round(ConditionBar.Size.y * scale.y + .5f));
         }
     }
