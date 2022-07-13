@@ -44,37 +44,30 @@ namespace HotKeyHUD
 
         protected override void LocalItemListScroller_OnItemClick(DaggerfallUnityItem item, ActionModes actionMode)
         {
-            var hotKeyDown = KeyCode.Alpha1 - 1;
-            var input = InputManager.Instance;
-            for (var i = 0; i <= (int)KeyCode.Alpha9; i++)
-            {
-                var key = KeyCode.Alpha1 + i;
-                if (input.GetKeyDown(input.GetComboCode(key, KeyCode.Mouse0)))
-                    hotKeyDown = key;
-            }
+            if (KeyItem(item))
+                return;
+            base.LocalItemListScroller_OnItemClick(item, actionMode);
+        }
 
-            if (hotKeyDown >= KeyCode.Alpha1 && hotKeyDown <= KeyCode.Alpha9 &&
-                !GetProhibited(item) && item.currentCondition > 0) // Item must not be class-restricted or broken.
-            {
-                slotNum = hotKeyDown - KeyCode.Alpha1;
-                hotKeyItem = item;
-                var equipTable = GameManager.Instance.PlayerEntity.ItemEquipTable;
-                // Show prompt if enchanted item can be either equipped or used.
-                if (item != hotKeyDisplay.GetItemAtSlot(slotNum) && item.IsEnchanted && equipTable.GetEquipSlot(item) != EquipSlots.None && GetEnchantedItemIsUseable(item))
-                {
-                    var actionSelectDialog = new DaggerfallMessageBox(uiManager, DaggerfallMessageBox.CommonMessageBoxButtons.YesNo, actionTypeSelect, this);
-                    actionSelectDialog.OnButtonClick += ActionSelectDialog_OnButtonClick;
-                    actionSelectDialog.Show();
-                }
-                else
-                {
-                    DaggerfallUI.Instance.PlayOneShot(DaggerfallWorkshop.SoundClips.ButtonClick);
-                    hotKeyDisplay.SetItemAtSlot(hotKeyItem, slotNum);
-                    hotKeyMenuPopup.SyncIcons();
-                }
-            }
-            else
-                base.LocalItemListScroller_OnItemClick(item, actionMode);
+        protected override void PaperDoll_OnMouseClick(BaseScreenComponent sender, Vector2 position, ActionModes actionMode)
+        {
+            var equipInd = paperDoll.GetEquipIndex((int)position.x, (int)position.y);
+            if (equipInd == 0xff) // No item
+                return;
+            var slot = (EquipSlots)equipInd;
+            var item = playerEntity.ItemEquipTable.GetItem(slot);
+            if (item == null || KeyItem(item))
+                return;
+            base.PaperDoll_OnMouseClick(sender, position, actionMode);
+        }
+
+        protected override void AccessoryItemsButton_OnLeftMouseClick(BaseScreenComponent sender, Vector2 position)
+        {
+            var slot = (EquipSlots)sender.Tag;
+            var item = playerEntity.ItemEquipTable.GetItem(slot);
+            if (item == null || KeyItem(item))
+                return;
+            base.AccessoryItemsButton_OnLeftMouseClick(sender, position);
         }
 
         private void ActionSelectDialog_OnButtonClick(DaggerfallMessageBox sender, DaggerfallMessageBox.MessageBoxButtons messageBoxButton)
@@ -120,6 +113,43 @@ namespace HotKeyHUD
             }
 
             return prohibited;
+        }
+
+        private bool KeyItem(DaggerfallUnityItem item)
+        {
+            var hotKeyDown = KeyCode.Alpha1 - 1;
+            var input = InputManager.Instance;
+            for (var i = 0; i <= (int)KeyCode.Alpha9; i++)
+            {
+                var key = KeyCode.Alpha1 + i;
+                if (input.GetKeyDown(input.GetComboCode(key, KeyCode.Mouse0)))
+                    hotKeyDown = key;
+            }
+
+            if (hotKeyDown >= KeyCode.Alpha1 && hotKeyDown <= KeyCode.Alpha9 &&
+                !GetProhibited(item) && item.currentCondition > 0) // Item must not be class-restricted or broken.
+            {
+                slotNum = hotKeyDown - KeyCode.Alpha1;
+                hotKeyItem = item;
+                var equipTable = GameManager.Instance.PlayerEntity.ItemEquipTable;
+                // Show prompt if enchanted item can be either equipped or used.
+                if (item != hotKeyDisplay.GetItemAtSlot(slotNum) && item.IsEnchanted && equipTable.GetEquipSlot(item) != EquipSlots.None && GetEnchantedItemIsUseable(item))
+                {
+                    var actionSelectDialog = new DaggerfallMessageBox(uiManager, DaggerfallMessageBox.CommonMessageBoxButtons.YesNo, actionTypeSelect, this);
+                    actionSelectDialog.OnButtonClick += ActionSelectDialog_OnButtonClick;
+                    actionSelectDialog.Show();
+                }
+                else
+                {
+                    DaggerfallUI.Instance.PlayOneShot(DaggerfallWorkshop.SoundClips.ButtonClick);
+                    hotKeyDisplay.SetItemAtSlot(hotKeyItem, slotNum);
+                    hotKeyMenuPopup.SyncIcons();
+                }
+
+                return true;
+            }
+
+            return false;
         }
 
         private static bool GetEnchantedItemIsUseable(DaggerfallUnityItem item)

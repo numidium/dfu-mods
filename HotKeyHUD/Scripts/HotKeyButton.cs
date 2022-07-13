@@ -43,7 +43,7 @@ namespace HotKeyHUD
             Position = position;
             originalPosition = position;
 
-            // Payload Icon - Note: doesn't always fit vertically despite scaling.
+            // Payload Icon
             Components.Add(new Panel
             {
                 BackgroundColor = Color.clear,
@@ -102,12 +102,6 @@ namespace HotKeyHUD
 
         public void UpdateCondition(int percentage, in Vector2 scale)
         {
-            if (percentage <= 0)
-            {
-                ConditionBar.Enabled = false;
-                return;
-            }
-
             // Shrink bar as value decreases.
             ConditionBar.Size = new Vector2(percentage / 100f * (maxCondBarWidth * scale.x), condBarHeight * scale.y);
             if (percentage >= 75)
@@ -150,7 +144,7 @@ namespace HotKeyHUD
         {
             const float spellIconScale = .8f;
             // Toggle clear slot.
-            if (Payload is EffectBundleSettings settings && spell.Equals(settings))
+            if (Payload is EffectBundleSettings settings && HotKeyHUD.CompareSpells(spell, settings))
             {
                 SetItem(null);
                 return;
@@ -216,7 +210,7 @@ namespace HotKeyHUD
 
             // Assign to player effect manager as ready spell
             EntityEffectManager playerEffectManager = GameManager.Instance.PlayerEffectManager;
-            if (playerEffectManager)
+            if (playerEffectManager && !GameManager.Instance.PlayerSpellCasting.IsPlayingAnim)
                 playerEffectManager.SetReadySpell(new EntityEffectBundle(spell, GameManager.Instance.PlayerEntityBehaviour), noSpellPointCost);
         }
 

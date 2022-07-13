@@ -1,0 +1,13 @@
+ Hot Key HUD
+--------------
+by numidium3rd
+
+Setup:
+1. Place .dfmod into DaggerfallUnity_Data\StreamingAssets\Mods directory.
+2. Ensure that no key binds are set to the number row.
+
+How To Use:
+1. In either your inventory or spellbook menu, hold down a key on your number row. A numbered grid should now be visible on the top-right.
+2. Left-click an item or spell to bind it to a numerical key.
+3. Repeat steps 1 and 2 for the same item/spell to toggle the hotkey back to clear.
+4. If an equippable item has an on-use enchantment, you will be prompted to either key the item as a Useable or Equippable. Select "Yes" to key it as a useable magic item. Select "No" to key it for equipping/unequipping.

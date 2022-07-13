@@ -31,6 +31,7 @@ namespace HotKeyHUD
             new Rect(0, 134, iconWidth, iconHeight), new Rect(23, 134, iconWidth, iconHeight),
         };
 
+        public static bool HideHotbar { get; set; }
         public Type SaveDataType => typeof(HotKeyHUDSaveData);
         public static string ModTitle => mod.Title;
         public static Texture2D[] ItemBackdrops
@@ -87,12 +88,6 @@ namespace HotKeyHUD
             displayComponent.Enabled = hud.Enabled;
         }
 
-        public static void InitMod()
-        {
-            //var settings = mod.GetSettings();
-            Debug.Log("Hot Key HUD initialized.");
-        }
-
         public object NewSaveData()
         {
             displayComponent.ResetButtons();
@@ -139,6 +134,10 @@ namespace HotKeyHUD
 
         public void RestoreSaveData(object saveData)
         {
+            // Clear buttons
+            foreach (var button in displayComponent.ButtonList)
+                button.SetItem(null);
+
             var data = (HotKeyHUDSaveData)saveData;
             var player = GameManager.Instance.PlayerEntity;
             var itemIndex = 0;
@@ -146,7 +145,7 @@ namespace HotKeyHUD
             for (var i = 0; i < data.payloadTypes.Count; i++)
             {
                 if (data.payloadTypes[i] == PayloadType.None)
-                    displayComponent.SetItemAtSlot(null, i, true);
+                    displayComponent.SetItemAtSlot(null, i);
                 else if (data.payloadTypes[i] == PayloadType.Item)
                 {
                     var item = player.Items.GetItem(data.itemUids[itemIndex++]);
@@ -156,6 +155,41 @@ namespace HotKeyHUD
                 else if (data.payloadTypes[i] == PayloadType.Spell)
                     displayComponent.SetSpellAtSlot(data.spells[spellIndex++], i);
             }
+        }
+
+        public static void InitMod()
+        {
+            var settings = mod.GetSettings();
+            HideHotbar = settings.GetValue<bool>("Options", "Hide hotbar");
+            Debug.Log("Hot Key HUD initialized.");
+        }
+
+        public static bool CompareSpells(in EffectBundleSettings spell1, in EffectBundleSettings spell2)
+        {
+            // Performs a shallow compare.
+            if (spell1.Version != spell2.Version ||
+                spell1.BundleType != spell2.BundleType ||
+                spell1.TargetType != spell2.TargetType ||
+                spell1.ElementType != spell2.ElementType ||
+                spell1.RuntimeFlags != spell2.RuntimeFlags ||
+                spell1.Name != spell2.Name ||
+                //spell1.IconIndex != spell2.IconIndex ||
+                spell1.MinimumCastingCost != spell2.MinimumCastingCost ||
+                spell1.NoCastingAnims != spell2.NoCastingAnims ||
+                spell1.Tag != spell2.Tag ||
+                spell1.StandardSpellIndex != spell2.StandardSpellIndex
+                //spell1.Icon.index != spell2.Icon.index ||
+                //spell1.Icon.key != spell2.Icon.key ||
+                )
+                return false;
+            var effectsLength1 = spell1.Effects == null ? 0 : spell1.Effects.Length;
+            var effectsLength2 = spell2.Effects == null ? 0 : spell2.Effects.Length;
+            var legacyEffectsLength1 = spell1.LegacyEffects == null ? 0 : spell1.LegacyEffects.Length;
+            var legacyEffectsLength2 = spell2.LegacyEffects == null ? 0 : spell2.LegacyEffects.Length;
+            if (effectsLength1 != effectsLength2 ||
+                legacyEffectsLength1 != legacyEffectsLength2)
+                return false;
+            return true;
         }
     }
 }

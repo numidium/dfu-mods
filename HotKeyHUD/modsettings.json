@@ -1,0 +1,20 @@
+{
+    "Version": "v1",
+    "Sections": [
+        {
+            "Name": "Options",
+            "Description": null,
+            "IsAdvanced": false,
+            "Keys": [
+				{
+					"Value": "false",
+                    "Name": "Hide hotbar",
+                    "Description": "Don't show hotkey display on the HUD.",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
+				}
+            ],
+            "$version": "v1"
+        }
+    ]
+}

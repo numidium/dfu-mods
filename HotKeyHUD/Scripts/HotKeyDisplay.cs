@@ -45,7 +45,7 @@ namespace HotKeyHUD
 
         public override void Draw()
         {
-            if (!Enabled)
+            if (!Enabled || HotKeyHUD.HideHotbar)
                 return;
             base.Draw();
         }
@@ -69,7 +69,9 @@ namespace HotKeyHUD
         public void SetSpellAtSlot(in EffectBundleSettings spell, int index)
         {
             for (var i = 0; i < hotKeyButtons.Length; i++)
-                if (RemoveDuplicateIfAt(index, i, hotKeyButtons[i].Payload != null && hotKeyButtons[i].Payload.Equals(spell)))
+                if (RemoveDuplicateIfAt(index, i, hotKeyButtons[i].Payload != null &&
+                        hotKeyButtons[i].Payload is EffectBundleSettings settings &&
+                        HotKeyHUD.CompareSpells(settings, spell)))
                     break;
 
             hotKeyButtons[index].SetSpell(spell);
