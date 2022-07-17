@@ -34,7 +34,7 @@ namespace HotKeyHUD
         public override void Update()
         {
             base.Update();
-            hotKeyMenuPopup.ShowOrHide(ref lastSelectedSlot);
+            hotKeyMenuPopup.HandleSlotSelect(ref lastSelectedSlot);
         }
 
         protected override void SpellsListBox_OnSelectItem()

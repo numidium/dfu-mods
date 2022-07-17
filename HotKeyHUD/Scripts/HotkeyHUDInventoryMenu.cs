@@ -39,7 +39,7 @@ namespace HotKeyHUD
         public override void Update()
         {
             base.Update();
-            hotKeyMenuPopup.ShowOrHide(ref lastSelectedSlot);
+            hotKeyMenuPopup.HandleSlotSelect(ref lastSelectedSlot);
         }
 
         protected override void LocalItemListScroller_OnItemClick(DaggerfallUnityItem item, ActionModes actionMode)
@@ -155,7 +155,6 @@ namespace HotKeyHUD
         private static bool GetEnchantedItemIsUseable(DaggerfallUnityItem item)
         {
             var enchantments = item.GetCombinedEnchantmentSettings();
-
             foreach (var enchantment in enchantments)
             {
                 var effectTemplate = GameManager.Instance.EntityEffectBroker.GetEffectTemplate(enchantment.EffectKey);

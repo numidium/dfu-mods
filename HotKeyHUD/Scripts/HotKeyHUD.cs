@@ -31,9 +31,15 @@ namespace HotKeyHUD
             new Rect(0, 134, iconWidth, iconHeight), new Rect(23, 134, iconWidth, iconHeight),
         };
 
+        // Mod settings
         public static bool HideHotbar { get; set; }
+        public static bool OverrideMenus { get; set; }
+        public static KeyCode SetupMenuKey { get; set; }
+
         public Type SaveDataType => typeof(HotKeyHUDSaveData);
         public static string ModTitle => mod.Title;
+
+        // Shared graphics
         public static Texture2D[] ItemBackdrops
         {
             get
@@ -73,8 +79,12 @@ namespace HotKeyHUD
             var hud = DaggerfallUI.Instance.DaggerfallHUD;
             if (!componentAdded && hud != null)
             {
-                UIWindowFactory.RegisterCustomUIWindow(UIWindowType.Inventory, typeof(HotkeyHUDInventoryMenu));
-                UIWindowFactory.RegisterCustomUIWindow(UIWindowType.SpellBook, typeof(HotKeyHUDSpellbookWindow));
+                if (OverrideMenus)
+                {
+                    UIWindowFactory.RegisterCustomUIWindow(UIWindowType.Inventory, typeof(HotkeyHUDInventoryMenu));
+                    UIWindowFactory.RegisterCustomUIWindow(UIWindowType.SpellBook, typeof(HotKeyHUDSpellbookWindow));
+                }
+
                 displayComponent = new HotKeyDisplay()
                 {
                     AutoSize = DaggerfallWorkshop.Game.UserInterface.AutoSizeModes.Scale,
@@ -91,7 +101,6 @@ namespace HotKeyHUD
         public object NewSaveData()
         {
             displayComponent.ResetButtons();
-
             return new HotKeyHUDSaveData
             {
                 payloadTypes = new List<PayloadType>(),
@@ -161,6 +170,16 @@ namespace HotKeyHUD
         {
             var settings = mod.GetSettings();
             HideHotbar = settings.GetValue<bool>("Options", "Hide hotbar");
+            OverrideMenus = settings.GetValue<bool>("Options", "Override menus");
+            var menuKeyText = settings.GetValue<string>("Options", "Hotkey Setup Menu Key");
+            if (Enum.TryParse(menuKeyText, out KeyCode result))
+                SetupMenuKey = result;
+            else
+            {
+                SetupMenuKey = KeyCode.Alpha0;
+                Debug.Log("Hot Key HUD: Invalid setup menu keybind detected. Setting default.");
+            }
+
             Debug.Log("Hot Key HUD initialized.");
         }
 

@@ -8,15 +8,29 @@ namespace HotKeyHUD
 {
     public class HotKeyMenuPopup : Panel
     {
-        const float xOffset = 222f;
-        const float yOffset = 9f;
+        const float defaultXOffset = 222f;
+        const float defaultYOffset = 9f;
+        readonly float xOffset;
+        readonly float yOffset;
         HotKeyButton[] hotKeyButtons;
         HotKeyDisplay hotKeyDisplay;
         public bool Initialized { get; private set; }
+        bool clickable;
 
-        public HotKeyMenuPopup() : base()
+        public HotKeyMenuPopup(bool clickable = false) : base()
         {
-            Enabled = false;
+            xOffset = defaultXOffset;
+            yOffset = defaultYOffset;
+            Enabled = clickable;
+            this.clickable = clickable;
+        }
+
+        public HotKeyMenuPopup(float x, float y, bool clickable = false) : base()
+        {
+            xOffset = x;
+            yOffset = y;
+            Enabled = clickable;
+            this.clickable = clickable;
         }
 
         public override void Update()
@@ -70,7 +84,7 @@ namespace HotKeyHUD
             }
         }
 
-        public void ShowOrHide(ref int lastSelectedSlot)
+        public void HandleSlotSelect(ref int lastSelectedSlot)
         {
             // Show hotkey popup when hotkey is pressed and hide when released.
             var hotKey = KeyCode.Alpha1 - 1;
@@ -90,7 +104,7 @@ namespace HotKeyHUD
                     SetSelectedSlot(slotNum);
                 lastSelectedSlot = slotNum;
             }
-            else
+            else if (clickable == false)
                 Enabled = false;
         }
 
@@ -101,8 +115,9 @@ namespace HotKeyHUD
             for (int i = 0; i < hotKeyButtons.Length; i++)
             {
                 hotKeyButtons[i] = new HotKeyButton(itemBackdrops[i],
-                    new Vector2(xOffset + (float)((i % 3) * HotKeyButton.iconWidth), yOffset + (i / 3) * HotKeyButton.iconHeight + .5f),
-                                i + 1);
+                    new Vector2(xOffset + (float)((i % 3) * HotKeyButton.iconWidth), yOffset + (i / 3) * HotKeyButton.iconHeight + .5f), i + 1);
+                if (clickable)
+                    hotKeyButtons[i].OnMouseClick += HotKeyMenuPopup_OnMouseClick;
                 Components.Add(hotKeyButtons[i]);
             }
 
@@ -110,6 +125,13 @@ namespace HotKeyHUD
             SyncIcons();
 
             Initialized = true;
+        }
+
+        private void HotKeyMenuPopup_OnMouseClick(BaseScreenComponent sender, Vector2 position)
+        {
+            var button = sender as HotKeyButton;
+            SetSelectedSlot(button.PositionIndex);
+            DaggerfallUI.Instance.PlayOneShot(DaggerfallWorkshop.SoundClips.ButtonClick);
         }
 
         private void SetScale(Vector2 scale)

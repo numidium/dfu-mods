@@ -8,11 +8,25 @@
             "Keys": [
 				{
 					"Value": "false",
-                    "Name": "Hide hotbar",
+                    "Name": "Hide Hotbar",
                     "Description": "Don't show hotkey display on the HUD.",
                     "$version": "v1",
                     "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
-				}
+				},
+				{
+					"Value": "true",
+                    "Name": "Override Menus",
+                    "Description": "Allow setting hotkeys from inventory/spellbook menus. Disable if there are mod conflicts.",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
+				},
+				{
+                    "Value": "Alpha0",
+                    "Name": "Hotkey Setup Menu Key",
+                    "Description": "Which key opens the hotkey setup menu. Only works if Override Menus is set.",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.TextKey"
+                }
             ],
             "$version": "v1"
         }

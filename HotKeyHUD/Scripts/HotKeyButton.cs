@@ -26,6 +26,7 @@ namespace HotKeyHUD
 
         public bool ForceUse { get; set; }
         public object Payload { get; set; }
+        public byte PositionIndex { get; set; }
         public Panel Icon => (Panel)Components[iconPanelSlot];
         public TextLabel KeyLabel => (TextLabel)Components[buttonKeyLabelSlot];
         public TextLabel StackLabel => (TextLabel)Components[buttonStackLabelSlot];
@@ -83,6 +84,8 @@ namespace HotKeyHUD
                 BackgroundColor = Color.green,
                 Enabled = false
             });
+
+            PositionIndex = (byte)(keyIndex - 1);
         }
 
         public override void Draw()

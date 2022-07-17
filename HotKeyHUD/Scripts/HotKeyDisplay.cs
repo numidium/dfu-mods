@@ -1,6 +1,7 @@
 using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.Items;
 using DaggerfallWorkshop.Game.MagicAndEffects;
+using DaggerfallWorkshop.Game.Serialization;
 using DaggerfallWorkshop.Game.UserInterface;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,6 +17,7 @@ namespace HotKeyHUD
         DaggerfallUnityItem lastRightHandItem;
         DaggerfallUnityItem lastLeftHandItem;
         public List<HotKeyButton> ButtonList => hotKeyButtons.ToList();
+        HotKeySetupWindow setupWindow;
 
         public HotKeyDisplay() : base()
         {
@@ -40,6 +42,15 @@ namespace HotKeyHUD
             {
                 if (button.ConditionBar.Enabled && button.Payload is DaggerfallUnityItem item)
                     button.UpdateCondition(item.ConditionPercentage, Scale);
+            }
+
+            if (!HotKeyHUD.OverrideMenus && keyDown == HotKeyHUD.SetupMenuKey &&
+                !GameManager.IsGamePaused && !SaveLoadManager.Instance.LoadInProgress && DaggerfallUI.UIManager.WindowCount == 0)
+            {
+                var uiManager = DaggerfallUI.Instance.UserInterfaceManager;
+                if (setupWindow == null)
+                    setupWindow = new HotKeySetupWindow(uiManager);
+                uiManager.PushWindow(setupWindow);
             }
         }
 
