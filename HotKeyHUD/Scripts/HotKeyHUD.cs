@@ -144,7 +144,8 @@ namespace HotKeyHUD
         public void RestoreSaveData(object saveData)
         {
             // Clear buttons
-            foreach (var button in displayComponent.ButtonList)
+            var buttonList = displayComponent.ButtonList;
+            foreach (var button in buttonList)
                 button.SetItem(null);
 
             var data = (HotKeyHUDSaveData)saveData;
@@ -169,8 +170,8 @@ namespace HotKeyHUD
         public static void InitMod()
         {
             var settings = mod.GetSettings();
-            HideHotbar = settings.GetValue<bool>("Options", "Hide hotbar");
-            OverrideMenus = settings.GetValue<bool>("Options", "Override menus");
+            HideHotbar = settings.GetValue<bool>("Options", "Hide Hotbar");
+            OverrideMenus = settings.GetValue<bool>("Options", "Override Menus");
             var menuKeyText = settings.GetValue<string>("Options", "Hotkey Setup Menu Key");
             if (Enum.TryParse(menuKeyText, out KeyCode result))
                 SetupMenuKey = result;

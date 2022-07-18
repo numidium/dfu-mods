@@ -11,13 +11,14 @@ namespace HotKeyHUD
 {
     public class HotKeyDisplay : Panel
     {
-        const float iconsY = 177f;
-        bool initialized = false;
-        HotKeyButton[] hotKeyButtons;
-        DaggerfallUnityItem lastRightHandItem;
-        DaggerfallUnityItem lastLeftHandItem;
+        private const float iconsY = 177f;
+        private bool initialized = false;
+        private HotKeyButton[] hotKeyButtons;
+        private DaggerfallUnityItem lastRightHandItem;
+        private DaggerfallUnityItem lastLeftHandItem;
+        private HotKeySetupWindow setupWindow;
+
         public List<HotKeyButton> ButtonList => hotKeyButtons.ToList();
-        HotKeySetupWindow setupWindow;
 
         public HotKeyDisplay() : base()
         {

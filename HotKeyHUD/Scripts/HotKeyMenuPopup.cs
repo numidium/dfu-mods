@@ -8,14 +8,15 @@ namespace HotKeyHUD
 {
     public class HotKeyMenuPopup : Panel
     {
-        const float defaultXOffset = 222f;
-        const float defaultYOffset = 9f;
-        readonly float xOffset;
-        readonly float yOffset;
-        HotKeyButton[] hotKeyButtons;
-        HotKeyDisplay hotKeyDisplay;
+        private const float defaultXOffset = 222f;
+        private const float defaultYOffset = 9f;
+        private readonly float xOffset;
+        private readonly float yOffset;
+        private readonly bool clickable;
+        private HotKeyButton[] hotKeyButtons;
+        private HotKeyDisplay hotKeyDisplay;
         public bool Initialized { get; private set; }
-        bool clickable;
+        public int SelectedSlot { get; private set; }
 
         public HotKeyMenuPopup(bool clickable = false) : base()
         {
@@ -82,6 +83,8 @@ namespace HotKeyHUD
                 else
                     hotKeyButtons[i].KeyLabel.TextColor = DaggerfallUI.DaggerfallDefaultTextColor;
             }
+
+            SelectedSlot = index;
         }
 
         public void HandleSlotSelect(ref int lastSelectedSlot)
@@ -123,7 +126,8 @@ namespace HotKeyHUD
 
             hotKeyDisplay = (HotKeyDisplay)DaggerfallUI.Instance.DaggerfallHUD.ParentPanel.Components.FirstOrDefault(x => x.GetType() == typeof(HotKeyDisplay));
             SyncIcons();
-
+            if (clickable)
+                SetSelectedSlot(0);
             Initialized = true;
         }
 
