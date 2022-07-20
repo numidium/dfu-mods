@@ -85,7 +85,7 @@ namespace HotKeyHUD
                         hotKeyButtons[i].Payload is EffectBundleSettings settings &&
                         HotKeyHUD.CompareSpells(settings, spell)))
                     break;
-
+            hotKeyButtons[index].StackLabel.Enabled = false;
             hotKeyButtons[index].SetSpell(spell);
         }
 

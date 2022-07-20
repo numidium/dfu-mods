@@ -14,27 +14,38 @@ namespace HotKeyHUD
     {
         private const float topMarginHeight = 30f;
         private const float paddingWidth = 21f;
-        private static Rect menuPopupRect = new Rect(21f, topMarginHeight, HotKeyButton.iconWidth * 3f, HotKeyButton.iconHeight * 3f);
-        private static Rect itemListScrollerRect = new Rect(menuPopupRect.x + menuPopupRect.width + paddingWidth, topMarginHeight, 59f, 152f);
-        private static Rect spellsListRect = new Rect(itemListScrollerRect.x + itemListScrollerRect.width + paddingWidth, topMarginHeight, 110f, 130f);
-        private static Rect spellsListCutoutRect = new Rect(0f, 0f, 120f, 147f);
-        private static Rect exitButtonCutoutRect = new Rect(216f, 149f, 43f, 15f);
+        private const float magicAnimationDelay = 0.15f;
+        private const string magicAnimTextureName = "TEXTURE.434";
+        private const string spellBookTextureFilename = "SPBK00I0.IMG";
+        private readonly Rect menuPopupRect;
+        private readonly Rect itemListScrollerRect;
+        private readonly Rect spellsListCutoutRect;
+        private readonly Rect spellsListRect;
+        private readonly Rect spellsListScrollBarRect;
+        private readonly Rect exitButtonCutoutRect;
         private readonly HotKeyDisplay hotKeyDisplay;
         private HotKeyMenuPopup hotKeyMenuPopup;
         private ItemListScroller itemListScroller;
+        private VerticalScrollBar spellsListScrollBar;
         private ListBox spellsList;
+        private ImageData magicAnimation;
         private int lastSelectedSlot = -1;
-        private const string spellBookTextureFilename = "SPBK00I0.IMG";
         private Panel spellsListPanel;
+        private Panel spellsListScrollBarPanel;
         private Panel exitButtonPanel;
         private DaggerfallUnityItem hotKeyItem;
-        private const string actionTypeSelect = "This item can be either Used or Equipped. Key as Use?"; // TODO: this is duplicated in HotkeyHUDInventory - remove duplicate
         private int slotNum;
 
         public HotKeySetupWindow(IUserInterfaceManager uiManager) : base(uiManager)
         {
             hotKeyDisplay = (HotKeyDisplay)DaggerfallUI.Instance.DaggerfallHUD.ParentPanel.Components.FirstOrDefault(x => x.GetType() == typeof(HotKeyDisplay));
-        }
+            menuPopupRect = new Rect(21f, topMarginHeight, HotKeyButton.iconWidth * 3f, HotKeyButton.iconHeight * 3f);
+            itemListScrollerRect = new Rect(menuPopupRect.x + menuPopupRect.width + paddingWidth, topMarginHeight, 59f, 152f);
+            spellsListCutoutRect = new Rect(0f, 0f, 120f, 147f);
+            spellsListRect = new Rect(itemListScrollerRect.x + itemListScrollerRect.width + paddingWidth, topMarginHeight, spellsListCutoutRect.width, spellsListCutoutRect.height);
+            spellsListScrollBarRect = new Rect(spellsListRect.x + spellsListRect.width + 1f, topMarginHeight + 27f, 7f, spellsListCutoutRect.height - 43f);
+            exitButtonCutoutRect = new Rect(216f, 149f, 43f, 15f);
+    }
 
         public override void OnPush()
         {
@@ -43,6 +54,8 @@ namespace HotKeyHUD
             {
                 ResetItemsList();
                 ResetSpellsList();
+                UpdateSpellScroller();
+                hotKeyMenuPopup.SyncIcons();
             }
         }
 
@@ -61,10 +74,13 @@ namespace HotKeyHUD
             if (IsSetup)
                 return;
             base.Setup();
+            magicAnimation = ImageReader.GetImageData(magicAnimTextureName, 5, 0, true, false, true);
             itemListScroller = new ItemListScroller(defaultToolTip)
             {
                 Position = new Vector2(itemListScrollerRect.x, itemListScrollerRect.y),
-                Size = new Vector2(itemListScrollerRect.width, itemListScrollerRect.height)
+                Size = new Vector2(itemListScrollerRect.width, itemListScrollerRect.height),
+                ForegroundAnimationHandler = MagicItemForegroundAnimationHander,
+                ForegroundAnimationDelay = magicAnimationDelay
             };
 
             itemListScroller.OnItemClick += ItemListScroller_OnItemClick;
@@ -73,17 +89,41 @@ namespace HotKeyHUD
             spellsListPanel = new Panel()
             {
                 Position = new Vector2(spellsListRect.x, spellsListRect.y),
-                Size = new Vector2(spellsListRect.width, spellsListRect.height),
+                Size = new Vector2(spellsListCutoutRect.width, spellsListCutoutRect.height),
                 BackgroundTexture = ImageReader.GetSubTexture(spellbookTexture, spellsListCutoutRect)
             };
-
+            
             spellsList = new ListBox()
             {
                 Position = new Vector2(6f, 13f),
                 Size = new Vector2(spellsListRect.width - 13f, spellsListRect.height - 6f),
+                RowsDisplayed = 16,
+                MaxCharacters = 22
             };
 
             spellsList.OnSelectItem += SpellsList_OnSelectItem;
+            spellsList.OnMouseScrollDown += SpellsListBox_OnMouseScroll;
+            spellsList.OnMouseScrollUp += SpellsListBox_OnMouseScroll;
+
+            spellsListScrollBarPanel = new Panel()
+            {
+                Position = new Vector2(spellsListScrollBarRect.x - 1f, spellsListScrollBarRect.y - 16f),
+                Size = new Vector2(8f, 137f),
+                BackgroundTexture = ImageReader.GetSubTexture(spellbookTexture, new Rect(spellsListCutoutRect.x + 121f, 11f, 8f, 137f))
+            };
+
+            spellsListScrollBar = new VerticalScrollBar()
+            {
+                HorizontalAlignment = HorizontalAlignment.None,
+                VerticalAlignment = VerticalAlignment.None,
+                Position = new Vector2(spellsListScrollBarRect.x, spellsListScrollBarRect.y),
+                Size = new Vector2(spellsListScrollBarRect.width, spellsListScrollBarRect.height),
+                TotalUnits = spellsList.Count,
+                DisplayUnits = spellsList.RowsDisplayed,
+                ScrollIndex = 0
+            };
+
+            spellsListScrollBar.OnScroll += SpellsListScrollBar_OnScroll;
 
             exitButtonPanel = new Panel()
             {
@@ -99,6 +139,8 @@ namespace HotKeyHUD
             spellsListPanel.Components.Add(spellsList);
             NativePanel.Components.Add(itemListScroller);
             NativePanel.Components.Add(spellsListPanel);
+            NativePanel.Components.Add(spellsListScrollBarPanel);
+            NativePanel.Components.Add(spellsListScrollBar);
             NativePanel.Components.Add(hotKeyMenuPopup);
             NativePanel.Components.Add(exitButtonPanel);
             NativePanel.Components.Add(new TextLabel()
@@ -111,6 +153,7 @@ namespace HotKeyHUD
                 exitButtonCutoutRect.width, exitButtonCutoutRect.height), NativePanel);
             exitButton.OnMouseClick += ExitButton_OnMouseClick;
             exitButton.ClickSound = DaggerfallUI.Instance.GetAudioClip(SoundClips.ButtonClick);
+            UpdateSpellScroller();
             IsSetup = true;
         }
 
@@ -121,7 +164,7 @@ namespace HotKeyHUD
 
         private void ItemListScroller_OnItemClick(DaggerfallUnityItem item)
         {
-            KeyItem(item);
+            HotKeyHUD.KeyItem(item, ref slotNum, uiManager, this, hotKeyMenuPopup, ActionSelectDialog_OnButtonClick, ref hotKeyItem, hotKeyDisplay);
         }
 
         private void SpellsList_OnSelectItem()
@@ -130,6 +173,7 @@ namespace HotKeyHUD
             var spell = spellBook[spellsList.SelectedIndex];
             hotKeyDisplay.SetSpellAtSlot(in spell, hotKeyMenuPopup.SelectedSlot);
             hotKeyMenuPopup.SyncIcons();
+            UpdateSpellScroller();
             DaggerfallUI.Instance.PlayOneShot(SoundClips.ButtonClick);
         }
 
@@ -150,34 +194,6 @@ namespace HotKeyHUD
                 spellsList.AddItem(spell.Name);
         }
 
-        // TODO: repeated in HotKeyHUDInventoryMenu - remove repetition
-        private bool KeyItem(DaggerfallUnityItem item)
-        {
-            if (!GetProhibited(item) && item.currentCondition > 0) // Item must not be class-restricted or broken.
-            {
-                slotNum = hotKeyMenuPopup.SelectedSlot;
-                hotKeyItem = item;
-                var equipTable = GameManager.Instance.PlayerEntity.ItemEquipTable;
-                // Show prompt if enchanted item can be either equipped or used.
-                if (item != hotKeyDisplay.GetItemAtSlot(slotNum) && item.IsEnchanted && equipTable.GetEquipSlot(item) != EquipSlots.None && GetEnchantedItemIsUseable(item))
-                {
-                    var actionSelectDialog = new DaggerfallMessageBox(uiManager, DaggerfallMessageBox.CommonMessageBoxButtons.YesNo, actionTypeSelect, this);
-                    actionSelectDialog.OnButtonClick += ActionSelectDialog_OnButtonClick;
-                    actionSelectDialog.Show();
-                }
-                else
-                {
-                    DaggerfallUI.Instance.PlayOneShot(SoundClips.ButtonClick);
-                    hotKeyDisplay.SetItemAtSlot(hotKeyItem, slotNum);
-                    hotKeyMenuPopup.SyncIcons();
-                }
-
-                return true;
-            }
-
-            return false;
-        }
-
         private void ActionSelectDialog_OnButtonClick(DaggerfallMessageBox sender, DaggerfallMessageBox.MessageBoxButtons messageBoxButton)
         {
             sender.CloseWindow();
@@ -189,54 +205,26 @@ namespace HotKeyHUD
             hotKeyMenuPopup.SyncIcons();
         }
 
-        // Adapted from DaggerfallInventoryWindow
-        // Note: Prohibited check will be run twice if it fails here.
-        // TODO: repeated in HotKeyHUDInventoryMenu - remove repetition
-        private static bool GetProhibited(DaggerfallUnityItem item)
+        private Texture2D[] MagicItemForegroundAnimationHander(DaggerfallUnityItem item)
         {
-            var prohibited = false;
-            var playerEntity = GameManager.Instance.PlayerEntity;
-
-            if (item.ItemGroup == ItemGroups.Armor)
-            {
-                // Check for prohibited shield
-                if (item.IsShield && ((1 << (item.TemplateIndex - (int)Armor.Buckler) & (int)playerEntity.Career.ForbiddenShields) != 0))
-                    prohibited = true;
-
-                // Check for prohibited armor type (leather, chain or plate)
-                else if (!item.IsShield && (1 << (item.NativeMaterialValue >> 8) & (int)playerEntity.Career.ForbiddenArmors) != 0)
-                    prohibited = true;
-
-                // Check for prohibited material
-                else if (((item.nativeMaterialValue >> 8) == 2)
-                    && (1 << (item.NativeMaterialValue & 0xFF) & (int)playerEntity.Career.ForbiddenMaterials) != 0)
-                    prohibited = true;
-            }
-            else if (item.ItemGroup == ItemGroups.Weapons)
-            {
-                // Check for prohibited weapon type
-                if ((item.GetWeaponSkillUsed() & (int)playerEntity.Career.ForbiddenProficiencies) != 0)
-                    prohibited = true;
-                // Check for prohibited material
-                else if ((1 << item.NativeMaterialValue & (int)playerEntity.Career.ForbiddenMaterials) != 0)
-                    prohibited = true;
-            }
-
-            return prohibited;
+            return (item.IsEnchanted) ? magicAnimation.animatedTextures : null;
         }
 
-        // TODO: repeated in HotKeyHUDInventoryMenu - remove repetition
-        private static bool GetEnchantedItemIsUseable(DaggerfallUnityItem item)
+        private void UpdateSpellScroller()
         {
-            var enchantments = item.GetCombinedEnchantmentSettings();
-            foreach (var enchantment in enchantments)
-            {
-                var effectTemplate = GameManager.Instance.EntityEffectBroker.GetEffectTemplate(enchantment.EffectKey);
-                if (effectTemplate.HasEnchantmentPayloadFlags(DaggerfallWorkshop.Game.MagicAndEffects.EnchantmentPayloadFlags.Used))
-                    return true;
-            }
+            spellsListScrollBar.Reset(spellsList.RowsDisplayed, spellsList.Count, spellsList.ScrollIndex);
+            spellsListScrollBar.TotalUnits = spellsList.Count;
+            spellsListScrollBar.ScrollIndex = spellsList.ScrollIndex;
+        }
 
-            return false;
+        protected virtual void SpellsListScrollBar_OnScroll()
+        {
+            spellsList.ScrollIndex = spellsListScrollBar.ScrollIndex;
+        }
+
+        protected virtual void SpellsListBox_OnMouseScroll(BaseScreenComponent sender)
+        {
+            spellsListScrollBar.ScrollIndex = spellsList.ScrollIndex;
         }
     }
 }

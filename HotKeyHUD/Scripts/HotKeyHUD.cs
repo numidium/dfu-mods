@@ -8,21 +8,22 @@ using DaggerfallWorkshop.Game.MagicAndEffects;
 using DaggerfallWorkshop.Game.Items;
 using DaggerfallWorkshop.Utility;
 using DaggerfallConnect.Utility;
+using DaggerfallWorkshop;
+using DaggerfallWorkshop.Game.UserInterface;
 
 namespace HotKeyHUD
 {
     public class HotKeyHUD : MonoBehaviour, IHasModSaveData
     {
         public const byte iconCount = 9;
-        const string baseInvTextureName = "INVE00I0.IMG";
-        const float iconWidth = 22f;
-        const float iconHeight = 22f;
-
-        static Mod mod;
-        bool componentAdded;
-        HotKeyDisplay displayComponent;
-        static Texture2D[] itemBackdrops;
-        static readonly Rect[] backdropCutouts = new Rect[]
+        private const string baseInvTextureName = "INVE00I0.IMG";
+        private const float iconWidth = 22f;
+        private const float iconHeight = 22f;
+        private static Mod mod;
+        private bool componentAdded;
+        private HotKeyDisplay displayComponent;
+        private static Texture2D[] itemBackdrops;
+        private static readonly Rect[] backdropCutouts = new Rect[]
         {
             new Rect(0, 10, iconWidth, iconHeight),  new Rect(23, 10, iconWidth, iconHeight),
             new Rect(0, 41, iconWidth, iconHeight),  new Rect(23, 41, iconWidth, iconHeight),
@@ -35,7 +36,6 @@ namespace HotKeyHUD
         public static bool HideHotbar { get; set; }
         public static bool OverrideMenus { get; set; }
         public static KeyCode SetupMenuKey { get; set; }
-
         public Type SaveDataType => typeof(HotKeyHUDSaveData);
         public static string ModTitle => mod.Title;
 
@@ -56,8 +56,6 @@ namespace HotKeyHUD
                 return itemBackdrops;
             }
         }
-
-        public Rect[] BackdropCutouts => backdropCutouts;
 
         [Invoke(StateManager.StateTypes.Start, 0)]
         public static void Init(InitParams initParams)
@@ -147,7 +145,6 @@ namespace HotKeyHUD
             var buttonList = displayComponent.ButtonList;
             foreach (var button in buttonList)
                 button.SetItem(null);
-
             var data = (HotKeyHUDSaveData)saveData;
             var player = GameManager.Instance.PlayerEntity;
             var itemIndex = 0;
@@ -210,6 +207,82 @@ namespace HotKeyHUD
                 legacyEffectsLength1 != legacyEffectsLength2)
                 return false;
             return true;
+        }
+
+        // Adapted from DaggerfallInventoryWindow
+        public static bool GetProhibited(DaggerfallUnityItem item)
+        {
+            var prohibited = false;
+            var playerEntity = GameManager.Instance.PlayerEntity;
+
+            if (item.ItemGroup == ItemGroups.Armor)
+            {
+                // Check for prohibited shield
+                if (item.IsShield && ((1 << (item.TemplateIndex - (int)Armor.Buckler) & (int)playerEntity.Career.ForbiddenShields) != 0))
+                    prohibited = true;
+
+                // Check for prohibited armor type (leather, chain or plate)
+                else if (!item.IsShield && (1 << (item.NativeMaterialValue >> 8) & (int)playerEntity.Career.ForbiddenArmors) != 0)
+                    prohibited = true;
+
+                // Check for prohibited material
+                else if (((item.nativeMaterialValue >> 8) == 2)
+                    && (1 << (item.NativeMaterialValue & 0xFF) & (int)playerEntity.Career.ForbiddenMaterials) != 0)
+                    prohibited = true;
+            }
+            else if (item.ItemGroup == ItemGroups.Weapons)
+            {
+                // Check for prohibited weapon type
+                if ((item.GetWeaponSkillUsed() & (int)playerEntity.Career.ForbiddenProficiencies) != 0)
+                    prohibited = true;
+                // Check for prohibited material
+                else if ((1 << item.NativeMaterialValue & (int)playerEntity.Career.ForbiddenMaterials) != 0)
+                    prohibited = true;
+            }
+
+            return prohibited;
+        }
+
+        public static bool GetEnchantedItemIsUseable(DaggerfallUnityItem item)
+        {
+            var enchantments = item.GetCombinedEnchantmentSettings();
+            foreach (var enchantment in enchantments)
+            {
+                var effectTemplate = GameManager.Instance.EntityEffectBroker.GetEffectTemplate(enchantment.EffectKey);
+                if (effectTemplate.HasEnchantmentPayloadFlags(EnchantmentPayloadFlags.Used))
+                    return true;
+            }
+
+            return false;
+        }
+
+        public static bool KeyItem(DaggerfallUnityItem item, ref int slotNum, IUserInterfaceManager uiManager, IUserInterfaceWindow prevWindow, HotKeyMenuPopup hotKeyMenuPopup,
+            DaggerfallMessageBox.OnButtonClickHandler onButtonClickHandler, ref DaggerfallUnityItem hotKeyItem, HotKeyDisplay hotKeyDisplay)
+        {
+            const string actionTypeSelect = "This item can be either Used or Equipped. Key as Use?";
+            if (!GetProhibited(item) && item.currentCondition > 0) // Item must not be class-restricted or broken.
+            {
+                slotNum = hotKeyMenuPopup.SelectedSlot;
+                hotKeyItem = item;
+                var equipTable = GameManager.Instance.PlayerEntity.ItemEquipTable;
+                // Show prompt if enchanted item can be either equipped or used.
+                if (item != hotKeyDisplay.GetItemAtSlot(slotNum) && item.IsEnchanted && equipTable.GetEquipSlot(item) != EquipSlots.None && GetEnchantedItemIsUseable(item))
+                {
+                    var actionSelectDialog = new DaggerfallMessageBox(uiManager, DaggerfallMessageBox.CommonMessageBoxButtons.YesNo, actionTypeSelect, prevWindow);
+                    actionSelectDialog.OnButtonClick += onButtonClickHandler;
+                    actionSelectDialog.Show();
+                }
+                else
+                {
+                    DaggerfallUI.Instance.PlayOneShot(SoundClips.ButtonClick);
+                    hotKeyDisplay.SetItemAtSlot(hotKeyItem, slotNum);
+                    hotKeyMenuPopup.SyncIcons();
+                }
+
+                return true;
+            }
+
+            return false;
         }
     }
 }
