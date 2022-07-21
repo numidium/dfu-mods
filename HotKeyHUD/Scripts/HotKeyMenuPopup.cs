@@ -74,7 +74,9 @@ namespace HotKeyHUD
 
         public void SetSelectedSlot(int index)
         {
-            if (index < 0 || hotKeyButtons == null)
+            if (hotKeyButtons == null)
+                Initialize();
+            if (index < 0)
                 return;
             for (var i = 0; i < hotKeyButtons.Length; i++)
             {

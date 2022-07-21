@@ -224,10 +224,14 @@ namespace HotKeyHUD
             // Use enchanted item.
             if (item.IsEnchanted && (equipTable.GetEquipSlot(item) == EquipSlots.None || ForceUse))
             {
-                GameManager.Instance.PlayerEffectManager.DoItemEnchantmentPayloads(EnchantmentPayloadFlags.Used, item, player.Items);
-                // Remove item if broken by use.
-                if (item.currentCondition <= 0)
-                    SetItem(null);
+                var playerEffectManager = GameManager.Instance.PlayerEffectManager;
+                if (playerEffectManager && !GameManager.Instance.PlayerSpellCasting.IsPlayingAnim)
+                {
+                    GameManager.Instance.PlayerEffectManager.DoItemEnchantmentPayloads(EnchantmentPayloadFlags.Used, item, player.Items);
+                    // Remove item if broken by use.
+                    if (item.currentCondition <= 0)
+                        SetItem(null);
+                }
             }
             // Do drugs.
             // Note: Copied from DaggerfallInventoryWindow
@@ -242,8 +246,6 @@ namespace HotKeyHUD
             {
                 GameManager.Instance.PlayerEffectManager.DrinkPotion(item);
                 player.Items.RemoveOne(item);
-                if (item.stackCount == 0) // Camel-case public fields? :)
-                    SetItem(null);
             }
             // Toggle item unequipped.
             else if (equipTable.IsEquipped(item))
@@ -273,34 +275,27 @@ namespace HotKeyHUD
             else if (item.ItemGroup == ItemGroups.Transportation)
             {
                 if (GameManager.Instance.IsPlayerInside)
-                {
                     DaggerfallUI.AddHUDText(TextManager.Instance.GetLocalizedText("cannotChangeTransportationIndoors"));
-                    return;
+                else if (GameManager.Instance.PlayerController.isGrounded)
+                {
+                    var transportManager = GameManager.Instance.TransportManager;
+                    var mode = transportManager.TransportMode;
+                    if (item.TemplateIndex == (int)Transportation.Small_cart && mode != TransportModes.Cart)
+                        transportManager.TransportMode = TransportModes.Cart;
+                    else if (item.TemplateIndex == (int)Transportation.Horse && mode != TransportModes.Horse)
+                        transportManager.TransportMode = TransportModes.Horse;
+                    else
+                        transportManager.TransportMode = TransportModes.Foot;
                 }
-
-                if (!GameManager.Instance.PlayerController.isGrounded)
-                    return;
-                var transportManager = GameManager.Instance.TransportManager;
-                var mode = transportManager.TransportMode;
-                if (item.TemplateIndex == (int)Transportation.Small_cart && mode != TransportModes.Cart)
-                    transportManager.TransportMode = TransportModes.Cart;
-                else if (item.TemplateIndex == (int)Transportation.Horse && mode != TransportModes.Horse)
-                    transportManager.TransportMode = TransportModes.Horse;
-                else
-                    transportManager.TransportMode = TransportModes.Foot;
             }
             // Otherwise, use a non-equippable.
             else if (equipTable.GetEquipSlot(item) == EquipSlots.None)
             {
                 // Try to use a delegate that may have been registered by a mod.
                 if (DaggerfallUnity.Instance.ItemHelper.GetItemUseHandler(item.TemplateIndex, out ItemHelper.ItemUseHandler itemUseHandler))
-                {
-                    if (itemUseHandler(item, player.Items))
-                        return;
-                }
-
+                    itemUseHandler(item, player.Items);
                 // Handle normal items
-                if (item.ItemGroup == ItemGroups.Books && !item.IsArtifact)
+                else if (item.ItemGroup == ItemGroups.Books && !item.IsArtifact)
                 {
                     DaggerfallUI.Instance.BookReaderWindow.OpenBook(item);
                     if (DaggerfallUI.Instance.BookReaderWindow.IsBookOpen)
@@ -312,6 +307,10 @@ namespace HotKeyHUD
             // Toggle item equipped.
             else
                 unequippedList = equipTable.EquipItem(item);
+
+            // Remove consumed stacks.
+            if (item.stackCount == 0) // Camel-case public fields? :)
+                SetItem(null);
 
             // Handle equipped armor and list of unequipped items.
             if (unequippedList != null)
@@ -329,7 +328,7 @@ namespace HotKeyHUD
             bool noSpellPointCost = spell.Tag == PlayerEntity.lycanthropySpellTag;
 
             // Assign to player effect manager as ready spell
-            EntityEffectManager playerEffectManager = GameManager.Instance.PlayerEffectManager;
+            var playerEffectManager = GameManager.Instance.PlayerEffectManager;
             if (playerEffectManager && !GameManager.Instance.PlayerSpellCasting.IsPlayingAnim)
                 playerEffectManager.SetReadySpell(new EntityEffectBundle(spell, GameManager.Instance.PlayerEntityBehaviour), noSpellPointCost);
         }
