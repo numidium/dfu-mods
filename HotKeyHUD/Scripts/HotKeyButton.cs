@@ -6,7 +6,6 @@ using DaggerfallWorkshop.Game.Items;
 using DaggerfallWorkshop.Game.MagicAndEffects;
 using DaggerfallWorkshop.Game.Questing;
 using DaggerfallWorkshop.Game.UserInterface;
-using DaggerfallWorkshop.Game.UserInterfaceWindows;
 using System;
 using System.Collections.Generic;
 using UnityEngine;

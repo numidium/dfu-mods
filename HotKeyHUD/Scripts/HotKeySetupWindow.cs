@@ -29,11 +29,11 @@ namespace HotKeyHUD
         private VerticalScrollBar spellsListScrollBar;
         private ListBox spellsList;
         private ImageData magicAnimation;
-        private int lastSelectedSlot = -1;
         private Panel spellsListPanel;
         private Panel spellsListScrollBarPanel;
         private Panel exitButtonPanel;
         private DaggerfallUnityItem hotKeyItem;
+        private int lastSelectedSlot = -1;
         private int slotNum;
 
         public HotKeySetupWindow(IUserInterfaceManager uiManager) : base(uiManager)
@@ -45,7 +45,7 @@ namespace HotKeyHUD
             spellsListRect = new Rect(itemListScrollerRect.x + itemListScrollerRect.width + paddingWidth, topMarginHeight, spellsListCutoutRect.width, spellsListCutoutRect.height);
             spellsListScrollBarRect = new Rect(spellsListRect.x + spellsListRect.width + 1f, topMarginHeight + 27f, 7f, spellsListCutoutRect.height - 43f);
             exitButtonCutoutRect = new Rect(216f, 149f, 43f, 15f);
-    }
+        }
 
         public override void OnPush()
         {
@@ -205,10 +205,7 @@ namespace HotKeyHUD
             hotKeyMenuPopup.SyncIcons();
         }
 
-        private Texture2D[] MagicItemForegroundAnimationHander(DaggerfallUnityItem item)
-        {
-            return (item.IsEnchanted) ? magicAnimation.animatedTextures : null;
-        }
+        private Texture2D[] MagicItemForegroundAnimationHander(DaggerfallUnityItem item) => (item.IsEnchanted) ? magicAnimation.animatedTextures : null;
 
         private void UpdateSpellScroller()
         {
