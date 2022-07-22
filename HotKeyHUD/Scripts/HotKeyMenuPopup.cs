@@ -68,8 +68,6 @@ namespace HotKeyHUD
 
         public void SetSelectedSlot(int index)
         {
-            if (!Initialized)
-                Initialize();
             if (index < 0)
                 return;
             for (var i = 0; i < popupButtons.Length; i++)
@@ -85,7 +83,8 @@ namespace HotKeyHUD
 
         public void HandleSlotSelect(ref int lastSelectedSlot)
         {
-            // Show hotkey popup when hotkey is pressed and hide when released.
+            if (!Initialized)
+                Initialize();
             var hotKey = KeyCode.Alpha1 - 1;
             var input = InputManager.Instance;
             for (var i = 0; i <= (int)KeyCode.Alpha9; i++)
@@ -95,36 +94,21 @@ namespace HotKeyHUD
                     hotKey = key;
             }
 
-            if (!clickable)
+            if (hotKey >= KeyCode.Alpha1 && hotKey <= KeyCode.Alpha9)
             {
-                if (!Initialized)
-                    Initialize();
-                if (hotKey >= KeyCode.Alpha1 && hotKey <= KeyCode.Alpha9)
+                var slotNum = hotKey - KeyCode.Alpha1;
+                if (slotNum != lastSelectedSlot)
+                    SetSelectedSlot(slotNum);
+                lastSelectedSlot = slotNum;
+                if (!clickable && Enabled == false)
                 {
-                    var slotNum = hotKey - KeyCode.Alpha1;
-                    if (slotNum != lastSelectedSlot)
-                        SetSelectedSlot(slotNum);
-                    lastSelectedSlot = slotNum;
-                    if (Enabled == false)
-                    {
-                        Enabled = true;
-                        // Remove items that have been removed since window was opened.
-                        var buttonList = hotKeyDisplay.ButtonList;
-                        for (var i = 0; i < buttonList.Count; i++)
-                        {
-                            if (!(buttonList[i].Payload is DaggerfallUnityItem item))
-                                continue;
-                            if (!playerEntity.Items.Contains(item.UID))
-                            {
-                                popupButtons[i].SetItem(null);
-                                buttonList[i].SetItem(null);
-                            }
-                        }
-                    }
+                    Enabled = true;
+                    ClearRemovedItems();
                 }
-                else
-                    Enabled = false;
             }
+            // If overriding inventory window, show hotkey popup when hotkey is pressed and hide when released.
+            else if (!clickable)
+                Enabled = false;
         }
 
         private void Initialize()
@@ -159,6 +143,21 @@ namespace HotKeyHUD
             Scale = scale;
             for (int i = 0; i < popupButtons.Length; i++)
                 popupButtons[i].SetScale(scale);
+        }
+
+        private void ClearRemovedItems()
+        {
+            var buttonList = hotKeyDisplay.ButtonList;
+            for (var i = 0; i < buttonList.Count; i++)
+            {
+                if (!(buttonList[i].Payload is DaggerfallUnityItem item))
+                    continue;
+                if (!playerEntity.Items.Contains(item.UID))
+                {
+                    popupButtons[i].SetItem(null);
+                    buttonList[i].SetItem(null);
+                }
+            }
         }
     }
 }
