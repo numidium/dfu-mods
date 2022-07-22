@@ -1,4 +1,5 @@
 using DaggerfallWorkshop.Game;
+using DaggerfallWorkshop.Game.Entity;
 using DaggerfallWorkshop.Game.Items;
 using DaggerfallWorkshop.Game.MagicAndEffects;
 using DaggerfallWorkshop.Game.Serialization;
@@ -17,12 +18,16 @@ namespace HotKeyHUD
         private DaggerfallUnityItem lastRightHandItem;
         private DaggerfallUnityItem lastLeftHandItem;
         private HotKeySetupWindow setupWindow;
+        private readonly UserInterfaceManager uiManager;
+        private readonly PlayerEntity playerEntity;
 
         public List<HotKeyButton> ButtonList => hotKeyButtons.ToList();
 
         public HotKeyDisplay() : base()
         {
             Enabled = false;
+            uiManager = DaggerfallUI.Instance.UserInterfaceManager;
+            playerEntity = GameManager.Instance.PlayerEntity;
         }
 
         public override void Update()
@@ -39,16 +44,21 @@ namespace HotKeyHUD
             var keyDown = InputManager.Instance.GetAnyKeyDown();
             if (keyDown >= KeyCode.Alpha1 && keyDown <= KeyCode.Alpha9)
                 OnHotKeyPress(keyDown);
+            // Item polling/updating
             foreach (var button in hotKeyButtons)
             {
                 if (button.ConditionBar.Enabled && button.Payload is DaggerfallUnityItem item)
+                {
                     button.UpdateCondition(item.ConditionPercentage, Scale);
+                    if (!playerEntity.Items.Contains(item.UID))
+                        button.SetItem(null);
+                }
             }
 
+            // Alternate keying window bootstrap
             if (!HotKeyHUD.OverrideMenus && keyDown == HotKeyHUD.SetupMenuKey &&
                 !GameManager.IsGamePaused && !SaveLoadManager.Instance.LoadInProgress && DaggerfallUI.UIManager.WindowCount == 0)
             {
-                var uiManager = DaggerfallUI.Instance.UserInterfaceManager;
                 if (setupWindow == null)
                     setupWindow = new HotKeySetupWindow(uiManager);
                 uiManager.PushWindow(setupWindow);
@@ -151,11 +161,10 @@ namespace HotKeyHUD
             }
 
             // Init equip/unequip delay.
-            var player = GameManager.Instance.PlayerEntity;
             // Note: Player's item table is not initialized at this point.
             // These two fields need to be set after it is inited and before player toggles slot.
-            lastRightHandItem = player.ItemEquipTable.GetItem(EquipSlots.RightHand);
-            lastLeftHandItem = player.ItemEquipTable.GetItem(EquipSlots.LeftHand);
+            lastRightHandItem = playerEntity.ItemEquipTable.GetItem(EquipSlots.RightHand);
+            lastLeftHandItem = playerEntity.ItemEquipTable.GetItem(EquipSlots.LeftHand);
             initialized = true;
         }
 
@@ -202,11 +211,11 @@ namespace HotKeyHUD
             GameManager.Instance.WeaponManager.EquipCountdownLeftHand += delayTimeLeft;
         }
 
-        private static void ShowEquipDelayMessage(float countDownValue, EquipSlots equipSlot)
+        private void ShowEquipDelayMessage(float countDownValue, EquipSlots equipSlot)
         {
             if (countDownValue > 0)
             {
-                var currentWeapon = GameManager.Instance.PlayerEntity.ItemEquipTable.GetItem(equipSlot);
+                var currentWeapon = playerEntity.ItemEquipTable.GetItem(equipSlot);
                 if (currentWeapon != null)
                 {
                     var message = TextManager.Instance.GetLocalizedText("equippingWeapon");

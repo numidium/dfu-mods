@@ -1,4 +1,5 @@
 using DaggerfallWorkshop.Game;
+using DaggerfallWorkshop.Game.Entity;
 using DaggerfallWorkshop.Game.Items;
 using DaggerfallWorkshop.Game.UserInterface;
 using System.Linq;
@@ -13,25 +14,19 @@ namespace HotKeyHUD
         private readonly float xOffset;
         private readonly float yOffset;
         private readonly bool clickable;
-        private HotKeyButton[] hotKeyButtons;
+        private HotKeyButton[] popupButtons;
         private HotKeyDisplay hotKeyDisplay;
+        private readonly PlayerEntity playerEntity;
         public bool Initialized { get; private set; }
         public int SelectedSlot { get; private set; }
 
-        public HotKeyMenuPopup(bool clickable = false) : base()
-        {
-            xOffset = defaultXOffset;
-            yOffset = defaultYOffset;
-            Enabled = clickable;
-            this.clickable = clickable;
-        }
-
-        public HotKeyMenuPopup(float x, float y, bool clickable = false) : base()
+        public HotKeyMenuPopup(float x = defaultXOffset, float y = defaultYOffset, bool clickable = false) : base()
         {
             xOffset = x;
             yOffset = y;
             Enabled = clickable;
             this.clickable = clickable;
+            playerEntity = GameManager.Instance.PlayerEntity;
         }
 
         public override void Update()
@@ -40,7 +35,6 @@ namespace HotKeyHUD
                 return;
             if (!Initialized)
                 Initialize();
-
             base.Update();
             if (Scale != Parent.Scale)
                 SetScale(Parent.Scale);
@@ -49,18 +43,18 @@ namespace HotKeyHUD
         public void SyncIcons()
         {
             var buttonList = hotKeyDisplay.ButtonList;
-            for (var i = 0; i < hotKeyButtons.Length; i++)
+            for (var i = 0; i < popupButtons.Length; i++)
             {
-                var popupIcon = hotKeyButtons[i].Icon;
+                var popupIcon = popupButtons[i].Icon;
                 var hotbarIcon = buttonList[i].Icon;
-                hotKeyButtons[i].StackLabel.Enabled = buttonList[i].StackLabel.Enabled;
-                if (hotKeyButtons[i].StackLabel.Enabled)
-                    hotKeyButtons[i].StackLabel.Text = ((DaggerfallUnityItem)buttonList[i].Payload).stackCount.ToString();
-                hotKeyButtons[i].ConditionBar.Enabled = buttonList[i].ConditionBar.Enabled;
-                if (hotKeyButtons[i].ConditionBar.Enabled || hotKeyButtons[i].StackLabel.Enabled) // Is an item if either is true
+                popupButtons[i].StackLabel.Enabled = buttonList[i].StackLabel.Enabled;
+                if (popupButtons[i].StackLabel.Enabled)
+                    popupButtons[i].StackLabel.Text = ((DaggerfallUnityItem)buttonList[i].Payload).stackCount.ToString();
+                popupButtons[i].ConditionBar.Enabled = buttonList[i].ConditionBar.Enabled;
+                if (popupButtons[i].ConditionBar.Enabled || popupButtons[i].StackLabel.Enabled) // Is an item if either is true
                 {
                     var item = (DaggerfallUnityItem)buttonList[i].Payload;
-                    hotKeyButtons[i].UpdateCondition(item.ConditionPercentage, buttonList[i].Scale);
+                    popupButtons[i].UpdateCondition(item.ConditionPercentage, buttonList[i].Scale);
                     if (item.IsPotion || item.IsLightSource) // These scale weird
                         popupIcon.Size = hotbarIcon.Size * .7f;
                     else
@@ -74,16 +68,16 @@ namespace HotKeyHUD
 
         public void SetSelectedSlot(int index)
         {
-            if (hotKeyButtons == null)
+            if (!Initialized)
                 Initialize();
             if (index < 0)
                 return;
-            for (var i = 0; i < hotKeyButtons.Length; i++)
+            for (var i = 0; i < popupButtons.Length; i++)
             {
                 if (i == index)
-                    hotKeyButtons[i].KeyLabel.TextColor = Color.white;
+                    popupButtons[i].KeyLabel.TextColor = Color.white;
                 else
-                    hotKeyButtons[i].KeyLabel.TextColor = DaggerfallUI.DaggerfallDefaultTextColor;
+                    popupButtons[i].KeyLabel.TextColor = DaggerfallUI.DaggerfallDefaultTextColor;
             }
 
             SelectedSlot = index;
@@ -101,29 +95,49 @@ namespace HotKeyHUD
                     hotKey = key;
             }
 
-            if (hotKey >= KeyCode.Alpha1 && hotKey <= KeyCode.Alpha9)
+            if (!clickable)
             {
-                Enabled = true;
-                var slotNum = hotKey - KeyCode.Alpha1;
-                if (slotNum != lastSelectedSlot)
-                    SetSelectedSlot(slotNum);
-                lastSelectedSlot = slotNum;
+                if (!Initialized)
+                    Initialize();
+                if (hotKey >= KeyCode.Alpha1 && hotKey <= KeyCode.Alpha9)
+                {
+                    var slotNum = hotKey - KeyCode.Alpha1;
+                    if (slotNum != lastSelectedSlot)
+                        SetSelectedSlot(slotNum);
+                    lastSelectedSlot = slotNum;
+                    if (Enabled == false)
+                    {
+                        Enabled = true;
+                        // Remove items that have been removed since window was opened.
+                        var buttonList = hotKeyDisplay.ButtonList;
+                        for (var i = 0; i < buttonList.Count; i++)
+                        {
+                            if (!(buttonList[i].Payload is DaggerfallUnityItem item))
+                                continue;
+                            if (!playerEntity.Items.Contains(item.UID))
+                            {
+                                popupButtons[i].SetItem(null);
+                                buttonList[i].SetItem(null);
+                            }
+                        }
+                    }
+                }
+                else
+                    Enabled = false;
             }
-            else if (clickable == false)
-                Enabled = false;
         }
 
         private void Initialize()
         {
-            hotKeyButtons = new HotKeyButton[HotKeyHUD.iconCount];
+            popupButtons = new HotKeyButton[HotKeyHUD.iconCount];
             var itemBackdrops = HotKeyHUD.ItemBackdrops;
-            for (int i = 0; i < hotKeyButtons.Length; i++)
+            for (int i = 0; i < popupButtons.Length; i++)
             {
-                hotKeyButtons[i] = new HotKeyButton(itemBackdrops[i],
+                popupButtons[i] = new HotKeyButton(itemBackdrops[i],
                     new Vector2(xOffset + (float)((i % 3) * HotKeyButton.iconWidth), yOffset + (i / 3) * HotKeyButton.iconHeight + .5f), i + 1);
                 if (clickable)
-                    hotKeyButtons[i].OnMouseClick += HotKeyMenuPopup_OnMouseClick;
-                Components.Add(hotKeyButtons[i]);
+                    popupButtons[i].OnMouseClick += HotKeyMenuPopup_OnMouseClick;
+                Components.Add(popupButtons[i]);
             }
 
             hotKeyDisplay = (HotKeyDisplay)DaggerfallUI.Instance.DaggerfallHUD.ParentPanel.Components.FirstOrDefault(x => x.GetType() == typeof(HotKeyDisplay));
@@ -143,8 +157,8 @@ namespace HotKeyHUD
         private void SetScale(Vector2 scale)
         {
             Scale = scale;
-            for (int i = 0; i < hotKeyButtons.Length; i++)
-                hotKeyButtons[i].SetScale(scale);
+            for (int i = 0; i < popupButtons.Length; i++)
+                popupButtons[i].SetScale(scale);
         }
     }
 }
