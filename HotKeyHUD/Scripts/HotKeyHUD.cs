@@ -21,7 +21,6 @@ namespace HotKeyHUD
         private const float iconHeight = 22f;
         private static Mod mod;
         private bool componentAdded;
-        private HotKeyDisplay displayComponent;
         private static Texture2D[] itemBackdrops;
         private static readonly Rect[] backdropCutouts = new Rect[]
         {
@@ -39,12 +38,13 @@ namespace HotKeyHUD
         public Type SaveDataType => typeof(HotKeyHUDSaveData);
         public static string ModTitle => mod.Title;
 
-        // Shared graphics
+        // Shared resources
+        public static HotKeyDisplay HUDDisplay { get; private set; }
         public static Texture2D[] ItemBackdrops
         {
             get
             {
-                // Note: Textures live in memory as long as program is running.
+                // Note: These textures live in memory as long as program is running.
                 if (itemBackdrops == null)
                 {
                     var inventoryTexture = ImageReader.GetTexture(baseInvTextureName);
@@ -83,22 +83,22 @@ namespace HotKeyHUD
                     UIWindowFactory.RegisterCustomUIWindow(UIWindowType.SpellBook, typeof(HotKeyHUDSpellbookWindow));
                 }
 
-                displayComponent = new HotKeyDisplay()
+                HUDDisplay = new HotKeyDisplay()
                 {
-                    AutoSize = DaggerfallWorkshop.Game.UserInterface.AutoSizeModes.Scale,
-                    Size = hud.ParentPanel.Size
+                    AutoSize = AutoSizeModes.ResizeToFill,
+                    Size = hud.NativePanel.Size
                 };
 
-                hud.ParentPanel.Components.Add(displayComponent);
+                hud.NativePanel.Components.Add(HUDDisplay);
                 componentAdded = true;
             }
 
-            displayComponent.Enabled = hud.Enabled;
+            HUDDisplay.Enabled = hud.Enabled;
         }
 
         public object NewSaveData()
         {
-            displayComponent.ResetButtons();
+            HUDDisplay.ResetButtons();
             return new HotKeyHUDSaveData
             {
                 payloadTypes = new List<PayloadType>(),
@@ -118,8 +118,7 @@ namespace HotKeyHUD
                 spells = new List<EffectBundleSettings>()
             };
 
-            var buttonList = displayComponent.ButtonList;
-            foreach (var button in buttonList)
+            foreach (var button in HUDDisplay.HotKeyButtons)
             {
                 if (button.Payload is DaggerfallUnityItem item)
                 {
@@ -142,8 +141,7 @@ namespace HotKeyHUD
         public void RestoreSaveData(object saveData)
         {
             // Clear buttons
-            var buttonList = displayComponent.ButtonList;
-            foreach (var button in buttonList)
+            foreach (var button in HUDDisplay.HotKeyButtons)
                 button.SetItem(null);
             var data = (HotKeyHUDSaveData)saveData;
             var player = GameManager.Instance.PlayerEntity;
@@ -152,15 +150,15 @@ namespace HotKeyHUD
             for (var i = 0; i < data.payloadTypes.Count; i++)
             {
                 if (data.payloadTypes[i] == PayloadType.None)
-                    displayComponent.SetItemAtSlot(null, i);
+                    HUDDisplay.SetItemAtSlot(null, i);
                 else if (data.payloadTypes[i] == PayloadType.Item)
                 {
                     var item = player.Items.GetItem(data.itemUids[itemIndex++]);
                     if (item != null)
-                        displayComponent.SetItemAtSlot(item, i, data.forceUseSlots[i]);
+                        HUDDisplay.SetItemAtSlot(item, i, data.forceUseSlots[i]);
                 }
                 else if (data.payloadTypes[i] == PayloadType.Spell)
-                    displayComponent.SetSpellAtSlot(data.spells[spellIndex++], i);
+                    HUDDisplay.SetSpellAtSlot(data.spells[spellIndex++], i);
             }
         }
 

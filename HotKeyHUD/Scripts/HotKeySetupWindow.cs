@@ -5,7 +5,6 @@ using DaggerfallWorkshop.Game.UserInterface;
 using DaggerfallWorkshop.Game.UserInterfaceWindows;
 using DaggerfallWorkshop.Utility;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 
 namespace HotKeyHUD
@@ -23,7 +22,6 @@ namespace HotKeyHUD
         private readonly Rect spellsListRect;
         private readonly Rect spellsListScrollBarRect;
         private readonly Rect exitButtonCutoutRect;
-        private readonly HotKeyDisplay hotKeyDisplay;
         private HotKeyMenuPopup hotKeyMenuPopup;
         private ItemListScroller itemListScroller;
         private VerticalScrollBar spellsListScrollBar;
@@ -38,8 +36,7 @@ namespace HotKeyHUD
 
         public HotKeySetupWindow(IUserInterfaceManager uiManager) : base(uiManager)
         {
-            hotKeyDisplay = (HotKeyDisplay)DaggerfallUI.Instance.DaggerfallHUD.ParentPanel.Components.FirstOrDefault(x => x.GetType() == typeof(HotKeyDisplay));
-            menuPopupRect = new Rect(21f, topMarginHeight, HotKeyButton.iconWidth * 3f, HotKeyButton.iconHeight * 3f);
+            menuPopupRect = new Rect(21f, topMarginHeight, HotKeyButton.buttonWidth * 3f, HotKeyButton.buttonHeight * 3f);
             itemListScrollerRect = new Rect(menuPopupRect.x + menuPopupRect.width + paddingWidth, topMarginHeight, 59f, 152f);
             spellsListCutoutRect = new Rect(0f, 0f, 120f, 147f);
             spellsListRect = new Rect(itemListScrollerRect.x + itemListScrollerRect.width + paddingWidth, topMarginHeight, spellsListCutoutRect.width, spellsListCutoutRect.height);
@@ -84,7 +81,6 @@ namespace HotKeyHUD
             };
 
             itemListScroller.OnItemClick += ItemListScroller_OnItemClick;
-
             var spellbookTexture = ImageReader.GetTexture(spellBookTextureFilename);
             spellsListPanel = new Panel()
             {
@@ -124,7 +120,6 @@ namespace HotKeyHUD
             };
 
             spellsListScrollBar.OnScroll += SpellsListScrollBar_OnScroll;
-
             exitButtonPanel = new Panel()
             {
                 Position = new Vector2(277f, 185f),
@@ -164,14 +159,14 @@ namespace HotKeyHUD
 
         private void ItemListScroller_OnItemClick(DaggerfallUnityItem item)
         {
-            HotKeyHUD.KeyItem(item, ref slotNum, uiManager, this, hotKeyMenuPopup, ActionSelectDialog_OnButtonClick, ref hotKeyItem, hotKeyDisplay);
+            HotKeyHUD.KeyItem(item, ref slotNum, uiManager, this, hotKeyMenuPopup, ActionSelectDialog_OnButtonClick, ref hotKeyItem, HotKeyHUD.HUDDisplay);
         }
 
         private void SpellsList_OnSelectItem()
         {
             var spellBook = GameManager.Instance.PlayerEntity.GetSpells();
             var spell = spellBook[spellsList.SelectedIndex];
-            hotKeyDisplay.SetSpellAtSlot(in spell, hotKeyMenuPopup.SelectedSlot);
+            HotKeyHUD.HUDDisplay.SetSpellAtSlot(in spell, hotKeyMenuPopup.SelectedSlot);
             hotKeyMenuPopup.SyncIcons();
             UpdateSpellScroller();
             DaggerfallUI.Instance.PlayOneShot(SoundClips.ButtonClick);
@@ -200,8 +195,7 @@ namespace HotKeyHUD
             var forceUse = false;
             if (sender.SelectedButton == DaggerfallMessageBox.MessageBoxButtons.Yes)
                 forceUse = true;
-
-            hotKeyDisplay.SetItemAtSlot(hotKeyItem, slotNum, forceUse);
+            HotKeyHUD.HUDDisplay.SetItemAtSlot(hotKeyItem, slotNum, forceUse);
             hotKeyMenuPopup.SyncIcons();
         }
 

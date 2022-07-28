@@ -14,15 +14,15 @@ namespace HotKeyHUD
 {
     public class HotKeyButton : Panel
     {
-        public const float iconWidth = 22f;
-        public const float iconHeight = 22f;
-        private const float maxCondBarWidth = iconWidth - 3f;
+        public const float buttonWidth = 23f;
+        public const float buttonHeight = 22f;
+        private const float maxCondBarWidth = buttonWidth - 3f;
         private const int iconPanelSlot = 1;
         private const int buttonKeyLabelSlot = 2;
         private const int buttonStackLabelSlot = 3;
         private const int buttonConditionBarSlot = 4;
         private const float condBarHeight = 1f;
-        private const float iconsWidth = iconWidth * 10f;
+        private const float iconsWidth = buttonWidth * 10f;
         private const float iconsY = 177f;
         private readonly Vector2 originalPosition;
         public bool ForceUse { get; set; }
@@ -34,14 +34,14 @@ namespace HotKeyHUD
         public Panel ConditionBar => (Panel)Components[buttonConditionBarSlot];
         private static Vector2 KeyLabelOriginalPos => new Vector2(1f, 1f);
         private static Vector2 StackLabelOriginalPos => new Vector2(1f, 1f);
-        private static Vector2 CondBarOriginalPos => new Vector2(2f, iconHeight - 3f);
+        private static Vector2 CondBarOriginalPos => new Vector2(2f, buttonHeight - 3f);
 
         public HotKeyButton(Texture2D backdrop, Vector2 position, int keyIndex)
         {
             // Button Backdrop
             BackgroundColor = Color.black;
             BackgroundTexture = backdrop;
-            Size = new Vector2 { x = iconWidth, y = iconHeight };
+            Size = new Vector2 { x = buttonWidth, y = buttonHeight };
             Position = position;
             originalPosition = position;
 
@@ -89,31 +89,23 @@ namespace HotKeyHUD
             PositionIndex = (byte)(keyIndex - 1);
         }
 
-        public override void Draw()
-        {
-            // It seems like I shouldn't have to do this. I think it's a bug in DFU.
-            if (Icon.Size.y > Size.y)
-                Icon.Size = Size * 0.9f;
-            base.Draw();
-        }
-
         public override void Update()
         {
             base.Update();
-            if (StackLabel.Enabled && Payload is DaggerfallUnityItem item)
-                StackLabel.Text = item.stackCount.ToString();
-        }
-
-        public void UpdateCondition(int percentage, in Vector2 scale)
-        {
-            // Shrink bar as value decreases.
-            ConditionBar.Size = new Vector2(percentage / 100f * (maxCondBarWidth * scale.x), condBarHeight * scale.y);
-            if (percentage >= 75)
-                ConditionBar.BackgroundColor = Color.green;
-            else if (percentage >= 25)
-                ConditionBar.BackgroundColor = Color.yellow;
-            else
-                ConditionBar.BackgroundColor = Color.red;
+            if (Payload is DaggerfallUnityItem item)
+            {
+                // Update stack count.
+                if (StackLabel.Enabled)
+                    StackLabel.Text = item.stackCount.ToString();
+                // Update condition bar.
+                ConditionBar.Size = new Vector2(item.ConditionPercentage / 100f * (maxCondBarWidth * Parent.Scale.x), condBarHeight * Parent.Scale.y);
+                if (item.ConditionPercentage >= 70)
+                    ConditionBar.BackgroundColor = Color.green;
+                else if (item.ConditionPercentage >= 20)
+                    ConditionBar.BackgroundColor = Color.yellow;
+                else
+                    ConditionBar.BackgroundColor = Color.red;
+            }
         }
 
         public void SetItem(DaggerfallUnityItem item, bool forceUse = false)
@@ -162,7 +154,6 @@ namespace HotKeyHUD
 
         public void HandleItemHotkeyPress(DaggerfallUnityItem item)
         {
-            const int noSpellsTextId = 12;
             var equipTable = GameManager.Instance.PlayerEntity.ItemEquipTable;
             var player = GameManager.Instance.PlayerEntity;
             List<DaggerfallUnityItem> unequippedList = null;
@@ -215,7 +206,6 @@ namespace HotKeyHUD
                 {   // Re-fuel lantern with the oil.
                     lantern.currentCondition += item.currentCondition;
                     player.Items.RemoveItem(item.IsAStack() ? player.Items.SplitStack(item, 1) : item);
-                    //DaggerfallUI.MessageBox(TextManager.Instance.GetLocalizedText("lightRefuel"), false, lantern);
                     DaggerfallUI.Instance.PlayOneShot(SoundClips.MakePotion); // Audio feedback when using oil.
                 }
                 else
@@ -262,6 +252,7 @@ namespace HotKeyHUD
                 if (player.SpellbookCount() == 0)
                 {
                     // Player has no spells
+                    const int noSpellsTextId = 12;
                     var textTokens = DaggerfallUnity.Instance.TextProvider.GetRSCTokens(noSpellsTextId);
                     DaggerfallUI.MessageBox(textTokens);
                 }
@@ -336,9 +327,9 @@ namespace HotKeyHUD
         public void SetScale(Vector2 scale)
         {
             var position = new Vector2((float)Math.Round((160f - iconsWidth / 2f + originalPosition.x + 0.5f) * scale.x) + .5f, (float)Math.Round(iconsY * scale.y) + .5f);
-            var size = new Vector2((float)Math.Round(iconWidth * scale.x + .5f), (float)Math.Round(iconHeight * scale.y) + .5f);
+            var buttonSize = new Vector2((float)Math.Round(buttonWidth * scale.x + .5f), (float)Math.Round(buttonHeight * scale.y) + .5f);
             Position = position;
-            Size = size;
+            Size = buttonSize;
             KeyLabel.Scale = scale;
             KeyLabel.Position = new Vector2((float)Math.Round(KeyLabelOriginalPos.x * scale.x + .5f), (float)Math.Round(KeyLabelOriginalPos.y * scale.y + .5f));
             KeyLabel.TextScale = scale.x;

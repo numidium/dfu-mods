@@ -1,23 +1,19 @@
-using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.Items;
 using DaggerfallWorkshop.Game.UserInterface;
 using DaggerfallWorkshop.Game.UserInterfaceWindows;
-using System.Linq;
 using UnityEngine;
 
 namespace HotKeyHUD
 {
     public class HotkeyHUDInventoryMenu : DaggerfallInventoryWindow
     {
-        int slotNum;
-        int lastSelectedSlot = -1;
-        DaggerfallUnityItem hotKeyItem;
-        readonly HotKeyDisplay hotKeyDisplay;
-        readonly HotKeyMenuPopup hotKeyMenuPopup;
+        private int slotNum;
+        private int lastSelectedSlot = -1;
+        private DaggerfallUnityItem hotKeyItem;
+        private readonly HotKeyMenuPopup hotKeyMenuPopup;
 
         public HotkeyHUDInventoryMenu(IUserInterfaceManager uiManager, DaggerfallBaseWindow previous = null) : base(uiManager, previous)
         {
-            hotKeyDisplay = (HotKeyDisplay)DaggerfallUI.Instance.DaggerfallHUD.ParentPanel.Components.FirstOrDefault(x => x.GetType() == typeof(HotKeyDisplay));
             hotKeyMenuPopup = new HotKeyMenuPopup();
         }
 
@@ -42,7 +38,7 @@ namespace HotKeyHUD
 
         protected override void LocalItemListScroller_OnItemClick(DaggerfallUnityItem item, ActionModes actionMode)
         {
-            if (hotKeyMenuPopup.Enabled && HotKeyHUD.KeyItem(item, ref slotNum, uiManager, this, hotKeyMenuPopup, ActionSelectDialog_OnButtonClick, ref hotKeyItem, hotKeyDisplay))
+            if (hotKeyMenuPopup.Enabled && HotKeyHUD.KeyItem(item, ref slotNum, uiManager, this, hotKeyMenuPopup, ActionSelectDialog_OnButtonClick, ref hotKeyItem, HotKeyHUD.HUDDisplay))
                 return;
             base.LocalItemListScroller_OnItemClick(item, actionMode);
         }
@@ -54,7 +50,7 @@ namespace HotKeyHUD
                 return;
             var slot = (EquipSlots)equipInd;
             var item = playerEntity.ItemEquipTable.GetItem(slot);
-            if (hotKeyMenuPopup.Enabled && (item == null || HotKeyHUD.KeyItem(item, ref slotNum, uiManager, this, hotKeyMenuPopup, ActionSelectDialog_OnButtonClick, ref hotKeyItem, hotKeyDisplay)))
+            if (hotKeyMenuPopup.Enabled && (item == null || HotKeyHUD.KeyItem(item, ref slotNum, uiManager, this, hotKeyMenuPopup, ActionSelectDialog_OnButtonClick, ref hotKeyItem, HotKeyHUD.HUDDisplay)))
                 return;
             base.PaperDoll_OnMouseClick(sender, position, actionMode);
         }
@@ -63,7 +59,7 @@ namespace HotKeyHUD
         {
             var slot = (EquipSlots)sender.Tag;
             var item = playerEntity.ItemEquipTable.GetItem(slot);
-            if (hotKeyMenuPopup.Enabled && (item == null || HotKeyHUD.KeyItem(item, ref slotNum, uiManager, this, hotKeyMenuPopup, ActionSelectDialog_OnButtonClick, ref hotKeyItem, hotKeyDisplay)))
+            if (hotKeyMenuPopup.Enabled && (item == null || HotKeyHUD.KeyItem(item, ref slotNum, uiManager, this, hotKeyMenuPopup, ActionSelectDialog_OnButtonClick, ref hotKeyItem, HotKeyHUD.HUDDisplay)))
                 return;
             base.AccessoryItemsButton_OnLeftMouseClick(sender, position);
         }
@@ -74,7 +70,7 @@ namespace HotKeyHUD
             var forceUse = false;
             if (sender.SelectedButton == DaggerfallMessageBox.MessageBoxButtons.Yes)
                 forceUse = true;
-            hotKeyDisplay.SetItemAtSlot(hotKeyItem, slotNum, forceUse);
+            HotKeyHUD.HUDDisplay.SetItemAtSlot(hotKeyItem, slotNum, forceUse);
             hotKeyMenuPopup.SyncIcons();
         }
     }

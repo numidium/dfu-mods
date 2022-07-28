@@ -4,8 +4,6 @@ using DaggerfallWorkshop.Game.Items;
 using DaggerfallWorkshop.Game.MagicAndEffects;
 using DaggerfallWorkshop.Game.Serialization;
 using DaggerfallWorkshop.Game.UserInterface;
-using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 
 namespace HotKeyHUD
@@ -14,15 +12,13 @@ namespace HotKeyHUD
     {
         private const float iconsY = 177f;
         private bool initialized = false;
-        private HotKeyButton[] hotKeyButtons;
         private DaggerfallUnityItem lastRightHandItem;
         private DaggerfallUnityItem lastLeftHandItem;
         private HotKeySetupWindow setupWindow;
         private readonly UserInterfaceManager uiManager;
         private readonly PlayerEntity playerEntity;
 
-        public List<HotKeyButton> ButtonList => hotKeyButtons.ToList();
-
+        public HotKeyButton[] HotKeyButtons { get; private set; }
         public HotKeyDisplay() : base()
         {
             Enabled = false;
@@ -39,19 +35,22 @@ namespace HotKeyHUD
 
             base.Update();
             var hud = DaggerfallUI.Instance.DaggerfallHUD;
-            if (Scale != hud.HUDCompass.Scale)
-                SetScale(hud.HUDCompass.Scale); // Compass is an arbitrary choice to get scale. Doesn't matter which HUD element is used.
+            if (Scale != hud.NativePanel.LocalScale)
+                SetScale(hud.NativePanel.LocalScale);
             var keyDown = InputManager.Instance.GetAnyKeyDown();
             if (keyDown >= KeyCode.Alpha1 && keyDown <= KeyCode.Alpha9)
                 OnHotKeyPress(keyDown);
             // Item polling/updating
-            foreach (var button in hotKeyButtons)
+            foreach (var button in HotKeyButtons)
             {
                 if (button.ConditionBar.Enabled && button.Payload is DaggerfallUnityItem item)
                 {
-                    button.UpdateCondition(item.ConditionPercentage, Scale);
+                    // Remove item from hotkeys if it is no longer in inventory.
                     if (!playerEntity.Items.Contains(item.UID))
                         button.SetItem(null);
+                    // Scaling fix. Scaling seems to break if the parent panel height > width.
+                    if (button.Icon.InteriorHeight > HotKeyButton.buttonHeight * Scale.y)
+                        button.Icon.Size *= .9f;
                 }
             }
 
@@ -74,29 +73,29 @@ namespace HotKeyHUD
 
         public void SetItemAtSlot(DaggerfallUnityItem item, int index, bool forceUse = false)
         {
-            for (var i = 0; i < hotKeyButtons.Length; i++)
-                if (RemoveDuplicateIfAt(index, i, hotKeyButtons[i].Payload == item))
+            for (var i = 0; i < HotKeyButtons.Length; i++)
+                if (RemoveDuplicateIfAt(index, i, HotKeyButtons[i].Payload == item))
                     break;
 
-            hotKeyButtons[index].SetItem(item, forceUse);
+            HotKeyButtons[index].SetItem(item, forceUse);
         }
 
         public DaggerfallUnityItem GetItemAtSlot(int index)
         {
-            if (hotKeyButtons[index].Payload is DaggerfallUnityItem item)
+            if (HotKeyButtons[index].Payload is DaggerfallUnityItem item)
                 return item;
             return null;
         }
 
         public void SetSpellAtSlot(in EffectBundleSettings spell, int index)
         {
-            for (var i = 0; i < hotKeyButtons.Length; i++)
-                if (RemoveDuplicateIfAt(index, i, hotKeyButtons[i].Payload != null &&
-                        hotKeyButtons[i].Payload is EffectBundleSettings settings &&
+            for (var i = 0; i < HotKeyButtons.Length; i++)
+                if (RemoveDuplicateIfAt(index, i, HotKeyButtons[i].Payload != null &&
+                        HotKeyButtons[i].Payload is EffectBundleSettings settings &&
                         HotKeyHUD.CompareSpells(settings, spell)))
                     break;
-            hotKeyButtons[index].StackLabel.Enabled = false;
-            hotKeyButtons[index].SetSpell(spell);
+            HotKeyButtons[index].StackLabel.Enabled = false;
+            HotKeyButtons[index].SetSpell(spell);
         }
 
         public void ResetButtons()
@@ -104,7 +103,7 @@ namespace HotKeyHUD
             if (!initialized)
                 return;
             var i = 0;
-            foreach (var button in hotKeyButtons)
+            foreach (var button in HotKeyButtons)
                 SetItemAtSlot(null, i++);
         }
 
@@ -112,7 +111,7 @@ namespace HotKeyHUD
         {
             if (i != index && condition)
             {
-                hotKeyButtons[i].SetItem(null);
+                HotKeyButtons[i].SetItem(null);
                 return true;
             }
 
@@ -122,18 +121,18 @@ namespace HotKeyHUD
         private void OnHotKeyPress(KeyCode keyCode)
         {
             var index = keyCode - KeyCode.Alpha1;
-            var slot = hotKeyButtons[index].Payload;
+            var slot = HotKeyButtons[index].Payload;
             if (slot == null)
                 return;
             if (slot is DaggerfallUnityItem item)
                 HandleItemHotkeyPress(item, index);
             else if (slot is EffectBundleSettings spell)
-                hotKeyButtons[index].HandleSpellHotkeyPress(ref spell);
+                HotKeyButtons[index].HandleSpellHotkeyPress(ref spell);
         }
 
         private void HandleItemHotkeyPress(DaggerfallUnityItem item, int index)
         {
-            hotKeyButtons[index].HandleItemHotkeyPress(item);
+            HotKeyButtons[index].HandleItemHotkeyPress(item);
             // Do equip delay for weapons.
             if (item.ItemGroup == ItemGroups.Weapons)
             {
@@ -149,15 +148,15 @@ namespace HotKeyHUD
         {
             // Init buttons/icons.
             Components.Clear();
-            hotKeyButtons = new HotKeyButton[HotKeyHUD.iconCount];
+            HotKeyButtons = new HotKeyButton[HotKeyHUD.iconCount];
             float xPosition = 0f;
             var itemBackdrops = HotKeyHUD.ItemBackdrops;
-            for (int i = 0; i < hotKeyButtons.Length; i++)
+            for (int i = 0; i < HotKeyButtons.Length; i++)
             {
                 var position = new Vector2 { x = xPosition, y = iconsY };
-                hotKeyButtons[i] = new HotKeyButton(itemBackdrops[i], position, i + 1);
-                xPosition += HotKeyButton.iconWidth;
-                Components.Add(hotKeyButtons[i]);
+                HotKeyButtons[i] = new HotKeyButton(itemBackdrops[i], position, i + 1);
+                xPosition += HotKeyButton.buttonWidth;
+                Components.Add(HotKeyButtons[i]);
             }
 
             // Init equip/unequip delay.
@@ -171,8 +170,8 @@ namespace HotKeyHUD
         private void SetScale(Vector2 scale)
         {
             Scale = scale;
-            for (int i = 0; i < hotKeyButtons.Length; i++)
-                hotKeyButtons[i].SetScale(scale);
+            for (int i = 0; i < HotKeyButtons.Length; i++)
+                HotKeyButtons[i].SetScale(scale);
         }
 
         private void SetEquipDelayTime()
