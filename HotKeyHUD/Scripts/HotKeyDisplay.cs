@@ -15,6 +15,7 @@ namespace HotKeyHUD
         private HotKeySetupWindow setupWindow;
         private readonly UserInterfaceManager uiManager;
         private readonly PlayerEntity playerEntity;
+        private readonly HotKeyMenuPopup hotKeyMenuPopup;
 
         public HotKeyButton[] HotKeyButtons { get; private set; }
         public HotKeyDisplay() : base()
@@ -22,6 +23,7 @@ namespace HotKeyHUD
             Enabled = false;
             uiManager = DaggerfallUI.Instance.UserInterfaceManager;
             playerEntity = GameManager.Instance.PlayerEntity;
+            hotKeyMenuPopup = HotKeyMenuPopup.Instance;
         }
 
         public override void Update()
@@ -39,13 +41,14 @@ namespace HotKeyHUD
             if (keyDown >= KeyCode.Alpha1 && keyDown <= KeyCode.Alpha9)
                 OnHotKeyPress(keyDown);
             // Item polling/updating
-            foreach (var button in HotKeyButtons)
+            for (var i = 0; i < HotKeyButtons.Length; i++)
             {
+                var button = HotKeyButtons[i];
                 if (button.ConditionBar.Enabled && button.Payload is DaggerfallUnityItem item)
                 {
                     // Remove item from hotkeys if it is no longer in inventory.
                     if (!playerEntity.Items.Contains(item.UID))
-                        button.SetItem(null);
+                        SetButtonItem(i, null);
                     // Scaling fix. Scaling seems to break if the parent panel height > width.
                     if (button.Icon.InteriorHeight > HotKeyButton.buttonHeight * Scale.y)
                         button.Icon.Size *= .9f;
@@ -74,8 +77,7 @@ namespace HotKeyHUD
             for (var i = 0; i < HotKeyButtons.Length; i++)
                 if (RemoveDuplicateIfAt(index, i, HotKeyButtons[i].Payload == item))
                     break;
-
-            HotKeyButtons[index].SetItem(item, forceUse);
+            SetButtonItem(index, item, forceUse);
         }
 
         public DaggerfallUnityItem GetItemAtSlot(int index)
@@ -92,8 +94,7 @@ namespace HotKeyHUD
                         HotKeyButtons[i].Payload is EffectBundleSettings settings &&
                         HotKeyHUD.CompareSpells(settings, spell)))
                     break;
-            HotKeyButtons[index].StackLabel.Enabled = false;
-            HotKeyButtons[index].SetSpell(spell);
+            SetButtonSpell(index, spell);
         }
 
         public void ResetButtons()
@@ -102,14 +103,34 @@ namespace HotKeyHUD
                 return;
             var i = 0;
             foreach (var button in HotKeyButtons)
-                SetItemAtSlot(null, i++);
+                SetButtonItem(i++, null);
+        }
+
+        /// <summary>
+        /// Set own button's item and sync with popup.
+        /// </summary>
+        /// <param name="index">Button index.</param>
+        /// <param name="item">Item to be assigned to button.</param>
+        /// <param name="forceUse">Whether or not to "Use" the item on activation.</param>
+        private void SetButtonItem(int index, DaggerfallUnityItem item, bool forceUse = false)
+        {
+            HotKeyButtons[index].SetItem(item, forceUse);
+            if (hotKeyMenuPopup != null && hotKeyMenuPopup.Initialized)
+                hotKeyMenuPopup.HotKeyButtons[index].SetItem(item, forceUse);
+        }
+
+        private void SetButtonSpell(int index, EffectBundleSettings spell)
+        {
+            HotKeyButtons[index].SetSpell(spell);
+            if (hotKeyMenuPopup != null && hotKeyMenuPopup.Initialized)
+                hotKeyMenuPopup.HotKeyButtons[index].SetSpell(spell);
         }
 
         private bool RemoveDuplicateIfAt(int index, int i, bool condition)
         {
             if (i != index && condition)
             {
-                HotKeyButtons[i].SetItem(null);
+                SetButtonItem(i, null);
                 return true;
             }
 

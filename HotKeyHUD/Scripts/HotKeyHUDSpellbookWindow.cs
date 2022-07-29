@@ -11,20 +11,13 @@ namespace HotKeyHUD
 
         public HotKeyHUDSpellbookWindow(IUserInterfaceManager uiManager, DaggerfallBaseWindow previous = null, bool buyMode = false) : base(uiManager, previous, buyMode)
         {
-            hotKeyMenuPopup = new HotKeyMenuPopup();
+            hotKeyMenuPopup = HotKeyMenuPopup.Instance;
         }
 
         protected override void Setup()
         {
             base.Setup();
             NativePanel.Components.Add(hotKeyMenuPopup);
-        }
-
-        public override void OnPush()
-        {
-            base.OnPush();
-            if (hotKeyMenuPopup.Initialized)
-                hotKeyMenuPopup.SyncIcons();
         }
 
         public override void Update()
@@ -41,7 +34,6 @@ namespace HotKeyHUD
                 var spellBook = GameManager.Instance.PlayerEntity.GetSpells();
                 var spell = spellBook[spellsListBox.SelectedIndex];
                 HotKeyHUD.HUDDisplay.SetSpellAtSlot(in spell, hotKeyMenuPopup.SelectedSlot);
-                hotKeyMenuPopup.SyncIcons();
                 DaggerfallUI.Instance.PlayOneShot(DaggerfallWorkshop.SoundClips.ButtonClick);
             }
         }

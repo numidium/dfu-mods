@@ -274,7 +274,6 @@ namespace HotKeyHUD
                 {
                     DaggerfallUI.Instance.PlayOneShot(SoundClips.ButtonClick);
                     hotKeyDisplay.SetItemAtSlot(hotKeyItem, slotNum);
-                    hotKeyMenuPopup.SyncIcons();
                 }
 
                 return true;

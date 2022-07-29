@@ -149,6 +149,7 @@ namespace HotKeyHUD
             Payload = spell;
             Icon.BackgroundTexture = DaggerfallUI.Instance.SpellIconCollection.GetSpellIcon(spell.Icon);
             Icon.Size = new Vector2(Icon.Parent.Size.x * spellIconScale, Icon.Parent.Size.y * spellIconScale);
+            StackLabel.Enabled = false;
             ConditionBar.Enabled = false;
         }
 

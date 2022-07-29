@@ -14,20 +14,13 @@ namespace HotKeyHUD
 
         public HotkeyHUDInventoryMenu(IUserInterfaceManager uiManager, DaggerfallBaseWindow previous = null) : base(uiManager, previous)
         {
-            hotKeyMenuPopup = new HotKeyMenuPopup();
+            hotKeyMenuPopup = HotKeyMenuPopup.Instance;
         }
 
         protected override void Setup()
         {
             base.Setup();
             NativePanel.Components.Add(hotKeyMenuPopup);
-        }
-
-        public override void OnPush()
-        {
-            base.OnPush();
-            if (hotKeyMenuPopup.Initialized)
-                hotKeyMenuPopup.SyncIcons();
         }
 
         public override void Update()
@@ -71,7 +64,6 @@ namespace HotKeyHUD
             if (sender.SelectedButton == DaggerfallMessageBox.MessageBoxButtons.Yes)
                 forceUse = true;
             HotKeyHUD.HUDDisplay.SetItemAtSlot(hotKeyItem, slotNum, forceUse);
-            hotKeyMenuPopup.SyncIcons();
         }
     }
 }

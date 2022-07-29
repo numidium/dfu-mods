@@ -11,7 +11,6 @@ namespace HotKeyHUD
 {
     public class HotKeySetupWindow : DaggerfallPopupWindow
     {
-        private const float topMarginHeight = 30f;
         private const float paddingWidth = 21f;
         private const float magicAnimationDelay = 0.15f;
         private const string magicAnimTextureName = "TEXTURE.434";
@@ -33,14 +32,16 @@ namespace HotKeyHUD
         private DaggerfallUnityItem hotKeyItem;
         private int lastSelectedSlot = -1;
         private int slotNum;
+        public const float TopMarginHeight = 30f;
+        public const float MenuPopupLeft = 21f;
 
         public HotKeySetupWindow(IUserInterfaceManager uiManager) : base(uiManager)
         {
-            menuPopupRect = new Rect(21f, topMarginHeight, HotKeyButton.buttonWidth * 3f, HotKeyButton.buttonHeight * 3f);
-            itemListScrollerRect = new Rect(menuPopupRect.x + menuPopupRect.width + paddingWidth, topMarginHeight, 59f, 152f);
+            menuPopupRect = new Rect(MenuPopupLeft, TopMarginHeight, HotKeyButton.buttonWidth * 3f, HotKeyButton.buttonHeight * 3f);
+            itemListScrollerRect = new Rect(menuPopupRect.x + menuPopupRect.width + paddingWidth, TopMarginHeight, 59f, 152f);
             spellsListCutoutRect = new Rect(0f, 0f, 120f, 147f);
-            spellsListRect = new Rect(itemListScrollerRect.x + itemListScrollerRect.width + paddingWidth, topMarginHeight, spellsListCutoutRect.width, spellsListCutoutRect.height);
-            spellsListScrollBarRect = new Rect(spellsListRect.x + spellsListRect.width + 1f, topMarginHeight + 27f, 7f, spellsListCutoutRect.height - 43f);
+            spellsListRect = new Rect(itemListScrollerRect.x + itemListScrollerRect.width + paddingWidth, TopMarginHeight, spellsListCutoutRect.width, spellsListCutoutRect.height);
+            spellsListScrollBarRect = new Rect(spellsListRect.x + spellsListRect.width + 1f, TopMarginHeight + 27f, 8f, spellsListCutoutRect.height - 43f);
             exitButtonCutoutRect = new Rect(216f, 149f, 43f, 15f);
         }
 
@@ -52,7 +53,6 @@ namespace HotKeyHUD
                 ResetItemsList();
                 ResetSpellsList();
                 UpdateSpellScroller();
-                hotKeyMenuPopup.SyncIcons();
             }
         }
 
@@ -127,7 +127,7 @@ namespace HotKeyHUD
                 BackgroundTexture = ImageReader.GetSubTexture(spellbookTexture, exitButtonCutoutRect)
             };
 
-            hotKeyMenuPopup = new HotKeyMenuPopup(menuPopupRect.x, menuPopupRect.y, true);
+            hotKeyMenuPopup = HotKeyMenuPopup.Instance;
             ResetItemsList();
             ResetSpellsList();
             ParentPanel.BackgroundColor = Color.clear;
@@ -167,7 +167,6 @@ namespace HotKeyHUD
             var spellBook = GameManager.Instance.PlayerEntity.GetSpells();
             var spell = spellBook[spellsList.SelectedIndex];
             HotKeyHUD.HUDDisplay.SetSpellAtSlot(in spell, hotKeyMenuPopup.SelectedSlot);
-            hotKeyMenuPopup.SyncIcons();
             UpdateSpellScroller();
             DaggerfallUI.Instance.PlayOneShot(SoundClips.ButtonClick);
         }
@@ -196,7 +195,6 @@ namespace HotKeyHUD
             if (sender.SelectedButton == DaggerfallMessageBox.MessageBoxButtons.Yes)
                 forceUse = true;
             HotKeyHUD.HUDDisplay.SetItemAtSlot(hotKeyItem, slotNum, forceUse);
-            hotKeyMenuPopup.SyncIcons();
         }
 
         private Texture2D[] MagicItemForegroundAnimationHander(DaggerfallUnityItem item) => (item.IsEnchanted) ? magicAnimation.animatedTextures : null;
