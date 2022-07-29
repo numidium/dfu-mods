@@ -12,8 +12,6 @@ namespace HotKeyHUD
     {
         private const float iconsY = 177f;
         private bool initialized = false;
-        private DaggerfallUnityItem lastRightHandItem;
-        private DaggerfallUnityItem lastLeftHandItem;
         private HotKeySetupWindow setupWindow;
         private readonly UserInterfaceManager uiManager;
         private readonly PlayerEntity playerEntity;
@@ -132,11 +130,13 @@ namespace HotKeyHUD
 
         private void HandleItemHotkeyPress(DaggerfallUnityItem item, int index)
         {
+            var lastRightHandItem = playerEntity.ItemEquipTable.GetItem(EquipSlots.RightHand);
+            var lastLeftHandItem = playerEntity.ItemEquipTable.GetItem(EquipSlots.LeftHand);
             HotKeyButtons[index].HandleItemHotkeyPress(item);
             // Do equip delay for weapons.
-            if (item.ItemGroup == ItemGroups.Weapons)
+            if (item.ItemGroup == ItemGroups.Weapons || item.IsShield)
             {
-                SetEquipDelayTime();
+                SetEquipDelayTime(lastRightHandItem, lastLeftHandItem);
                 var weaponManager = GameManager.Instance.WeaponManager;
                 // Show "equipping" message if a delay was added.
                 ShowEquipDelayMessage(weaponManager.EquipCountdownRightHand, EquipSlots.RightHand);
@@ -159,11 +159,6 @@ namespace HotKeyHUD
                 Components.Add(HotKeyButtons[i]);
             }
 
-            // Init equip/unequip delay.
-            // Note: Player's item table is not initialized at this point.
-            // These two fields need to be set after it is inited and before player toggles slot.
-            lastRightHandItem = playerEntity.ItemEquipTable.GetItem(EquipSlots.RightHand);
-            lastLeftHandItem = playerEntity.ItemEquipTable.GetItem(EquipSlots.LeftHand);
             initialized = true;
         }
 
@@ -174,7 +169,7 @@ namespace HotKeyHUD
                 HotKeyButtons[i].SetScale(scale);
         }
 
-        private void SetEquipDelayTime()
+        private void SetEquipDelayTime(DaggerfallUnityItem lastRightHandItem, DaggerfallUnityItem lastLeftHandItem)
         {
             int delayTimeRight = 0;
             int delayTimeLeft = 0;
@@ -192,6 +187,7 @@ namespace HotKeyHUD
                 if (currentRightHandItem != null)
                     delayTimeRight += WeaponManager.EquipDelayTimes[currentRightHandItem.GroupIndex];
             }
+
             if (lastLeftHandItem != currentLeftHandItem)
             {
                 // Add delay for unequipping old item
@@ -202,9 +198,6 @@ namespace HotKeyHUD
                 if (currentLeftHandItem != null)
                     delayTimeLeft += WeaponManager.EquipDelayTimes[currentLeftHandItem.GroupIndex];
             }
-
-            lastRightHandItem = currentRightHandItem;
-            lastLeftHandItem = currentLeftHandItem;
 
             GameManager.Instance.WeaponManager.EquipCountdownRightHand += delayTimeRight;
             GameManager.Instance.WeaponManager.EquipCountdownLeftHand += delayTimeLeft;

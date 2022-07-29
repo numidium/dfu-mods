@@ -32,9 +32,9 @@ namespace HotKeyHUD
         public TextLabel KeyLabel => (TextLabel)Components[buttonKeyLabelSlot];
         public TextLabel StackLabel => (TextLabel)Components[buttonStackLabelSlot];
         public Panel ConditionBar => (Panel)Components[buttonConditionBarSlot];
-        private static Vector2 KeyLabelOriginalPos => new Vector2(1f, 1f);
-        private static Vector2 StackLabelOriginalPos => new Vector2(1f, 1f);
-        private static Vector2 CondBarOriginalPos => new Vector2(2f, buttonHeight - 3f);
+        private static Vector2 KeyLabelOriginalPos = new Vector2(1f, 1f);
+        private static Vector2 StackLabelOriginalPos = new Vector2(1f, 1f);
+        private static Vector2 CondBarOriginalPos = new Vector2(2f, buttonHeight - 3f);
 
         public HotKeyButton(Texture2D backdrop, Vector2 position, int keyIndex)
         {
