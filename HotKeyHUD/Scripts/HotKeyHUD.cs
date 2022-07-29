@@ -89,7 +89,7 @@ namespace HotKeyHUD
                     Size = hud.NativePanel.Size
                 };
 
-                hud.NativePanel.Components.Add(HUDDisplay);
+                hud.ParentPanel.Components.Add(HUDDisplay);
                 componentAdded = true;
             }
 
