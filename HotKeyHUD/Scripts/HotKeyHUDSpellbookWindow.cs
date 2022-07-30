@@ -33,7 +33,7 @@ namespace HotKeyHUD
             {
                 var spellBook = GameManager.Instance.PlayerEntity.GetSpells();
                 var spell = spellBook[spellsListBox.SelectedIndex];
-                HotKeyHUD.HUDDisplay.SetSpellAtSlot(in spell, hotKeyMenuPopup.SelectedSlot);
+                HotKeyDisplay.Instance.SetSpellAtSlot(in spell, hotKeyMenuPopup.SelectedSlot);
                 DaggerfallUI.Instance.PlayOneShot(DaggerfallWorkshop.SoundClips.ButtonClick);
             }
         }

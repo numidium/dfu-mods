@@ -1,9 +1,11 @@
+using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.Entity;
 using DaggerfallWorkshop.Game.Items;
 using DaggerfallWorkshop.Game.MagicAndEffects;
 using DaggerfallWorkshop.Game.Serialization;
 using DaggerfallWorkshop.Game.UserInterface;
+using DaggerfallWorkshop.Game.UserInterfaceWindows;
 using UnityEngine;
 
 namespace HotKeyHUD
@@ -16,14 +18,26 @@ namespace HotKeyHUD
         private readonly UserInterfaceManager uiManager;
         private readonly PlayerEntity playerEntity;
         private readonly HotKeyMenuPopup hotKeyMenuPopup;
-
+        private static HotKeyDisplay instance;
         public HotKeyButton[] HotKeyButtons { get; private set; }
-        public HotKeyDisplay() : base()
+        public static HotKeyDisplay Instance
+        {
+            get
+            {
+                if (instance == null)
+                    instance = new HotKeyDisplay();
+                return instance;
+            }
+        }
+
+        private HotKeyDisplay() : base()
         {
             Enabled = false;
             uiManager = DaggerfallUI.Instance.UserInterfaceManager;
             playerEntity = GameManager.Instance.PlayerEntity;
             hotKeyMenuPopup = HotKeyMenuPopup.Instance;
+            AutoSize = AutoSizeModes.ResizeToFill;
+            Size = DaggerfallUI.Instance.DaggerfallHUD.NativePanel.Size;
         }
 
         public override void Update()
@@ -54,29 +68,21 @@ namespace HotKeyHUD
                         button.Icon.Size *= .9f;
                 }
             }
-
-            // Alternate keying window bootstrap
-            if (!HotKeyHUD.OverrideMenus && keyDown == HotKeyHUD.SetupMenuKey &&
-                !GameManager.IsGamePaused && !SaveLoadManager.Instance.LoadInProgress && DaggerfallUI.UIManager.WindowCount == 0)
-            {
-                if (setupWindow == null)
-                    setupWindow = new HotKeySetupWindow(uiManager);
-                uiManager.PushWindow(setupWindow);
-            }
         }
 
         public override void Draw()
         {
-            if (!Enabled || HotKeyHUD.HideHotbar)
+            if (!Enabled || HotKeyUtil.HideHotbar)
                 return;
             base.Draw();
         }
 
         public void SetItemAtSlot(DaggerfallUnityItem item, int index, bool forceUse = false)
         {
-            for (var i = 0; i < HotKeyButtons.Length; i++)
-                if (RemoveDuplicateIfAt(index, i, HotKeyButtons[i].Payload == item))
-                    break;
+            if (item != null)
+                for (var i = 0; i < HotKeyButtons.Length; i++)
+                    if (RemoveDuplicateIfAt(index, i, HotKeyButtons[i].Payload == item))
+                        break;
             SetButtonItem(index, item, forceUse);
         }
 
@@ -92,7 +98,7 @@ namespace HotKeyHUD
             for (var i = 0; i < HotKeyButtons.Length; i++)
                 if (RemoveDuplicateIfAt(index, i, HotKeyButtons[i].Payload != null &&
                         HotKeyButtons[i].Payload is EffectBundleSettings settings &&
-                        HotKeyHUD.CompareSpells(settings, spell)))
+                        HotKeyUtil.CompareSpells(settings, spell)))
                     break;
             SetButtonSpell(index, spell);
         }
@@ -104,6 +110,34 @@ namespace HotKeyHUD
             var i = 0;
             foreach (var button in HotKeyButtons)
                 SetButtonItem(i++, null);
+        }
+
+        public bool KeyItem(DaggerfallUnityItem item, ref int slotNum, IUserInterfaceManager uiManager, IUserInterfaceWindow prevWindow, HotKeyMenuPopup hotKeyMenuPopup,
+                DaggerfallMessageBox.OnButtonClickHandler onButtonClickHandler, ref DaggerfallUnityItem hotKeyItem)
+        {
+            const string actionTypeSelect = "This item can be either Used or Equipped. Key as Use?";
+            if (!HotKeyUtil.GetProhibited(item) && item.currentCondition > 0) // Item must not be class-restricted or broken.
+            {
+                slotNum = hotKeyMenuPopup.SelectedSlot;
+                hotKeyItem = item;
+                var equipTable = GameManager.Instance.PlayerEntity.ItemEquipTable;
+                // Show prompt if enchanted item can be either equipped or used.
+                if (item != GetItemAtSlot(slotNum) && item.IsEnchanted && equipTable.GetEquipSlot(item) != EquipSlots.None && HotKeyUtil.GetEnchantedItemIsUseable(item))
+                {
+                    var actionSelectDialog = new DaggerfallMessageBox(uiManager, DaggerfallMessageBox.CommonMessageBoxButtons.YesNo, actionTypeSelect, prevWindow);
+                    actionSelectDialog.OnButtonClick += onButtonClickHandler;
+                    actionSelectDialog.Show();
+                }
+                else
+                {
+                    DaggerfallUI.Instance.PlayOneShot(SoundClips.ButtonClick);
+                    SetItemAtSlot(hotKeyItem, slotNum);
+                }
+
+                return true;
+            }
+
+            return false;
         }
 
         /// <summary>
@@ -169,9 +203,9 @@ namespace HotKeyHUD
         {
             // Init buttons/icons.
             Components.Clear();
-            HotKeyButtons = new HotKeyButton[HotKeyHUD.iconCount];
+            HotKeyButtons = new HotKeyButton[HotKeyUtil.IconCount];
             float xPosition = 0f;
-            var itemBackdrops = HotKeyHUD.ItemBackdrops;
+            var itemBackdrops = HotKeyUtil.ItemBackdrops;
             for (int i = 0; i < HotKeyButtons.Length; i++)
             {
                 var position = new Vector2 { x = xPosition, y = iconsY };

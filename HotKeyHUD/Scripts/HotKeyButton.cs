@@ -140,7 +140,7 @@ namespace HotKeyHUD
         {
             const float spellIconScale = .8f;
             // Toggle clear slot.
-            if (Payload is EffectBundleSettings settings && HotKeyHUD.CompareSpells(spell, settings))
+            if (Payload is EffectBundleSettings settings && HotKeyUtil.CompareSpells(spell, settings))
             {
                 SetItem(null);
                 return;
