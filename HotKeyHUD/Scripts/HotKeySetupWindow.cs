@@ -165,6 +165,16 @@ namespace HotKeyHUD
             IsSetup = true;
         }
 
+        protected virtual void SpellsListScrollBar_OnScroll()
+        {
+            spellsList.ScrollIndex = spellsListScrollBar.ScrollIndex;
+        }
+
+        protected virtual void SpellsListBox_OnMouseScroll(BaseScreenComponent sender)
+        {
+            spellsListScrollBar.ScrollIndex = spellsList.ScrollIndex;
+        }
+
         private void ExitButton_OnMouseClick(BaseScreenComponent sender, Vector2 position)
         {
             CloseWindow();
@@ -216,16 +226,6 @@ namespace HotKeyHUD
         {
             spellsListScrollBar.Reset(spellsList.RowsDisplayed, spellsList.Count, spellsList.ScrollIndex);
             spellsListScrollBar.TotalUnits = spellsList.Count;
-            spellsListScrollBar.ScrollIndex = spellsList.ScrollIndex;
-        }
-
-        protected virtual void SpellsListScrollBar_OnScroll()
-        {
-            spellsList.ScrollIndex = spellsListScrollBar.ScrollIndex;
-        }
-
-        protected virtual void SpellsListBox_OnMouseScroll(BaseScreenComponent sender)
-        {
             spellsListScrollBar.ScrollIndex = spellsList.ScrollIndex;
         }
     }

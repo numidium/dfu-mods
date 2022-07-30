@@ -9,15 +9,9 @@ namespace HotKeyHUD
 {
     public class HotKeyUtil
     {
-        #region Settings
-
         public static bool HideHotbar { get; set; }
         public static bool OverrideMenus { get; set; }
         public static KeyCode SetupMenuKey { get; set; }
-
-        #endregion
-
-        #region Constants
 
         public const byte IconCount = 9;
         private const float iconWidth = 22f;
@@ -31,10 +25,6 @@ namespace HotKeyHUD
             new Rect(0, 103, iconWidth, iconHeight), new Rect(23, 103, iconWidth, iconHeight),
             new Rect(0, 134, iconWidth, iconHeight), new Rect(23, 134, iconWidth, iconHeight),
         };
-
-        #endregion
-
-        #region Shared Resources
 
         private static Texture2D[] itemBackdrops;
         public static Texture2D[] ItemBackdrops
@@ -53,10 +43,6 @@ namespace HotKeyHUD
                 return itemBackdrops;
             }
         }
-
-        #endregion
-
-        #region Utility Methods
 
         public static bool CompareSpells(in EffectBundleSettings spell1, in EffectBundleSettings spell2)
         {
@@ -132,7 +118,5 @@ namespace HotKeyHUD
 
             return false;
         }
-
-        #endregion
     }
 }

@@ -17,12 +17,6 @@ namespace HotKeyHUD
             hotKeyMenuPopup = HotKeyMenuPopup.Instance;
         }
 
-        protected override void Setup()
-        {
-            base.Setup();
-            NativePanel.Components.Add(hotKeyMenuPopup);
-        }
-
         public override void Update()
         {
             base.Update();
@@ -41,6 +35,12 @@ namespace HotKeyHUD
             }
 
             base.OnPop();
+        }
+
+        protected override void Setup()
+        {
+            base.Setup();
+            NativePanel.Components.Add(hotKeyMenuPopup);
         }
 
         protected override void LocalItemListScroller_OnItemClick(DaggerfallUnityItem item, ActionModes actionMode)

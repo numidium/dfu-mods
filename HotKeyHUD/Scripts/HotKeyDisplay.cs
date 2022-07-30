@@ -3,7 +3,6 @@ using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.Entity;
 using DaggerfallWorkshop.Game.Items;
 using DaggerfallWorkshop.Game.MagicAndEffects;
-using DaggerfallWorkshop.Game.Serialization;
 using DaggerfallWorkshop.Game.UserInterface;
 using DaggerfallWorkshop.Game.UserInterfaceWindows;
 using UnityEngine;
@@ -12,10 +11,7 @@ namespace HotKeyHUD
 {
     public class HotKeyDisplay : Panel
     {
-        private const float iconsY = 177f;
         private bool initialized = false;
-        private HotKeySetupWindow setupWindow;
-        private readonly UserInterfaceManager uiManager;
         private readonly PlayerEntity playerEntity;
         private readonly HotKeyMenuPopup hotKeyMenuPopup;
         private static HotKeyDisplay instance;
@@ -29,11 +25,10 @@ namespace HotKeyHUD
                 return instance;
             }
         }
-
+        
         private HotKeyDisplay() : base()
         {
             Enabled = false;
-            uiManager = DaggerfallUI.Instance.UserInterfaceManager;
             playerEntity = GameManager.Instance.PlayerEntity;
             hotKeyMenuPopup = HotKeyMenuPopup.Instance;
             AutoSize = AutoSizeModes.ResizeToFill;
@@ -149,15 +144,13 @@ namespace HotKeyHUD
         private void SetButtonItem(int index, DaggerfallUnityItem item, bool forceUse = false)
         {
             HotKeyButtons[index].SetItem(item, forceUse);
-            if (hotKeyMenuPopup != null && hotKeyMenuPopup.Initialized)
-                hotKeyMenuPopup.HotKeyButtons[index].SetItem(item, forceUse);
+            hotKeyMenuPopup.HotKeyButtons[index].SetItem(item, forceUse);
         }
 
         private void SetButtonSpell(int index, EffectBundleSettings spell)
         {
             HotKeyButtons[index].SetSpell(spell);
-            if (hotKeyMenuPopup != null && hotKeyMenuPopup.Initialized)
-                hotKeyMenuPopup.HotKeyButtons[index].SetSpell(spell);
+            hotKeyMenuPopup.HotKeyButtons[index].SetSpell(spell);
         }
 
         private bool RemoveDuplicateIfAt(int index, int i, bool condition)
@@ -202,6 +195,7 @@ namespace HotKeyHUD
         private void Initialize()
         {
             // Init buttons/icons.
+            const float iconsY = 177f;
             Components.Clear();
             HotKeyButtons = new HotKeyButton[HotKeyUtil.IconCount];
             float xPosition = 0f;

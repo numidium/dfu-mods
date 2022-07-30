@@ -14,16 +14,16 @@ namespace HotKeyHUD
             hotKeyMenuPopup = HotKeyMenuPopup.Instance;
         }
 
-        protected override void Setup()
-        {
-            base.Setup();
-            NativePanel.Components.Add(hotKeyMenuPopup);
-        }
-
         public override void Update()
         {
             base.Update();
             hotKeyMenuPopup.HandleSlotSelect(ref lastSelectedSlot);
+        }
+
+        protected override void Setup()
+        {
+            base.Setup();
+            NativePanel.Components.Add(hotKeyMenuPopup);
         }
 
         protected override void SpellsListBox_OnSelectItem()

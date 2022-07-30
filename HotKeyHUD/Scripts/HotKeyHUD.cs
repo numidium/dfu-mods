@@ -12,18 +12,12 @@ namespace HotKeyHUD
 {
     public class HotKeyHUD : MonoBehaviour, IHasModSaveData
     {
-        #region Fields
-
         private static Mod mod;
         private bool componentAdded;
 
         // Mod settings
         public Type SaveDataType => typeof(HotKeyHUDSaveData);
         public static string ModTitle => mod.Title;
-
-        #endregion
-
-        #region Unity Methods
 
         void Awake()
         {
@@ -59,10 +53,6 @@ namespace HotKeyHUD
 
             hudDisplay.Enabled = hud.Enabled;
         }
-
-        #endregion
-
-        #region Save data handling
 
         public object NewSaveData()
         {
@@ -134,10 +124,6 @@ namespace HotKeyHUD
             }
         }
 
-        #endregion
-
-        #region Mod initialization
-
         [Invoke(StateManager.StateTypes.Start, 0)]
         public static void Init(InitParams initParams)
         {
@@ -162,7 +148,5 @@ namespace HotKeyHUD
 
             Debug.Log("Hot Key HUD initialized.");
         }
-
-        #endregion
     }
 }
