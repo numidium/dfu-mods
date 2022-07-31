@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using DaggerfallWorkshop.Game.MagicAndEffects;
 using DaggerfallWorkshop.Game.Items;
 using DaggerfallWorkshop.Game.Serialization;
+using DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings;
 
 namespace HotKeyHUD
 {
@@ -15,13 +16,41 @@ namespace HotKeyHUD
         private static Mod mod;
         private bool componentAdded;
 
-        // Mod settings
+        public static HotKeyHUD Instance { get; private set; }
         public Type SaveDataType => typeof(HotKeyHUDSaveData);
         public static string ModTitle => mod.Title;
 
+        [Invoke(StateManager.StateTypes.Start, 0)]
+        public static void Init(InitParams initParams)
+        {
+            mod = initParams.Mod;
+            var go = new GameObject(mod.Title);
+            Instance = go.AddComponent<HotKeyHUD>();
+            mod.SaveDataInterface = Instance;
+            mod.LoadSettingsCallback = Instance.LoadSettings;
+        }
+
+        // Load settings that can change during runtime.
+        void LoadSettings(ModSettings settings, ModSettingsChange change)
+        {
+            HotKeyUtil.HideHotbar = settings.GetValue<bool>("Options", "Hide Hotbar");
+            var menuKeyText = settings.GetValue<string>("Options", "Hotkey Setup Menu Key");
+            if (Enum.TryParse(menuKeyText, out KeyCode result))
+                HotKeyUtil.SetupMenuKey = result;
+            else
+            {
+                HotKeyUtil.SetupMenuKey = KeyCode.Alpha0;
+                Debug.Log("Hot Key HUD: Invalid setup menu keybind detected. Setting default.");
+            }
+        }
+
         void Awake()
         {
-            InitMod();
+            // Load settings that require a restart.
+            var settings = mod.GetSettings();
+            HotKeyUtil.OverrideMenus = settings.GetValue<bool>("Options", "Override Menus");
+            LoadSettings(settings, new ModSettingsChange());
+            Debug.Log("Hot Key HUD initialized.");
             mod.IsReady = true;
             componentAdded = false;
         }
@@ -43,8 +72,7 @@ namespace HotKeyHUD
             }
 
             // Open alternate keying window on user command.
-            var keyDown = InputManager.Instance.GetAnyKeyDown();
-            if (!HotKeyUtil.OverrideMenus && keyDown == HotKeyUtil.SetupMenuKey &&
+            if (!HotKeyUtil.OverrideMenus && InputManager.Instance.GetAnyKeyDown() == HotKeyUtil.SetupMenuKey &&
                 !GameManager.IsGamePaused && !SaveLoadManager.Instance.LoadInProgress && DaggerfallUI.UIManager.WindowCount == 0)
             {
                 var uiManager = DaggerfallUI.Instance.UserInterfaceManager;
@@ -56,6 +84,9 @@ namespace HotKeyHUD
 
         public object NewSaveData()
         {
+            var hotKeyMenuPopup = HotKeyMenuPopup.Instance;
+            if (!hotKeyMenuPopup.Initialized)
+                hotKeyMenuPopup.Initialize();
             HotKeyDisplay.Instance.ResetButtons();
             return new HotKeyHUDSaveData
             {
@@ -100,7 +131,7 @@ namespace HotKeyHUD
         {
             var hotKeyMenuPopup = HotKeyMenuPopup.Instance;
             if (!hotKeyMenuPopup.Initialized)
-                HotKeyMenuPopup.Instance.Initialize();
+                hotKeyMenuPopup.Initialize();
             var hudDisplay = HotKeyDisplay.Instance;
             // Clear buttons
             for (var i = 0; i < hudDisplay.HotKeyButtons.Length; i++)
@@ -122,31 +153,6 @@ namespace HotKeyHUD
                 else if (data.payloadTypes[i] == PayloadType.Spell)
                     hudDisplay.SetSpellAtSlot(data.spells[spellIndex++], i);
             }
-        }
-
-        [Invoke(StateManager.StateTypes.Start, 0)]
-        public static void Init(InitParams initParams)
-        {
-            mod = initParams.Mod;
-            var go = new GameObject(mod.Title);
-            mod.SaveDataInterface = go.AddComponent<HotKeyHUD>();
-        }
-
-        public static void InitMod()
-        {
-            var settings = mod.GetSettings();
-            HotKeyUtil.HideHotbar = settings.GetValue<bool>("Options", "Hide Hotbar");
-            HotKeyUtil.OverrideMenus = settings.GetValue<bool>("Options", "Override Menus");
-            var menuKeyText = settings.GetValue<string>("Options", "Hotkey Setup Menu Key");
-            if (Enum.TryParse(menuKeyText, out KeyCode result))
-                HotKeyUtil.SetupMenuKey = result;
-            else
-            {
-                HotKeyUtil.SetupMenuKey = KeyCode.Alpha0;
-                Debug.Log("Hot Key HUD: Invalid setup menu keybind detected. Setting default.");
-            }
-
-            Debug.Log("Hot Key HUD initialized.");
         }
     }
 }

@@ -70,10 +70,6 @@ namespace HotKeyHUD
         {
             base.Update();
             hotKeyMenuPopup.HandleSlotSelect(ref lastSelectedSlot);
-            // Toggle closed
-            var keyDown = InputManager.Instance.GetAnyKeyDown();
-            if (keyDown == HotKeyUtil.SetupMenuKey)
-                CloseWindow();
         }
 
         protected override void Setup()
@@ -138,7 +134,6 @@ namespace HotKeyHUD
             };
 
             hotKeyMenuPopup = HotKeyMenuPopup.Instance;
-            hotKeyMenuPopup.SetPos(menuPopupLeft, topMarginHeight);
             ResetItemsList();
             ResetSpellsList();
             ParentPanel.BackgroundColor = Color.clear;

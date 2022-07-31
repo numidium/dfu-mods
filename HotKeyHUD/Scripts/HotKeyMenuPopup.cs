@@ -6,15 +6,18 @@ namespace HotKeyHUD
 {
     public class HotKeyMenuPopup : Panel
     {
-        private const float defaultXOffset = 222f;
-        private const float defaultYOffset = 9f;
-        private float xOffset;
-        private float yOffset;
+        private const float overrideXOffset = 222f;
+        private const float overrideYOffset = 9f;
+        private const float nonOverrideXOffset = 21f;
+        private const float nonOverrideYOffset = 30f;
+        private readonly float xOffset;
+        private readonly float yOffset;
         private readonly bool clickable;
         private static HotKeyMenuPopup instance;
         public HotKeyButton[] HotKeyButtons { get; private set; }
         public bool Initialized { get; private set; }
         public int SelectedSlot { get; private set; }
+
         public static HotKeyMenuPopup Instance
         {
             get
@@ -29,8 +32,13 @@ namespace HotKeyHUD
         {
             if (!clickable)
             {
-                xOffset = defaultXOffset;
-                yOffset = defaultYOffset;
+                xOffset = overrideXOffset;
+                yOffset = overrideYOffset;
+            }
+            else
+            {
+                xOffset = nonOverrideXOffset;
+                yOffset = nonOverrideYOffset;
             }
 
             Enabled = clickable;
@@ -53,12 +61,6 @@ namespace HotKeyHUD
             if (clickable)
                 SetSelectedSlot(0);
             Initialized = true;
-        }
-
-        public void SetPos(float x, float y)
-        {
-            xOffset = x;
-            yOffset = y;
         }
 
         public override void Update()

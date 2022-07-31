@@ -14,7 +14,7 @@ namespace HotKeyHUD
 {
     public class HotKeyButton : Panel
     {
-        public const float buttonWidth = 23f;
+        public const float buttonWidth = 22f;
         public const float buttonHeight = 22f;
         private const float maxCondBarWidth = buttonWidth - 3f;
         private const int iconPanelSlot = 1;
@@ -41,7 +41,8 @@ namespace HotKeyHUD
             // Button Backdrop
             BackgroundColor = Color.black;
             BackgroundTexture = backdrop;
-            Size = new Vector2 { x = buttonWidth, y = buttonHeight };
+            Size = new Vector2 { x = buttonWidth + 1f, // Scaling workaround (width > height)
+                                 y = buttonHeight };
             Position = position;
             originalPosition = position;
 
@@ -96,7 +97,7 @@ namespace HotKeyHUD
             {
                 // Update stack count.
                 if (StackLabel.Enabled)
-                    StackLabel.Text = item.stackCount.ToString();
+                    StackLabel.Text = IsBow(item) ? GetArrowCount().ToString() : item.stackCount.ToString();
                 // Update condition bar.
                 ConditionBar.Size = new Vector2(item.ConditionPercentage / 100f * (maxCondBarWidth * Parent.Scale.x), condBarHeight * Parent.Scale.y);
                 if (item.ConditionPercentage >= 70)
@@ -130,7 +131,7 @@ namespace HotKeyHUD
                 var image = DaggerfallUnity.Instance.ItemHelper.GetInventoryImage(item);
                 Icon.BackgroundTexture = image.texture;
                 Icon.Size = new Vector2(image.width, image.height);
-                StackLabel.Enabled = item.IsStackable();
+                StackLabel.Enabled = item.IsStackable() || IsBow(item);
                 // I'm assuming there aren't any stackables with condition worth tracking.
                 ConditionBar.Enabled = !StackLabel.Enabled;
             }
@@ -340,6 +341,19 @@ namespace HotKeyHUD
             ConditionBar.Scale = scale;
             ConditionBar.Position = new Vector2((float)Math.Round(CondBarOriginalPos.x * scale.x + .5f), (float)Math.Round(CondBarOriginalPos.y * scale.y + .5f));
             ConditionBar.Size = new Vector2((float)Math.Round(ConditionBar.Size.x * scale.x + .5f), (float)Math.Round(ConditionBar.Size.y * scale.y + .5f));
+        }
+
+        private static bool IsBow(DaggerfallUnityItem item)
+        {
+            return item.ItemGroup == ItemGroups.Weapons && (item.ItemTemplate.index == (int)Weapons.Long_Bow || item.ItemTemplate.index == (int)Weapons.Short_Bow);
+        }
+
+        private static int GetArrowCount()
+        {
+            var arrows = GameManager.Instance.PlayerEntity.Items.GetItem(ItemGroups.Weapons, (int)Weapons.Arrow, allowQuestItem: false, priorityToConjured: true);
+            if (arrows != null)
+                return arrows.stackCount;
+            return 0;
         }
     }
 }

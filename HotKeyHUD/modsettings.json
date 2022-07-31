@@ -16,14 +16,14 @@
 				{
 					"Value": "true",
                     "Name": "Override Menus",
-                    "Description": "Allow setting hotkeys from inventory/spellbook menus. Disable if there are mod conflicts.",
+                    "Description": "Allow setting hotkeys from inventory/spellbook menus. Disable if there are mod conflicts. Changing ingame requires a restart.",
                     "$version": "v1",
                     "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
 				},
 				{
                     "Value": "Alpha0",
                     "Name": "Hotkey Setup Menu Key",
-                    "Description": "Which key opens the hotkey setup menu. Only works if Override Menus is set.",
+                    "Description": "Which key opens the hotkey setup menu. Only takes effect if Override Menus is set.",
                     "$version": "v1",
                     "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.TextKey"
                 }
