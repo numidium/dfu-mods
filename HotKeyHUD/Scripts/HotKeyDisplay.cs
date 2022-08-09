@@ -53,14 +53,22 @@ namespace HotKeyHUD
             for (var i = 0; i < HotKeyButtons.Length; i++)
             {
                 var button = HotKeyButtons[i];
-                if (button.ConditionBar.Enabled && button.Payload is DaggerfallUnityItem item)
+                if (button.Payload is DaggerfallUnityItem item)
                 {
-                    // Remove item from hotkeys if it is no longer in inventory.
-                    if (!playerEntity.Items.Contains(item.UID))
+                    // Remove item from hotkeys if it is:
+                    // 1. no longer in inventory
+                    // 2. broken from use
+                    // 3. a consumed stack
+                    if (button.ConditionBar.Enabled)
+                    {
+                        if (!playerEntity.Items.Contains(item.UID) || item.currentCondition <= 0)
+                            SetButtonItem(i, null);
+                        // Scaling fix. Scaling seems to break if the parent panel height > width.
+                        if (button.Icon.InteriorHeight > HotKeyButton.buttonHeight * Scale.y)
+                            button.Icon.Size *= .9f;
+                    }
+                    else if (button.StackLabel.Enabled && item.stackCount == 0)
                         SetButtonItem(i, null);
-                    // Scaling fix. Scaling seems to break if the parent panel height > width.
-                    if (button.Icon.InteriorHeight > HotKeyButton.buttonHeight * Scale.y)
-                        button.Icon.Size *= .9f;
                 }
             }
         }

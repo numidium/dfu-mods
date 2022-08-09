@@ -19,8 +19,8 @@ namespace HotKeyHUD
         private const float maxCondBarWidth = buttonWidth - 3f;
         private const int iconPanelSlot = 1;
         private const int buttonKeyLabelSlot = 2;
-        private const int buttonStackLabelSlot = 3;
-        private const int buttonConditionBarSlot = 4;
+        private const int buttonConditionBarSlot = 3;
+        private const int buttonStackLabelSlot = 4;
         private const float condBarHeight = 1f;
         private const float iconsWidth = buttonWidth * 10f;
         private const float iconsY = 177f;
@@ -66,6 +66,15 @@ namespace HotKeyHUD
                 ShadowPosition = DaggerfallUI.DaggerfallDefaultShadowPos
             });
 
+            // Item condition bar
+            Components.Add(new Panel
+            {
+                Position = CondBarOriginalPos,
+                Size = new Vector2(maxCondBarWidth, condBarHeight),
+                BackgroundColor = Color.green,
+                Enabled = false
+            });
+
             // Stack # Label
             Components.Add(new TextLabel
             {
@@ -76,15 +85,6 @@ namespace HotKeyHUD
                 Enabled = false,
                 ShadowColor = DaggerfallUI.DaggerfallDefaultShadowColor,
                 ShadowPosition = DaggerfallUI.DaggerfallDefaultShadowPos
-            });
-
-            // Item condition bar
-            Components.Add(new Panel
-            {
-                Position = CondBarOriginalPos,
-                Size = new Vector2(maxCondBarWidth, condBarHeight),
-                BackgroundColor = Color.green,
-                Enabled = false
             });
 
             PositionIndex = (byte)(keyIndex - 1);
@@ -133,7 +133,7 @@ namespace HotKeyHUD
                 Icon.Size = new Vector2(image.width, image.height);
                 StackLabel.Enabled = item.IsStackable() || IsBow(item);
                 // I'm assuming there aren't any stackables with condition worth tracking.
-                ConditionBar.Enabled = !StackLabel.Enabled;
+                ConditionBar.Enabled = !StackLabel.Enabled || IsBow(item);
             }
         }
 
@@ -218,12 +218,7 @@ namespace HotKeyHUD
             {
                 var playerEffectManager = GameManager.Instance.PlayerEffectManager;
                 if (playerEffectManager && !GameManager.Instance.PlayerSpellCasting.IsPlayingAnim)
-                {
                     GameManager.Instance.PlayerEffectManager.DoItemEnchantmentPayloads(EnchantmentPayloadFlags.Used, item, player.Items);
-                    // Remove item if broken by use.
-                    if (item.currentCondition <= 0)
-                        SetItem(null);
-                }
             }
             // Do drugs.
             // Note: Copied from DaggerfallInventoryWindow
@@ -245,9 +240,7 @@ namespace HotKeyHUD
                 equipTable.UnequipItem(item);
                 player.UpdateEquippedArmorValues(item, false);
             }
-            // Remove broken item from menu.
-            else if (item.currentCondition <= 0)
-                SetItem(null);
+
             // Open the spellbook.
             else if (item.TemplateIndex == (int)MiscItems.Spellbook)
             {
@@ -300,10 +293,6 @@ namespace HotKeyHUD
             // Toggle item equipped.
             else
                 unequippedList = equipTable.EquipItem(item);
-
-            // Remove consumed stacks.
-            if (item.stackCount == 0) // Camel-case public fields? :)
-                SetItem(null);
 
             // Handle equipped armor and list of unequipped items.
             if (unequippedList != null)
