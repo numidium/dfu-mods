@@ -5,12 +5,14 @@ using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.Entity;
 using DaggerfallWorkshop.Game.Serialization;
 using DaggerfallWorkshop.Game.Utility;
+using System;
 using System.Collections;
+using System.IO;
 using UnityEngine;
 
 namespace FutureShock
 {
-    public class HitScanWeapon : MonoBehaviour
+    sealed public class HitScanWeapon : MonoBehaviour
     {
         private const float nativeScreenWidth = 320f;
         private const float nativeScreenHeight = 200f;
@@ -19,12 +21,18 @@ namespace FutureShock
         private Texture2D[] weaponFrames;
         private Rect weaponPosition;
         private int currentFrame;
+        private float frameTime;
+        private float frameTimeRemaining;
+        private float lastScreenWidth, lastScreenHeight;
+        private AudioClip shootSound;
+        private static readonly byte[] noiseTable = { 0xDD, 0x83, 0x65, 0x57, 0xEA, 0x78, 0x08, 0x48, 0xB8, 0x01, 0x38, 0x94, 0x08, 0xDD, 0x3F, 0xC2, 0xBE, 0xAB, 0x76, 0xC6, 0x14 };
         public bool IsFiring { get; set; }
-        float lastScreenWidth, lastScreenHeight;
 
         private void Start()
         {
             currentFrame = 0;
+            frameTime = 0.0625f;
+            frameTimeRemaining = 0f;
             mainCamera = GameObject.FindGameObjectWithTag("MainCamera");
             playerLayerMask = ~(1 << LayerMask.NameToLayer("Player"));
             var uziCfa = new CfaFile("F:\\dosgames\\futureshock\\doublepack\\Games\\The Terminator - Future Shock\\GAMEDATA\\WEAPON01.CFA", FileUsage.UseMemory, true)
@@ -47,7 +55,49 @@ namespace FutureShock
                 weaponFrames[i].Apply();
             }
 
-            StartCoroutine(AnimateWeapon());
+            var soundData = File.ReadAllBytes("F:\\dosgames\\futureshock\\doublepack\\Games\\The Terminator - Future Shock\\GAMEDATA\\SHOTS2.RAW");
+            DeNoisify(ref soundData);
+            var samples = new float[soundData.Length];
+            const float divisor = 1.0f / 128.0f;
+            for (var i = 0; i < soundData.Length; i++)
+                samples[i] = (soundData[i] - 128) * divisor;
+            shootSound = AudioClip.Create("SHOTS2", soundData.Length, 1, 11025, false);
+            shootSound.SetData(samples, 0);
+        }
+
+        private void DeNoisify(ref byte[] samples)
+        {
+            var tableInd = 0;
+            for (var i = 0; i < samples.Length; i++)
+            {
+                samples[i] -= noiseTable[tableInd];
+                tableInd = (tableInd + 1) % noiseTable.Length;
+            }
+        }
+
+        private void Update()
+        {
+            if (frameTimeRemaining <= 0f)
+            {
+                if (IsFiring || currentFrame != 0) // Keep firing until animation is finished.
+                {
+                    currentFrame = (currentFrame + 1) % weaponFrames.Length;
+                    frameTimeRemaining = frameTime;
+                    FireScanRay();
+                    if (currentFrame == 1)
+                    {
+                        var audioSource = DaggerfallUI.Instance.DaggerfallAudioSource.AudioSource;
+                        audioSource.clip = shootSound;
+                        audioSource.volume = DaggerfallUnity.Settings.SoundVolume;
+                        if (!audioSource.isPlaying)
+                            audioSource.Play();
+                    }
+                }
+                else
+                    return;
+            }
+            else
+                frameTimeRemaining -= Time.deltaTime;
         }
 
         private void OnGUI()
@@ -56,7 +106,12 @@ namespace FutureShock
             var screenRect = DaggerfallUI.Instance.CustomScreenRect ?? new Rect(0, 0, Screen.width, Screen.height);
             if (screenRect.width != lastScreenWidth ||
                 screenRect.height != lastScreenHeight)
+            {
+                lastScreenWidth = screenRect.width;
+                lastScreenHeight = screenRect.height;
                 UpdateWeapon();
+            }
+
             if (GameManager.IsGamePaused || SaveLoadManager.Instance.LoadInProgress)
                 return;
             if (Event.current.type.Equals(EventType.Repaint))
@@ -73,24 +128,6 @@ namespace FutureShock
                 screenRect.y + screenRect.height - weaponFrames[currentFrame].height * weaponScaleY,
                 weaponFrames[currentFrame].width * weaponScaleX,
                 weaponFrames[currentFrame].height * weaponScaleY);
-        }
-
-        IEnumerator AnimateWeapon()
-        {
-            while (true)
-            {
-                var startFrame = currentFrame;
-                if (IsFiring)
-                    currentFrame = (currentFrame + 1) % weaponFrames.Length;
-                else
-                    currentFrame = 0;
-                if (currentFrame % 2 == 1)
-                    FireScanRay();
-                if (startFrame != currentFrame)
-                    UpdateWeapon();
-
-                yield return new WaitForSeconds(0.0625f); // 1/16th of a second
-            }
         }
 
         private void FireScanRay()

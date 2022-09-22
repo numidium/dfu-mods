@@ -13,7 +13,7 @@ using UnityEngine;
 
 namespace FutureShock
 {
-    public class FutureShockWeapons : MonoBehaviour
+    sealed public class FutureShockWeapons : MonoBehaviour
     {
         private static Mod mod;
         private bool componentAdded;
