@@ -1,13 +1,8 @@
-using DaggerfallConnect;
-using DaggerfallConnect.Arena2;
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.Entity;
 using DaggerfallWorkshop.Game.Serialization;
 using DaggerfallWorkshop.Game.Utility;
-using System;
-using System.Collections;
-using System.IO;
 using UnityEngine;
 
 namespace FutureShock
@@ -18,14 +13,15 @@ namespace FutureShock
         private const float nativeScreenHeight = 200f;
         private GameObject mainCamera;
         private int playerLayerMask;
-        private Texture2D[] weaponFrames;
         private Rect weaponPosition;
         private int currentFrame;
         private float frameTime;
         private float frameTimeRemaining;
         private float lastScreenWidth, lastScreenHeight;
-        private AudioClip shootSound;
-        private static readonly byte[] noiseTable = { 0xDD, 0x83, 0x65, 0x57, 0xEA, 0x78, 0x08, 0x48, 0xB8, 0x01, 0x38, 0x94, 0x08, 0xDD, 0x3F, 0xC2, 0xBE, 0xAB, 0x76, 0xC6, 0x14 };
+        public Texture2D[] WeaponFrames { private get; set; }
+        public float HorizontalOffset { private get; set; }
+        public float VerticalOffset { private get; set; }
+        public AudioClip ShootSound { private get; set; }
         public bool IsFiring { get; set; }
 
         private void Start()
@@ -35,44 +31,6 @@ namespace FutureShock
             frameTimeRemaining = 0f;
             mainCamera = GameObject.FindGameObjectWithTag("MainCamera");
             playerLayerMask = ~(1 << LayerMask.NameToLayer("Player"));
-            var uziCfa = new CfaFile("F:\\dosgames\\futureshock\\doublepack\\Games\\The Terminator - Future Shock\\GAMEDATA\\WEAPON01.CFA", FileUsage.UseMemory, true)
-            {
-                Palette = new DFPalette("F:\\dosgames\\futureshock\\doublepack\\Games\\The Terminator - Future Shock\\GAMEDATA\\SHOCK.COL")
-            };
-
-            var frames = uziCfa.GetFrameCount(0);
-            weaponFrames = new Texture2D[frames];
-            for (var i = 0; i < frames; i++)
-            {
-                var bitmap = uziCfa.GetDFBitmap(0, i);
-                weaponFrames[i] = new Texture2D(bitmap.Width, bitmap.Height)
-                {
-                    filterMode = FilterMode.Point
-                };
-
-                var colors = uziCfa.GetColor32(0, i, 0);
-                weaponFrames[i].SetPixels32(colors);
-                weaponFrames[i].Apply();
-            }
-
-            var soundData = File.ReadAllBytes("F:\\dosgames\\futureshock\\doublepack\\Games\\The Terminator - Future Shock\\GAMEDATA\\SHOTS2.RAW");
-            DeNoisify(ref soundData);
-            var samples = new float[soundData.Length];
-            const float divisor = 1.0f / 128.0f;
-            for (var i = 0; i < soundData.Length; i++)
-                samples[i] = (soundData[i] - 128) * divisor;
-            shootSound = AudioClip.Create("SHOTS2", soundData.Length, 1, 11025, false);
-            shootSound.SetData(samples, 0);
-        }
-
-        private void DeNoisify(ref byte[] samples)
-        {
-            var tableInd = 0;
-            for (var i = 0; i < samples.Length; i++)
-            {
-                samples[i] -= noiseTable[tableInd];
-                tableInd = (tableInd + 1) % noiseTable.Length;
-            }
         }
 
         private void Update()
@@ -81,16 +39,15 @@ namespace FutureShock
             {
                 if (IsFiring || currentFrame != 0) // Keep firing until animation is finished.
                 {
-                    currentFrame = (currentFrame + 1) % weaponFrames.Length;
+                    currentFrame = (currentFrame + 1) % WeaponFrames.Length;
                     frameTimeRemaining = frameTime;
                     FireScanRay();
                     if (currentFrame == 1)
                     {
                         var audioSource = DaggerfallUI.Instance.DaggerfallAudioSource.AudioSource;
-                        audioSource.clip = shootSound;
+                        audioSource.clip = ShootSound;
                         audioSource.volume = DaggerfallUnity.Settings.SoundVolume;
-                        if (!audioSource.isPlaying)
-                            audioSource.Play();
+                        audioSource.Play();
                     }
                 }
                 else
@@ -115,7 +72,7 @@ namespace FutureShock
             if (GameManager.IsGamePaused || SaveLoadManager.Instance.LoadInProgress)
                 return;
             if (Event.current.type.Equals(EventType.Repaint))
-                DaggerfallUI.DrawTextureWithTexCoords(weaponPosition, weaponFrames[currentFrame], new Rect(1, 0, 1 /* -1 to mirror (for left hand) */, 1));
+                DaggerfallUI.DrawTextureWithTexCoords(weaponPosition, WeaponFrames[currentFrame], new Rect(1, 0, 1 /* -1 to mirror (for left hand) */, 1));
         }
 
         private void UpdateWeapon()
@@ -124,15 +81,15 @@ namespace FutureShock
             var weaponScaleX = (float)screenRect.width / nativeScreenWidth;
             var weaponScaleY = (float)screenRect.height / nativeScreenHeight;
             weaponPosition = new Rect(
-                screenRect.x + screenRect.width * (1f - 0.3f) - weaponFrames[currentFrame].width * weaponScaleX,
-                screenRect.y + screenRect.height - weaponFrames[currentFrame].height * weaponScaleY,
-                weaponFrames[currentFrame].width * weaponScaleX,
-                weaponFrames[currentFrame].height * weaponScaleY);
+                screenRect.x + screenRect.width * (1f + HorizontalOffset) - WeaponFrames[currentFrame].width * weaponScaleX,
+                screenRect.y + screenRect.height * (1f + VerticalOffset) - WeaponFrames[currentFrame].height * weaponScaleY,
+                WeaponFrames[currentFrame].width * weaponScaleX,
+                WeaponFrames[currentFrame].height * weaponScaleY);
         }
 
         private void FireScanRay()
         {
-            const float wepRange = 10f;
+            const float wepRange = 20f;
             const int rayDamage = 10;
             var ray = new Ray(mainCamera.transform.position, mainCamera.transform.forward);
             if (Physics.Raycast(ray, out RaycastHit hit, wepRange, playerLayerMask))
