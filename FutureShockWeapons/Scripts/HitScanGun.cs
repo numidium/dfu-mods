@@ -22,7 +22,8 @@ namespace FutureShock
         public float HorizontalOffset { private get; set; }
         public float VerticalOffset { private get; set; }
         public AudioClip ShootSound { private get; set; }
-        public bool IsFiring { get; set; }
+        public bool IsFiring { private get; set; }
+        public bool IsBurstFire { private get; set; } // Some weapons fire more than once in an animation cycle
 
         private void Start()
         {
@@ -41,7 +42,8 @@ namespace FutureShock
                 {
                     currentFrame = (currentFrame + 1) % WeaponFrames.Length;
                     frameTimeRemaining = frameTime;
-                    FireScanRay();
+                    if (IsBurstFire || currentFrame == 1)
+                        FireScanRay();
                     if (currentFrame == 1)
                     {
                         var audioSource = DaggerfallUI.Instance.DaggerfallAudioSource.AudioSource;
@@ -90,7 +92,7 @@ namespace FutureShock
         private void FireScanRay()
         {
             const float wepRange = 20f;
-            const int rayDamage = 10;
+            const int rayDamage = 30;
             var ray = new Ray(mainCamera.transform.position, mainCamera.transform.forward);
             if (Physics.Raycast(ray, out RaycastHit hit, wepRange, playerLayerMask))
             {
@@ -105,7 +107,7 @@ namespace FutureShock
             var enemyMotor = hitTransform.GetComponent<EnemyMotor>();
             var enemySounds = hitTransform.GetComponent<EnemySounds>();
             var mobileNpc = hitTransform.GetComponent<MobilePersonNPC>();
-            //var blood = hitTransform.GetComponent<EnemyBlood>();
+            var blood = hitTransform.GetComponent<EnemyBlood>();
 
             // Hit an innocent peasant walking around town.
             if (mobileNpc)
@@ -141,10 +143,8 @@ namespace FutureShock
             if (entityBehaviour.EntityType == EntityTypes.EnemyMonster || entityBehaviour.EntityType == EntityTypes.EnemyClass)
             {
                 var enemyEntity = entityBehaviour.Entity as EnemyEntity;
-                /*
                 if (blood != null)
                     blood.ShowBloodSplash(enemyEntity.MobileEnemy.BloodIndex, impactPosition);
-                */
                 if (enemyMotor != null && enemyMotor.KnockbackSpeed <= (5 / (PlayerSpeedChanger.classicToUnitySpeedUnitRatio / 10)) &&
                     entityBehaviour.EntityType == EntityTypes.EnemyClass || enemyEntity.MobileEnemy.Weight > 0)
                 {
