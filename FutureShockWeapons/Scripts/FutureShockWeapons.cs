@@ -1,12 +1,14 @@
 using DaggerfallConnect;
 using DaggerfallConnect.Arena2;
 using DaggerfallWorkshop.Game;
+using DaggerfallWorkshop.Game.Serialization;
 using DaggerfallWorkshop.Game.Utility.ModSupport;
 using DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
+using Wenzil.Console;
 
 namespace FutureShock
 {
@@ -42,6 +44,7 @@ namespace FutureShock
         private const string gameDataPath = "F:\\dosgames\\futureshock\\doublepack\\Games\\The Terminator - Future Shock\\GAMEDATA\\";
         private static Dictionary<WeaponAnimation, Texture2D[]> textureBank;
         private static Dictionary<WeaponSound, AudioClip> soundBank;
+        private static ConsoleController consoleController;
         public static FutureShockWeapons Instance { get; private set; }
         public Type SaveDataType => typeof(FutureShockWeapons);
         public static string ModTitle => mod.Title;
@@ -54,6 +57,7 @@ namespace FutureShock
             Instance = go.AddComponent<FutureShockWeapons>();
             //mod.SaveDataInterface = Instance;
             mod.LoadSettingsCallback = Instance.LoadSettings;
+            consoleController = GameObject.Find("Console").GetComponent<ConsoleController>();
         }
 
         void LoadSettings(ModSettings settings, ModSettingsChange change)
@@ -68,6 +72,8 @@ namespace FutureShock
 
         private void Update()
         {
+            if (consoleController.ui.isConsoleOpen || GameManager.IsGamePaused || SaveLoadManager.Instance.LoadInProgress || DaggerfallUI.UIManager.WindowCount != 0)
+                return;
             hitScanGun.IsFiring = InputManager.Instance.GetKey(KeyCode.Mouse1, false);
             if (InputManager.Instance.GetKeyDown(KeyCode.Alpha1))
                 SetWeapon(FSWeapon.Uzi);
@@ -183,6 +189,7 @@ namespace FutureShock
 
         private static void SetWeapon(FSWeapon weapon)
         {
+            hitScanGun.ResetAnimation();
             hitScanGun.UpdateRequested = true;
             switch (weapon)
             {

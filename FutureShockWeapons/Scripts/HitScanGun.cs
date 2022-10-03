@@ -22,16 +22,22 @@ namespace FutureShock
         public float HorizontalOffset { private get; set; }
         public float VerticalOffset { private get; set; }
         public AudioClip ShootSound { private get; set; }
-        public bool IsFiring { private get; set; }
+        public bool IsFiring { get; set; }
         public bool IsBurstFire { private get; set; } // Some weapons fire more than once in an animation cycle
         public int BulletDamage { private get; set; }
         public bool UpdateRequested { private get; set; }
 
-        private void Start()
+        public void ResetAnimation()
         {
             currentFrame = 0;
+            frameTimeRemaining = 0;
+            IsFiring = false;
+        }
+
+        private void Start()
+        {
             frameTime = 0.0625f;
-            frameTimeRemaining = 0f;
+            ResetAnimation();
             mainCamera = GameObject.FindGameObjectWithTag("MainCamera");
             playerLayerMask = ~(1 << LayerMask.NameToLayer("Player"));
         }
