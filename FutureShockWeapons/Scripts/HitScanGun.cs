@@ -24,6 +24,8 @@ namespace FutureShock
         public AudioClip ShootSound { private get; set; }
         public bool IsFiring { private get; set; }
         public bool IsBurstFire { private get; set; } // Some weapons fire more than once in an animation cycle
+        public int BulletDamage { private get; set; }
+        public bool UpdateRequested { private get; set; }
 
         private void Start()
         {
@@ -64,7 +66,8 @@ namespace FutureShock
             // Update weapon when resolution changes
             var screenRect = DaggerfallUI.Instance.CustomScreenRect ?? new Rect(0, 0, Screen.width, Screen.height);
             if (screenRect.width != lastScreenWidth ||
-                screenRect.height != lastScreenHeight)
+                screenRect.height != lastScreenHeight ||
+                UpdateRequested)
             {
                 lastScreenWidth = screenRect.width;
                 lastScreenHeight = screenRect.height;
@@ -92,11 +95,10 @@ namespace FutureShock
         private void FireScanRay()
         {
             const float wepRange = 20f;
-            const int rayDamage = 30;
             var ray = new Ray(mainCamera.transform.position, mainCamera.transform.forward);
             if (Physics.Raycast(ray, out RaycastHit hit, wepRange, playerLayerMask))
             {
-                DealDamage(hit.transform, hit.point, rayDamage, mainCamera.transform.forward);
+                DealDamage(hit.transform, hit.point, BulletDamage, mainCamera.transform.forward);
             }
         }
 

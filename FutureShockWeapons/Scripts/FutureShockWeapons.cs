@@ -12,15 +12,6 @@ namespace FutureShock
 {
     sealed public class FutureShockWeapons : MonoBehaviour
     {
-        private static Mod mod;
-        private bool componentAdded;
-        private static HitScanWeapon hitScanGun;
-        private delegate void BsaTranslator(BinaryReader reader, ushort indexCount, Tuple<string, ushort>[] indexLookup, Dictionary<string, object> assetBank);
-        private const string gameDataPath = "F:\\dosgames\\futureshock\\doublepack\\Games\\The Terminator - Future Shock\\GAMEDATA\\";
-        public static FutureShockWeapons Instance { get; private set; }
-        public Type SaveDataType => typeof(FutureShockWeapons);
-        public static string ModTitle => mod.Title;
-
         enum WeaponAnimation
         {
             WEAPON01, // Uzi
@@ -31,11 +22,29 @@ namespace FutureShock
 
         enum WeaponSound
         {
-            SHOTS2,
-            SHOTS3, // M16
-            SHOTS5, // Uzi
-            SHTGUN  // Shotgun
+            SHOTS5,   // Uzi
+            SHOTS2,   // M16 (SHOTS3 is identical)
+            FASTGUN2, // Machine Gun
+            SHTGUN    // Shotgun
         }
+
+        enum FSWeapon
+        {
+            Uzi,
+            M16,
+            MachineGun,
+            Shotgun
+        }
+
+        private static Mod mod;
+        private bool componentAdded;
+        private static HitScanWeapon hitScanGun;
+        private const string gameDataPath = "F:\\dosgames\\futureshock\\doublepack\\Games\\The Terminator - Future Shock\\GAMEDATA\\";
+        private static Dictionary<WeaponAnimation, Texture2D[]> textureBank;
+        private static Dictionary<WeaponSound, AudioClip> soundBank;
+        public static FutureShockWeapons Instance { get; private set; }
+        public Type SaveDataType => typeof(FutureShockWeapons);
+        public static string ModTitle => mod.Title;
 
         [Invoke(StateManager.StateTypes.Start, 0)]
         public static void Init(InitParams initParams)
@@ -60,6 +69,14 @@ namespace FutureShock
         private void Update()
         {
             hitScanGun.IsFiring = InputManager.Instance.GetKey(KeyCode.Mouse1, false);
+            if (InputManager.Instance.GetKeyDown(KeyCode.Alpha1))
+                SetWeapon(FSWeapon.Uzi);
+            else if (InputManager.Instance.GetKeyDown(KeyCode.Alpha2))
+                SetWeapon(FSWeapon.M16);
+            else if (InputManager.Instance.GetKeyDown(KeyCode.Alpha3))
+                SetWeapon(FSWeapon.MachineGun);
+            else if (InputManager.Instance.GetKeyDown(KeyCode.Alpha4))
+                SetWeapon(FSWeapon.Shotgun);
         }
 
         public static void InitMod()
@@ -67,7 +84,7 @@ namespace FutureShock
             //var settings = mod.GetSettings();
 
             // Import Textures
-            var textureBank = new Dictionary<WeaponAnimation, Texture2D[]>();
+            textureBank = new Dictionary<WeaponAnimation, Texture2D[]>();
             var shockPalette = new DFPalette($"{gameDataPath}SHOCK.COL");
             // Check for and/or load loose CFA files. Normally these will not exist until first run.
             foreach (WeaponAnimation textureName in Enum.GetValues(typeof(WeaponAnimation)))
@@ -98,8 +115,7 @@ namespace FutureShock
             }
 
             // Import Sounds
-            var soundBank = new Dictionary<WeaponSound, AudioClip>();
-
+            soundBank = new Dictionary<WeaponSound, AudioClip>();
             using (var soundBsa = new BsaReader($"{gameDataPath}MDMDSFXS.BSA"))
             {
                 // Table ripped from Future Shock's memory during runtime
@@ -138,11 +154,7 @@ namespace FutureShock
 
             var player = GameObject.FindGameObjectWithTag("Player");
             hitScanGun = player.AddComponent<HitScanWeapon>();
-            hitScanGun.WeaponFrames = textureBank[WeaponAnimation.WEAPON01];
-            hitScanGun.HorizontalOffset = -0.3f; // -0.3f for uzi, -0.2f for shotgun, 0.1f M16
-            hitScanGun.VerticalOffset = 0.00f;
-            hitScanGun.ShootSound = soundBank[WeaponSound.SHOTS5];
-            hitScanGun.IsBurstFire = true;
+            SetWeapon(FSWeapon.Uzi);
             Debug.Log("Future Shock Weapons initialized.");
         }
 
@@ -167,6 +179,47 @@ namespace FutureShock
             }
 
             return textureFrames;
+        }
+
+        private static void SetWeapon(FSWeapon weapon)
+        {
+            hitScanGun.UpdateRequested = true;
+            switch (weapon)
+            {
+                case FSWeapon.Uzi:
+                default:
+                    hitScanGun.WeaponFrames = textureBank[WeaponAnimation.WEAPON01];
+                    hitScanGun.HorizontalOffset = -0.3f;
+                    hitScanGun.VerticalOffset = 0f;
+                    hitScanGun.ShootSound = soundBank[WeaponSound.SHOTS5];
+                    hitScanGun.BulletDamage = 5;
+                    hitScanGun.IsBurstFire = true;
+                    break;
+                case FSWeapon.M16:
+                    hitScanGun.WeaponFrames = textureBank[WeaponAnimation.WEAPON02];
+                    hitScanGun.HorizontalOffset = 0.1f;
+                    hitScanGun.VerticalOffset = 0.05f;
+                    hitScanGun.ShootSound = soundBank[WeaponSound.SHOTS2];
+                    hitScanGun.BulletDamage = 10;
+                    hitScanGun.IsBurstFire = true;
+                    break;
+                case FSWeapon.MachineGun:
+                    hitScanGun.WeaponFrames = textureBank[WeaponAnimation.WEAPON03];
+                    hitScanGun.HorizontalOffset = 0f;
+                    hitScanGun.VerticalOffset = 0f;
+                    hitScanGun.ShootSound = soundBank[WeaponSound.FASTGUN2];
+                    hitScanGun.BulletDamage = 15;
+                    hitScanGun.IsBurstFire = true;
+                    break;
+                case FSWeapon.Shotgun:
+                    hitScanGun.WeaponFrames = textureBank[WeaponAnimation.WEAPON04];
+                    hitScanGun.HorizontalOffset = -0.2f;
+                    hitScanGun.VerticalOffset = 0f;
+                    hitScanGun.ShootSound = soundBank[WeaponSound.SHTGUN];
+                    hitScanGun.BulletDamage = 30;
+                    hitScanGun.IsBurstFire = false;
+                    break;
+            }
         }
     }
 }
