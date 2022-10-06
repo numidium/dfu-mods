@@ -11,11 +11,11 @@ namespace FutureShock
     {
         private const float nativeScreenWidth = 320f;
         private const float nativeScreenHeight = 200f;
+        private const float frameTime = 0.0625f;
         private GameObject mainCamera;
         private int playerLayerMask;
         private Rect weaponPosition;
         private int currentFrame;
-        private float frameTime;
         private float frameTimeRemaining;
         private float lastScreenWidth, lastScreenHeight;
         public Texture2D[] WeaponFrames { private get; set; }
@@ -36,7 +36,6 @@ namespace FutureShock
 
         private void Start()
         {
-            frameTime = 0.0625f;
             ResetAnimation();
             mainCamera = GameObject.FindGameObjectWithTag("MainCamera");
             playerLayerMask = ~(1 << LayerMask.NameToLayer("Player"));
@@ -110,6 +109,7 @@ namespace FutureShock
 
         private bool DealDamage(Transform hitTransform, Vector3 impactPosition, int damage, Vector3 direction)
         {
+            // Note: Most of this is adapted from EnemyAttack.cs
             var entityBehaviour = hitTransform.GetComponent<DaggerfallEntityBehaviour>();
             var mobileUnit = hitTransform.GetComponentInChildren<MobileUnit>();
             var enemyMotor = hitTransform.GetComponent<EnemyMotor>();
@@ -123,10 +123,8 @@ namespace FutureShock
                 var playerEntity = GameManager.Instance.PlayerEntity;
                 if (!mobileNpc.IsGuard)
                 {
-                    /*
                     if (blood != null)
                         blood.ShowBloodSplash(0, impactPosition);
-                    */
                     mobileNpc.Motor.gameObject.SetActive(false);
                     playerEntity.TallyCrimeGuildRequirements(false, 5);
                     playerEntity.CrimeCommitted = PlayerEntity.Crimes.Murder;
@@ -181,6 +179,9 @@ namespace FutureShock
                 }
 
                 enemyEntity.DecreaseHealth(damage);
+                if (enemyMotor != null)
+                    enemyMotor.MakeEnemyHostileToAttacker(GameManager.Instance.PlayerEntity.EntityBehaviour);
+
                 return true;
             }
 

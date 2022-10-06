@@ -1,6 +1,8 @@
 using DaggerfallConnect;
 using DaggerfallConnect.Arena2;
+using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
+using DaggerfallWorkshop.Game.Items;
 using DaggerfallWorkshop.Game.Serialization;
 using DaggerfallWorkshop.Game.Utility.ModSupport;
 using DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings;
@@ -85,6 +87,15 @@ namespace FutureShock
                 SetWeapon(FSWeapon.Shotgun);
         }
 
+        private void OnGUI()
+        {
+            var equippedRight = GameManager.Instance.PlayerEntity.ItemEquipTable.GetItem(EquipSlots.RightHand);
+            if (equippedRight != null && equippedRight.TemplateIndex == 288 && !GameManager.Instance.WeaponManager.Sheathed)
+            {
+                GameManager.Instance.WeaponManager.SheathWeapons();
+            }
+        }
+
         public static void InitMod()
         {
             //var settings = mod.GetSettings();
@@ -161,6 +172,7 @@ namespace FutureShock
             var player = GameObject.FindGameObjectWithTag("Player");
             hitScanGun = player.AddComponent<HitScanWeapon>();
             SetWeapon(FSWeapon.Uzi);
+            DaggerfallUnity.Instance.ItemHelper.RegisterCustomItem(ItemUzi.customTemplateIndex, ItemGroups.Weapons, typeof(ItemUzi));
             Debug.Log("Future Shock Weapons initialized.");
         }
 

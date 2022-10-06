@@ -1,0 +1,22 @@
+[
+    {
+        "index": 288,
+        "name": "Uzi 9mm",
+        "baseWeight": 3,
+        "hitPoints": 500,
+        "capacityOrTarget": 0,
+        "basePrice": 14,
+        "enchantmentPoints": 500,
+        "rarity": 2,
+        "variants": 0,
+        "drawOrderOrEffect": 100,
+        "isBluntWeapon": false,
+        "isLiquid": false,
+        "isOneHanded": true,
+        "isIngredient": false,
+        "worldTextureArchive": 207,
+        "worldTextureRecord": 4,
+        "playerTextureArchive": 513,
+        "playerTextureRecord": 0
+    }
+]

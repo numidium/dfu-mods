@@ -6,6 +6,10 @@ using System.Text;
 
 namespace FutureShock
 {
+    /// <summary>
+    /// This reads BSA files in the format used by Arena and Future Shock.
+    /// Daggerfall's BSA format is slightly different which is why this class's existence is necessary.
+    /// </summary>
     sealed public class BsaReader : IDisposable
     {
         const ushort bsaIndexSize = 18; // name[12], u1, size, u2

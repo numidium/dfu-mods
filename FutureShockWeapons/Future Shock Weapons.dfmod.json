@@ -5,6 +5,7 @@
     "GUID": "b200579b-cd92-405a-8a93-1c9b48dba625",
     "Files": [
         "Assets/Game/Mods/FutureShockWeapons/Scripts/FutureShockWeapons.cs",
-        "Assets/Game/Mods/FutureShockWeapons/Scripts/HitScanGun.cs"
+        "Assets/Game/Mods/FutureShockWeapons/Scripts/HitScanGun.cs",
+        "Assets/Game/Mods/FutureShockWeapons/ItemTemplates.json"
     ]
 }
