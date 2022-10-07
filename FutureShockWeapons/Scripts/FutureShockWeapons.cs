@@ -32,6 +32,7 @@ namespace FutureShock
             SHTGUN    // Shotgun
         }
 
+        // Note: this enum must increase in the same order as the values' respective item class template indices
         enum FSWeapon
         {
             Uzi,
@@ -47,6 +48,8 @@ namespace FutureShock
         private static Dictionary<WeaponAnimation, Texture2D[]> textureBank;
         private static Dictionary<WeaponSound, AudioClip> soundBank;
         private static ConsoleController consoleController;
+        private static DaggerfallUnityItem lastEquippedRight;
+        private static bool ShowWeapon;
         public static FutureShockWeapons Instance { get; private set; }
         public Type SaveDataType => typeof(FutureShockWeapons);
         public static string ModTitle => mod.Title;
@@ -76,24 +79,33 @@ namespace FutureShock
         {
             if (consoleController.ui.isConsoleOpen || GameManager.IsGamePaused || SaveLoadManager.Instance.LoadInProgress || DaggerfallUI.UIManager.WindowCount != 0)
                 return;
-            hitScanGun.IsFiring = InputManager.Instance.GetKey(KeyCode.Mouse1, false);
-            if (InputManager.Instance.GetKeyDown(KeyCode.Alpha1))
-                SetWeapon(FSWeapon.Uzi);
-            else if (InputManager.Instance.GetKeyDown(KeyCode.Alpha2))
-                SetWeapon(FSWeapon.M16);
-            else if (InputManager.Instance.GetKeyDown(KeyCode.Alpha3))
-                SetWeapon(FSWeapon.MachineGun);
-            else if (InputManager.Instance.GetKeyDown(KeyCode.Alpha4))
-                SetWeapon(FSWeapon.Shotgun);
+            var input = InputManager.Instance;
+            hitScanGun.IsFiring = !hitScanGun.Holstered && input.GetKey(input.GetBinding(InputManager.Actions.SwingWeapon), false);
+            if (input.GetKeyDown(input.GetBinding(InputManager.Actions.ReadyWeapon)))
+                ShowWeapon = !ShowWeapon;
+            if (!ShowWeapon)
+                hitScanGun.Holstered = true;
+            else if (GameManager.Instance.WeaponManager.EquipCountdownRightHand <= 0)
+                hitScanGun.Holstered = false;
         }
 
         private void OnGUI()
         {
+            // When unsheathing, immediately re-sheathe weapon and use HitScanGun in place of FPSWeapon
             var equippedRight = GameManager.Instance.PlayerEntity.ItemEquipTable.GetItem(EquipSlots.RightHand);
-            if (equippedRight != null && equippedRight.TemplateIndex == 288 && !GameManager.Instance.WeaponManager.Sheathed)
+            if (equippedRight != null && equippedRight.TemplateIndex >= ItemUzi.customTemplateIndex && equippedRight.TemplateIndex <= ItemShotgun.customTemplateIndex)
             {
-                GameManager.Instance.WeaponManager.SheathWeapons();
+                if (!GameManager.Instance.WeaponManager.Sheathed)
+                    GameManager.Instance.WeaponManager.SheathWeapons();
+                if (lastEquippedRight != equippedRight)
+                {
+                    lastEquippedRight = equippedRight;
+                    SetWeapon(FSWeapon.Uzi + equippedRight.TemplateIndex - ItemUzi.customTemplateIndex);
+                    hitScanGun.Holstered = true;
+                }
             }
+            else
+                hitScanGun.Holstered = true;
         }
 
         public static void InitMod()
@@ -173,6 +185,9 @@ namespace FutureShock
             hitScanGun = player.AddComponent<HitScanWeapon>();
             SetWeapon(FSWeapon.Uzi);
             DaggerfallUnity.Instance.ItemHelper.RegisterCustomItem(ItemUzi.customTemplateIndex, ItemGroups.Weapons, typeof(ItemUzi));
+            DaggerfallUnity.Instance.ItemHelper.RegisterCustomItem(ItemM16.customTemplateIndex, ItemGroups.Weapons, typeof(ItemM16));
+            DaggerfallUnity.Instance.ItemHelper.RegisterCustomItem(ItemMachineGun.customTemplateIndex, ItemGroups.Weapons, typeof(ItemMachineGun));
+            DaggerfallUnity.Instance.ItemHelper.RegisterCustomItem(ItemShotgun.customTemplateIndex, ItemGroups.Weapons, typeof(ItemShotgun));
             Debug.Log("Future Shock Weapons initialized.");
         }
 
@@ -232,7 +247,7 @@ namespace FutureShock
                     break;
                 case FSWeapon.Shotgun:
                     hitScanGun.WeaponFrames = textureBank[WeaponAnimation.WEAPON04];
-                    hitScanGun.HorizontalOffset = -0.2f;
+                    hitScanGun.HorizontalOffset = -0.25f;
                     hitScanGun.VerticalOffset = 0f;
                     hitScanGun.ShootSound = soundBank[WeaponSound.SHTGUN];
                     hitScanGun.BulletDamage = 30;

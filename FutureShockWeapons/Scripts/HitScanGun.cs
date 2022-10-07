@@ -26,6 +26,7 @@ namespace FutureShock
         public bool IsBurstFire { private get; set; } // Some weapons fire more than once in an animation cycle
         public int BulletDamage { private get; set; }
         public bool UpdateRequested { private get; set; }
+        public bool Holstered { get; set; }
 
         public void ResetAnimation()
         {
@@ -36,6 +37,7 @@ namespace FutureShock
 
         private void Start()
         {
+            Holstered = true;
             ResetAnimation();
             mainCamera = GameObject.FindGameObjectWithTag("MainCamera");
             playerLayerMask = ~(1 << LayerMask.NameToLayer("Player"));
@@ -79,9 +81,9 @@ namespace FutureShock
                 UpdateWeapon();
             }
 
-            if (GameManager.IsGamePaused || SaveLoadManager.Instance.LoadInProgress)
+            if (Holstered || GameManager.IsGamePaused || SaveLoadManager.Instance.LoadInProgress)
                 return;
-            if (Event.current.type.Equals(EventType.Repaint))
+            if (Event.current.type.Equals(EventType.Repaint) && !Holstered)
                 DaggerfallUI.DrawTextureWithTexCoords(weaponPosition, WeaponFrames[currentFrame], new Rect(1, 0, 1 /* -1 to mirror (for left hand) */, 1));
         }
 
