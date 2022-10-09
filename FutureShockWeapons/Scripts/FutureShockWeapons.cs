@@ -27,12 +27,12 @@ namespace FutureShock
         enum WeaponSound
         {
             SHOTS5,   // Uzi
-            SHOTS2,   // M16 (SHOTS3 is identical)
+            SHOTS2,   // M16 (SHOTS3 is seemingly identical)
             FASTGUN2, // Machine Gun
             SHTGUN,   // Shotgun
-            SGCOCK1,
-            SGCOCK2,
-            UZICOCK3
+            SGCOCK1,  // Shotgun equip
+            SGCOCK2,  // M16/MG equip
+            UZICOCK3  // Uzi equip
         }
 
         // Note: this enum must increase in the same order as the values' respective item class template indices
@@ -98,21 +98,20 @@ namespace FutureShock
         private void OnGUI()
         {
             // When unsheathing, immediately re-sheathe weapon and use HitScanGun in place of FPSWeapon
+            var gameManager = GameManager.Instance;
             var equipChanged = false;
-            equippedRight = GameManager.Instance.PlayerEntity.ItemEquipTable.GetItem(EquipSlots.RightHand);
+            equippedRight = gameManager.PlayerEntity.ItemEquipTable.GetItem(EquipSlots.RightHand);
             if (lastEquippedRight != equippedRight)
                 equipChanged = true;
-
             if (IsGun(equippedRight))
             {
-                var lastNonGunSheathed = GameManager.Instance.WeaponManager.Sheathed;
+                var lastNonGunSheathed = gameManager.WeaponManager.Sheathed;
                 if (!lastNonGunSheathed)
-                    GameManager.Instance.WeaponManager.SheathWeapons();
-
+                    gameManager.WeaponManager.SheathWeapons();
                 if (equipChanged)
                 {
                     ShowWeapon = (!IsGun(lastEquippedRight) && !lastNonGunSheathed) || !hitScanGun.Holstered;
-                    SetWeapon(FSWeapon.Uzi + equippedRight.TemplateIndex - ItemUzi.customTemplateIndex);
+                    SetWeapon(GetGunFromMaterial(equippedRight.NativeMaterialValue));
                     hitScanGun.PlayEquipSound();
                     hitScanGun.Holstered = true;
                 }
@@ -121,14 +120,14 @@ namespace FutureShock
             {
                 hitScanGun.Holstered = true;
                 ShowWeapon = false;
-                GameManager.Instance.WeaponManager.Sheathed = false;
+                gameManager.WeaponManager.Sheathed = false;
             }
 
             if (equipChanged)
                 lastEquippedRight = equippedRight;
         }
 
-        private static bool IsGun(DaggerfallUnityItem item) => item != null && item.TemplateIndex >= ItemUzi.customTemplateIndex && item.TemplateIndex <= ItemShotgun.customTemplateIndex;
+        private static bool IsGun(DaggerfallUnityItem item) => item != null && item.TemplateIndex == ItemFSGun.customTemplateIndex;
 
         public static void InitMod()
         {
@@ -205,11 +204,8 @@ namespace FutureShock
 
             var player = GameObject.FindGameObjectWithTag("Player");
             hitScanGun = player.AddComponent<HitScanWeapon>();
-            SetWeapon(FSWeapon.Uzi);
-            DaggerfallUnity.Instance.ItemHelper.RegisterCustomItem(ItemUzi.customTemplateIndex, ItemGroups.Weapons, typeof(ItemUzi));
-            DaggerfallUnity.Instance.ItemHelper.RegisterCustomItem(ItemM16.customTemplateIndex, ItemGroups.Weapons, typeof(ItemM16));
-            DaggerfallUnity.Instance.ItemHelper.RegisterCustomItem(ItemMachineGun.customTemplateIndex, ItemGroups.Weapons, typeof(ItemMachineGun));
-            DaggerfallUnity.Instance.ItemHelper.RegisterCustomItem(ItemShotgun.customTemplateIndex, ItemGroups.Weapons, typeof(ItemShotgun));
+            SetWeapon((int)WeaponMaterialTypes.Iron);
+            DaggerfallUnity.Instance.ItemHelper.RegisterCustomItem(ItemFSGun.customTemplateIndex, ItemGroups.Weapons, typeof(ItemFSGun));
             Debug.Log("Future Shock Weapons initialized.");
         }
 
@@ -236,6 +232,25 @@ namespace FutureShock
             return textureFrames;
         }
 
+        private static FSWeapon GetGunFromMaterial(int material)
+        {
+            switch ((WeaponMaterialTypes)material)
+            {
+                case WeaponMaterialTypes.Iron:
+                case WeaponMaterialTypes.Steel:
+                case WeaponMaterialTypes.Silver:
+                    return FSWeapon.Uzi;
+                case WeaponMaterialTypes.Elven:
+                case WeaponMaterialTypes.Dwarven:
+                    return FSWeapon.M16;
+                case WeaponMaterialTypes.Mithril:
+                case WeaponMaterialTypes.Adamantium:
+                    return FSWeapon.Shotgun;
+                default:
+                    return FSWeapon.MachineGun;
+            }
+        }
+        
         private static void SetWeapon(FSWeapon weapon)
         {
             hitScanGun.ResetAnimation();
