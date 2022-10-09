@@ -4,7 +4,7 @@ using DaggerfallWorkshop.Game.Serialization;
 
 namespace FutureShock
 {
-    sealed public class ItemShotgun : DaggerfallUnityItem
+    public sealed class ItemShotgun : DaggerfallUnityItem
     {
         public const int customTemplateIndex = ItemMachineGun.customTemplateIndex + 1;
         public ItemShotgun() : base(ItemGroups.Weapons, customTemplateIndex)
@@ -22,7 +22,7 @@ namespace FutureShock
         public override ItemData_v1 GetSaveData()
         {
             var data = base.GetSaveData();
-            data.className = nameof(ItemShotgun);
+            data.className = $"FutureShock.{nameof(ItemShotgun)}";
             return data;
         }
     }

@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace FutureShock
 {
-    sealed public class HitScanWeapon : MonoBehaviour
+    public sealed class HitScanWeapon : MonoBehaviour
     {
         private const float nativeScreenWidth = 320f;
         private const float nativeScreenHeight = 200f;
@@ -22,6 +22,7 @@ namespace FutureShock
         public float HorizontalOffset { private get; set; }
         public float VerticalOffset { private get; set; }
         public AudioClip ShootSound { private get; set; }
+        public AudioClip EquipSound { private get; set; }
         public bool IsFiring { get; set; }
         public bool IsBurstFire { private get; set; } // Some weapons fire more than once in an animation cycle
         public int BulletDamage { private get; set; }
@@ -33,6 +34,14 @@ namespace FutureShock
             currentFrame = 0;
             frameTimeRemaining = 0;
             IsFiring = false;
+        }
+
+        public void PlayEquipSound()
+        {
+            var audioSource = DaggerfallUI.Instance.DaggerfallAudioSource.AudioSource;
+            audioSource.clip = EquipSound;
+            audioSource.volume = DaggerfallUnity.Settings.SoundVolume;
+            audioSource.Play();
         }
 
         private void Start()

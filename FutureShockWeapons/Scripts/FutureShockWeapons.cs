@@ -14,7 +14,7 @@ using Wenzil.Console;
 
 namespace FutureShock
 {
-    sealed public class FutureShockWeapons : MonoBehaviour
+    public sealed class FutureShockWeapons : MonoBehaviour
     {
         enum WeaponAnimation
         {
@@ -29,7 +29,10 @@ namespace FutureShock
             SHOTS5,   // Uzi
             SHOTS2,   // M16 (SHOTS3 is identical)
             FASTGUN2, // Machine Gun
-            SHTGUN    // Shotgun
+            SHTGUN,   // Shotgun
+            SGCOCK1,
+            SGCOCK2,
+            UZICOCK3
         }
 
         // Note: this enum must increase in the same order as the values' respective item class template indices
@@ -49,6 +52,7 @@ namespace FutureShock
         private static Dictionary<WeaponSound, AudioClip> soundBank;
         private static ConsoleController consoleController;
         private static DaggerfallUnityItem lastEquippedRight;
+        private static DaggerfallUnityItem equippedRight;
         private static bool ShowWeapon;
         public static FutureShockWeapons Instance { get; private set; }
         public Type SaveDataType => typeof(FutureShockWeapons);
@@ -79,34 +83,52 @@ namespace FutureShock
         {
             if (consoleController.ui.isConsoleOpen || GameManager.IsGamePaused || SaveLoadManager.Instance.LoadInProgress || DaggerfallUI.UIManager.WindowCount != 0)
                 return;
-            var input = InputManager.Instance;
-            hitScanGun.IsFiring = !hitScanGun.Holstered && input.GetKey(input.GetBinding(InputManager.Actions.SwingWeapon), false);
-            if (input.GetKeyDown(input.GetBinding(InputManager.Actions.ReadyWeapon)))
+            hitScanGun.IsFiring = !hitScanGun.Holstered && InputManager.Instance.HasAction(InputManager.Actions.SwingWeapon);
+            if (InputManager.Instance.ActionStarted(InputManager.Actions.ReadyWeapon) && IsGun(equippedRight))
                 ShowWeapon = !ShowWeapon;
             if (!ShowWeapon)
                 hitScanGun.Holstered = true;
-            else if (GameManager.Instance.WeaponManager.EquipCountdownRightHand <= 0)
+            else if (hitScanGun.Holstered && GameManager.Instance.WeaponManager.EquipCountdownRightHand <= 0)
+            {
                 hitScanGun.Holstered = false;
+                hitScanGun.PlayEquipSound();
+            }
         }
 
         private void OnGUI()
         {
             // When unsheathing, immediately re-sheathe weapon and use HitScanGun in place of FPSWeapon
-            var equippedRight = GameManager.Instance.PlayerEntity.ItemEquipTable.GetItem(EquipSlots.RightHand);
-            if (equippedRight != null && equippedRight.TemplateIndex >= ItemUzi.customTemplateIndex && equippedRight.TemplateIndex <= ItemShotgun.customTemplateIndex)
+            var equipChanged = false;
+            equippedRight = GameManager.Instance.PlayerEntity.ItemEquipTable.GetItem(EquipSlots.RightHand);
+            if (lastEquippedRight != equippedRight)
+                equipChanged = true;
+
+            if (IsGun(equippedRight))
             {
-                if (!GameManager.Instance.WeaponManager.Sheathed)
+                var lastNonGunSheathed = GameManager.Instance.WeaponManager.Sheathed;
+                if (!lastNonGunSheathed)
                     GameManager.Instance.WeaponManager.SheathWeapons();
-                if (lastEquippedRight != equippedRight)
+
+                if (equipChanged)
                 {
-                    lastEquippedRight = equippedRight;
+                    ShowWeapon = (!IsGun(lastEquippedRight) && !lastNonGunSheathed) || !hitScanGun.Holstered;
                     SetWeapon(FSWeapon.Uzi + equippedRight.TemplateIndex - ItemUzi.customTemplateIndex);
+                    hitScanGun.PlayEquipSound();
                     hitScanGun.Holstered = true;
                 }
             }
-            else
+            else if (!hitScanGun.Holstered)
+            {
                 hitScanGun.Holstered = true;
+                ShowWeapon = false;
+                GameManager.Instance.WeaponManager.Sheathed = false;
+            }
+
+            if (equipChanged)
+                lastEquippedRight = equippedRight;
         }
+
+        private static bool IsGun(DaggerfallUnityItem item) => item != null && item.TemplateIndex >= ItemUzi.customTemplateIndex && item.TemplateIndex <= ItemShotgun.customTemplateIndex;
 
         public static void InitMod()
         {
@@ -226,14 +248,16 @@ namespace FutureShock
                     hitScanGun.HorizontalOffset = -0.3f;
                     hitScanGun.VerticalOffset = 0f;
                     hitScanGun.ShootSound = soundBank[WeaponSound.SHOTS5];
+                    hitScanGun.EquipSound = soundBank[WeaponSound.UZICOCK3];
                     hitScanGun.BulletDamage = 5;
                     hitScanGun.IsBurstFire = true;
                     break;
                 case FSWeapon.M16:
                     hitScanGun.WeaponFrames = textureBank[WeaponAnimation.WEAPON02];
                     hitScanGun.HorizontalOffset = 0.1f;
-                    hitScanGun.VerticalOffset = 0.05f;
+                    hitScanGun.VerticalOffset = 0.01f;
                     hitScanGun.ShootSound = soundBank[WeaponSound.SHOTS2];
+                    hitScanGun.EquipSound = soundBank[WeaponSound.SGCOCK2];
                     hitScanGun.BulletDamage = 10;
                     hitScanGun.IsBurstFire = true;
                     break;
@@ -242,6 +266,7 @@ namespace FutureShock
                     hitScanGun.HorizontalOffset = 0f;
                     hitScanGun.VerticalOffset = 0f;
                     hitScanGun.ShootSound = soundBank[WeaponSound.FASTGUN2];
+                    hitScanGun.EquipSound = soundBank[WeaponSound.SGCOCK2];
                     hitScanGun.BulletDamage = 15;
                     hitScanGun.IsBurstFire = true;
                     break;
@@ -250,6 +275,7 @@ namespace FutureShock
                     hitScanGun.HorizontalOffset = -0.25f;
                     hitScanGun.VerticalOffset = 0f;
                     hitScanGun.ShootSound = soundBank[WeaponSound.SHTGUN];
+                    hitScanGun.EquipSound = soundBank[WeaponSound.SGCOCK1];
                     hitScanGun.BulletDamage = 30;
                     hitScanGun.IsBurstFire = false;
                     break;
