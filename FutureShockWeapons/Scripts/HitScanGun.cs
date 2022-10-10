@@ -1,6 +1,7 @@
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.Entity;
+using DaggerfallWorkshop.Game.Items;
 using DaggerfallWorkshop.Game.Serialization;
 using DaggerfallWorkshop.Game.Utility;
 using UnityEngine;
@@ -18,6 +19,7 @@ namespace FutureShock
         private int currentFrame;
         private float frameTimeRemaining;
         private float lastScreenWidth, lastScreenHeight;
+        public DaggerfallUnityItem PairedItem { private get; set; }
         public Texture2D[] WeaponFrames { private get; set; }
         public float HorizontalOffset { private get; set; }
         public float VerticalOffset { private get; set; }
@@ -26,6 +28,8 @@ namespace FutureShock
         public bool IsFiring { get; set; }
         public bool IsBurstFire { private get; set; } // Some weapons fire more than once in an animation cycle
         public int BulletDamage { private get; set; }
+        public int PainChance { private get; set; }
+        public int ShotConditionCost { private get; set; }
         public bool UpdateRequested { private get; set; }
         public bool Holstered { get; set; }
 
@@ -61,7 +65,11 @@ namespace FutureShock
                     currentFrame = (currentFrame + 1) % WeaponFrames.Length;
                     frameTimeRemaining = frameTime;
                     if (IsBurstFire || currentFrame == 1)
+                    {
                         FireScanRay();
+                        PairedItem.LowerCondition(ShotConditionCost);
+                    }
+
                     if (currentFrame == 1)
                     {
                         var audioSource = DaggerfallUI.Instance.DaggerfallAudioSource.AudioSource;
@@ -165,16 +173,19 @@ namespace FutureShock
                 if (enemyMotor != null && enemyMotor.KnockbackSpeed <= (5 / (PlayerSpeedChanger.classicToUnitySpeedUnitRatio / 10)) &&
                     entityBehaviour.EntityType == EntityTypes.EnemyClass || enemyEntity.MobileEnemy.Weight > 0)
                 {
-                    var enemyWeight = (float)enemyEntity.GetWeightInClassicUnits();
-                    var tenTimesDamage = damage * 10f;
-                    var twoTimesDamage = damage * 2f;
-                    var knockBackAmount = ((tenTimesDamage - enemyWeight) * 256f) / (enemyWeight + tenTimesDamage) * twoTimesDamage;
-                    var knockBackSpeed = (tenTimesDamage / enemyWeight) * (twoTimesDamage - (knockBackAmount / 256f));
-                    knockBackSpeed /= (PlayerSpeedChanger.classicToUnitySpeedUnitRatio / 10f);
-                    if (knockBackSpeed < (15f / (PlayerSpeedChanger.classicToUnitySpeedUnitRatio / 10f)))
-                        knockBackSpeed = (15f / (PlayerSpeedChanger.classicToUnitySpeedUnitRatio / 10f));
-                    enemyMotor.KnockbackSpeed = knockBackSpeed;
-                    enemyMotor.KnockbackDirection = direction;
+                    if (!IsBurstFire || Dice100.SuccessRoll(PainChance))
+                    {
+                        var enemyWeight = (float)enemyEntity.GetWeightInClassicUnits();
+                        var tenTimesDamage = damage * 10f;
+                        var twoTimesDamage = damage * 2f;
+                        var knockBackAmount = ((tenTimesDamage - enemyWeight) * 256f) / (enemyWeight + tenTimesDamage) * twoTimesDamage;
+                        var knockBackSpeed = (tenTimesDamage / enemyWeight) * (twoTimesDamage - (knockBackAmount / 256f));
+                        knockBackSpeed /= (PlayerSpeedChanger.classicToUnitySpeedUnitRatio / 10f);
+                        if (knockBackSpeed < (15f / (PlayerSpeedChanger.classicToUnitySpeedUnitRatio / 10f)))
+                            knockBackSpeed = (15f / (PlayerSpeedChanger.classicToUnitySpeedUnitRatio / 10f));
+                        enemyMotor.KnockbackSpeed = knockBackSpeed;
+                        enemyMotor.KnockbackDirection = direction;
+                    }
                 }
 
                 if (DaggerfallUnity.Settings.CombatVoices && entityBehaviour.EntityType == EntityTypes.EnemyClass && Dice100.SuccessRoll(40))

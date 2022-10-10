@@ -3,7 +3,7 @@
         "index": 288,
         "name": "Firearm",
         "baseWeight": 3,
-        "hitPoints": 1000,
+        "hitPoints": 200,
         "capacityOrTarget": 0,
         "basePrice": 14,
         "enchantmentPoints": 500,

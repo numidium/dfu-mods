@@ -1,11 +1,13 @@
 {
     "ModTitle": "Future Shock Weapons",
+    "ModVersion": "0.0.0 alpha",
     "ModAuthor": "numidium3rd",
     "DFUnity_Version": "0.14.4",
     "GUID": "b200579b-cd92-405a-8a93-1c9b48dba625",
     "Files": [
         "Assets/Game/Mods/FutureShockWeapons/Scripts/FutureShockWeapons.cs",
         "Assets/Game/Mods/FutureShockWeapons/Scripts/HitScanGun.cs",
-        "Assets/Game/Mods/FutureShockWeapons/ItemTemplates.json"
+        "Assets/Game/Mods/FutureShockWeapons/ItemTemplates.json",
+        "Assets/Game/Mods/FutureShockWeapons/modsettings.json"
     ]
 }

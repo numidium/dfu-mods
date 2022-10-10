@@ -1,0 +1,20 @@
+{
+    "Version": "v1",
+    "Sections": [
+        {
+            "Name": "Options",
+            "Description": null,
+            "IsAdvanced": false,
+            "Keys": [
+				{
+					"Value": "C:\\dosgames\\futureshock\\GAMEDATA",
+                    "Name": "FutureShock GAMEDATA path",
+                    "Description": "Point this to the GAMEDATA folder or the mod won't work.",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.TextKey"
+				}
+            ],
+            "$version": "v1"
+        }
+    ]
+}

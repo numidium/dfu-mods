@@ -23,6 +23,8 @@ namespace FutureShock
         {
             bsaFile = new FileProxy(path, FileUsage.UseMemory, true);
             Reader = bsaFile.GetReader();
+            if (Reader == null)
+                return;
             IndexCount = Reader.ReadUInt16();
             var indexSize = (uint)(IndexCount * bsaIndexSize);
             var indexOffset = (uint)(bsaFile.Buffer.Length - indexSize);
@@ -45,7 +47,9 @@ namespace FutureShock
 
         public void Dispose()
         {
-            bsaFile.GetReader().Close();
+            var reader = bsaFile.GetReader();
+            if (reader != null)
+                reader.Close();
         }
 
         public string GetFileName(ushort index) => IndexLookup[index].Item1;

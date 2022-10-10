@@ -35,7 +35,6 @@ namespace FutureShock
             UZICOCK3  // Uzi equip
         }
 
-        // Note: this enum must increase in the same order as the values' respective item class template indices
         enum FSWeapon
         {
             Uzi,
@@ -45,9 +44,7 @@ namespace FutureShock
         }
 
         private static Mod mod;
-        private bool componentAdded;
         private static HitScanWeapon hitScanGun;
-        private const string gameDataPath = "F:\\dosgames\\futureshock\\doublepack\\Games\\The Terminator - Future Shock\\GAMEDATA\\";
         private static Dictionary<WeaponAnimation, Texture2D[]> textureBank;
         private static Dictionary<WeaponSound, AudioClip> soundBank;
         private static ConsoleController consoleController;
@@ -69,6 +66,7 @@ namespace FutureShock
             consoleController = GameObject.Find("Console").GetComponent<ConsoleController>();
         }
 
+        // Load settings that can change during runtime.
         void LoadSettings(ModSettings settings, ModSettingsChange change)
         {
 
@@ -76,19 +74,39 @@ namespace FutureShock
 
         private void Awake()
         {
-            InitMod();
+            var settings = mod.GetSettings();
+            var path = settings.GetValue<string>("Options", "FutureShock GAMEDATA path");
+            //LoadSettings(settings, new ModSettingsChange());
+            if (InitMod(path))
+                Debug.Log("Future Shock Weapons initialized.");
+            else
+            {
+                Debug.Log("ERROR: Future Shock Weapons failed to initialize.");
+                var player = GameObject.FindGameObjectWithTag("Player");
+                player.AddComponent<ErrorNotificationBehaviour>();
+                Destroy(this);
+            }
         }
 
         private void Update()
         {
+            var gameManager = GameManager.Instance;
+            equippedRight = gameManager.PlayerEntity.ItemEquipTable.GetItem(EquipSlots.RightHand);
+            hitScanGun.PairedItem = equippedRight;
             if (consoleController.ui.isConsoleOpen || GameManager.IsGamePaused || SaveLoadManager.Instance.LoadInProgress || DaggerfallUI.UIManager.WindowCount != 0)
                 return;
+            if (equippedRight != null && equippedRight.currentCondition <= 0)
+            {
+                ShowWeapon = false;
+                return;
+            }
+
             hitScanGun.IsFiring = !hitScanGun.Holstered && InputManager.Instance.HasAction(InputManager.Actions.SwingWeapon);
-            if (InputManager.Instance.ActionStarted(InputManager.Actions.ReadyWeapon) && IsGun(equippedRight))
+            if (InputManager.Instance.ActionStarted(InputManager.Actions.ReadyWeapon) && IsGun(equippedRight) && !hitScanGun.IsFiring)
                 ShowWeapon = !ShowWeapon;
             if (!ShowWeapon)
                 hitScanGun.Holstered = true;
-            else if (hitScanGun.Holstered && GameManager.Instance.WeaponManager.EquipCountdownRightHand <= 0)
+            else if (hitScanGun.Holstered && gameManager.WeaponManager.EquipCountdownRightHand <= 0)
             {
                 hitScanGun.Holstered = false;
                 hitScanGun.PlayEquipSound();
@@ -100,7 +118,6 @@ namespace FutureShock
             // When unsheathing, immediately re-sheathe weapon and use HitScanGun in place of FPSWeapon
             var gameManager = GameManager.Instance;
             var equipChanged = false;
-            equippedRight = gameManager.PlayerEntity.ItemEquipTable.GetItem(EquipSlots.RightHand);
             if (lastEquippedRight != equippedRight)
                 equipChanged = true;
             if (IsGun(equippedRight))
@@ -129,10 +146,8 @@ namespace FutureShock
 
         private static bool IsGun(DaggerfallUnityItem item) => item != null && item.TemplateIndex == ItemFSGun.customTemplateIndex;
 
-        public static void InitMod()
+        public static bool InitMod(string gameDataPath)
         {
-            //var settings = mod.GetSettings();
-
             // Import Textures
             textureBank = new Dictionary<WeaponAnimation, Texture2D[]>();
             var shockPalette = new DFPalette($"{gameDataPath}SHOCK.COL");
@@ -141,6 +156,12 @@ namespace FutureShock
                 textureBank[textureName] = GetTextureAnimFromCfaFile($"{gameDataPath}{textureName}.CFA", shockPalette);
             using (var textureReader = new BsaReader($"{gameDataPath}MDMDIMGS.BSA"))
             {
+                if (textureReader.Reader == null)
+                {
+                    Debug.Log("Could not load MDMDIMGS.BSA from specified path.");
+                    return false;
+                }
+
                 for (ushort textureIndex = 0; textureIndex < textureReader.IndexCount; textureIndex++)
                 {
                     var fileName = textureReader.GetFileName(textureIndex);
@@ -166,22 +187,28 @@ namespace FutureShock
 
             // Import Sounds
             soundBank = new Dictionary<WeaponSound, AudioClip>();
-            using (var soundBsa = new BsaReader($"{gameDataPath}MDMDSFXS.BSA"))
+            using (var soundReader = new BsaReader($"{gameDataPath}MDMDSFXS.BSA"))
             {
+                if (soundReader.Reader == null)
+                {
+                    Debug.Log("Could not load MDMDSFXS.BSA from specified path.");
+                    return false;
+                }
+
                 // Table ripped from Future Shock's memory during runtime
                 byte[] noiseTable = { 0xDD, 0x83, 0x65, 0x57, 0xEA, 0x78, 0x08, 0x48, 0xB8, 0x01, 0x38, 0x94, 0x08, 0xDD, 0x3F, 0xC2, 0xBE, 0xAB, 0x76, 0xC6, 0x14 };
-                for (ushort soundIndex = 0; soundIndex < soundBsa.IndexCount; soundIndex++)
+                for (ushort soundIndex = 0; soundIndex < soundReader.IndexCount; soundIndex++)
                 {
-                    var fileName = soundBsa.GetFileName(soundIndex);
-                    var fileLength = soundBsa.GetFileLength(soundIndex);
+                    var fileName = soundReader.GetFileName(soundIndex);
+                    var fileLength = soundReader.GetFileLength(soundIndex);
                     // Skip file if not in bank.
                     if (!Enum.TryParse(Path.GetFileNameWithoutExtension(fileName), out WeaponSound weaponSound))
                     {
-                        soundBsa.Reader.BaseStream.Seek(fileLength, SeekOrigin.Current);
+                        soundReader.Reader.BaseStream.Seek(fileLength, SeekOrigin.Current);
                         continue;
                     }
 
-                    var soundData = soundBsa.Reader.ReadBytes(fileLength);
+                    var soundData = soundReader.Reader.ReadBytes(fileLength);
                     // De-noisify the sound data using Future Shock's noise table.
                     // Note: I believe that noisifying the sound files was intended as a data protection scheme.
                     var noiseTableInd = 0;
@@ -206,7 +233,7 @@ namespace FutureShock
             hitScanGun = player.AddComponent<HitScanWeapon>();
             SetWeapon((int)WeaponMaterialTypes.Iron);
             DaggerfallUnity.Instance.ItemHelper.RegisterCustomItem(ItemFSGun.customTemplateIndex, ItemGroups.Weapons, typeof(ItemFSGun));
-            Debug.Log("Future Shock Weapons initialized.");
+            return true;
         }
 
         private static Texture2D[] GetTextureAnimFromCfaFile(string path, DFPalette palette)
@@ -264,8 +291,10 @@ namespace FutureShock
                     hitScanGun.VerticalOffset = 0f;
                     hitScanGun.ShootSound = soundBank[WeaponSound.SHOTS5];
                     hitScanGun.EquipSound = soundBank[WeaponSound.UZICOCK3];
-                    hitScanGun.BulletDamage = 5;
+                    hitScanGun.BulletDamage = 3;
+                    hitScanGun.ShotConditionCost = 1;
                     hitScanGun.IsBurstFire = true;
+                    hitScanGun.PainChance = 10;
                     break;
                 case FSWeapon.M16:
                     hitScanGun.WeaponFrames = textureBank[WeaponAnimation.WEAPON02];
@@ -273,8 +302,10 @@ namespace FutureShock
                     hitScanGun.VerticalOffset = 0.01f;
                     hitScanGun.ShootSound = soundBank[WeaponSound.SHOTS2];
                     hitScanGun.EquipSound = soundBank[WeaponSound.SGCOCK2];
-                    hitScanGun.BulletDamage = 10;
+                    hitScanGun.BulletDamage = 6;
+                    hitScanGun.ShotConditionCost = 1;
                     hitScanGun.IsBurstFire = true;
+                    hitScanGun.PainChance = 15;
                     break;
                 case FSWeapon.MachineGun:
                     hitScanGun.WeaponFrames = textureBank[WeaponAnimation.WEAPON03];
@@ -282,8 +313,10 @@ namespace FutureShock
                     hitScanGun.VerticalOffset = 0f;
                     hitScanGun.ShootSound = soundBank[WeaponSound.FASTGUN2];
                     hitScanGun.EquipSound = soundBank[WeaponSound.SGCOCK2];
-                    hitScanGun.BulletDamage = 15;
+                    hitScanGun.BulletDamage = 12;
+                    hitScanGun.ShotConditionCost = 2;
                     hitScanGun.IsBurstFire = true;
+                    hitScanGun.PainChance = 20;
                     break;
                 case FSWeapon.Shotgun:
                     hitScanGun.WeaponFrames = textureBank[WeaponAnimation.WEAPON04];
@@ -291,7 +324,8 @@ namespace FutureShock
                     hitScanGun.VerticalOffset = 0f;
                     hitScanGun.ShootSound = soundBank[WeaponSound.SHTGUN];
                     hitScanGun.EquipSound = soundBank[WeaponSound.SGCOCK1];
-                    hitScanGun.BulletDamage = 30;
+                    hitScanGun.BulletDamage = 25;
+                    hitScanGun.ShotConditionCost = 4;
                     hitScanGun.IsBurstFire = false;
                     break;
             }
