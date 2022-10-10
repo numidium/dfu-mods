@@ -1,6 +1,8 @@
+using DaggerfallConnect;
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.Entity;
+using DaggerfallWorkshop.Game.Formulas;
 using DaggerfallWorkshop.Game.Items;
 using DaggerfallWorkshop.Game.Serialization;
 using DaggerfallWorkshop.Game.Utility;
@@ -13,6 +15,7 @@ namespace FutureShock
         private const float nativeScreenWidth = 320f;
         private const float nativeScreenHeight = 200f;
         private const float frameTime = 0.0625f;
+        private const float wepRange = 20f;
         private GameObject mainCamera;
         private int playerLayerMask;
         private Rect weaponPosition;
@@ -27,8 +30,7 @@ namespace FutureShock
         public AudioClip EquipSound { private get; set; }
         public bool IsFiring { get; set; }
         public bool IsBurstFire { private get; set; } // Some weapons fire more than once in an animation cycle
-        public int BulletDamage { private get; set; }
-        public int PainChance { private get; set; }
+        public bool IsShotgun { private get; set; }
         public int ShotConditionCost { private get; set; }
         public bool UpdateRequested { private get; set; }
         public bool Holstered { get; set; }
@@ -66,7 +68,10 @@ namespace FutureShock
                     frameTimeRemaining = frameTime;
                     if (IsBurstFire || currentFrame == 1)
                     {
-                        FireScanRay();
+                        if (IsShotgun)
+                            FireRaySpread();
+                        else
+                            FireScanRay();
                         PairedItem.LowerCondition(ShotConditionCost);
                     }
 
@@ -118,15 +123,36 @@ namespace FutureShock
 
         private void FireScanRay()
         {
-            const float wepRange = 20f;
             var ray = new Ray(mainCamera.transform.position, mainCamera.transform.forward);
             if (Physics.Raycast(ray, out RaycastHit hit, wepRange, playerLayerMask))
             {
-                DealDamage(hit.transform, hit.point, BulletDamage, mainCamera.transform.forward);
+                if (DealDamage(hit.transform, hit.point, mainCamera.transform.forward))
+                    GameManager.Instance.PlayerEntity.TallySkill(DFCareer.Skills.Archery, 1);
             }
         }
 
-        private bool DealDamage(Transform hitTransform, Vector3 impactPosition, int damage, Vector3 direction)
+        private void FireRaySpread()
+        {
+            const float spreadMin = -.1f;
+            const float spreadMax = .1f;
+            var rays = new Ray[]
+            {
+                new Ray(mainCamera.transform.position, mainCamera.transform.forward + new Vector3(Random.Range(spreadMin, spreadMax), Random.Range(spreadMin, spreadMax), 0f)),
+                new Ray(mainCamera.transform.position, mainCamera.transform.forward + new Vector3(Random.Range(spreadMin, spreadMax), Random.Range(spreadMin, spreadMax), 0f)),
+                new Ray(mainCamera.transform.position, mainCamera.transform.forward + new Vector3(Random.Range(spreadMin, spreadMax), Random.Range(spreadMin, spreadMax), 0f)),
+                new Ray(mainCamera.transform.position, mainCamera.transform.forward + new Vector3(Random.Range(spreadMin, spreadMax), Random.Range(spreadMin, spreadMax), 0f)),
+            };
+
+            var tallySkill = false;
+            foreach (var ray in rays)
+                if (Physics.Raycast(ray, out RaycastHit hit, wepRange, playerLayerMask))
+                    if (DealDamage(hit.transform, hit.point, ray.direction))
+                        tallySkill = true;
+            if (tallySkill)
+                GameManager.Instance.PlayerEntity.TallySkill(DFCareer.Skills.Archery, 1);
+        }
+
+        private bool DealDamage(Transform hitTransform, Vector3 impactPosition, Vector3 direction)
         {
             // Note: Most of this is adapted from EnemyAttack.cs
             var entityBehaviour = hitTransform.GetComponent<DaggerfallEntityBehaviour>();
@@ -135,11 +161,11 @@ namespace FutureShock
             var enemySounds = hitTransform.GetComponent<EnemySounds>();
             var mobileNpc = hitTransform.GetComponent<MobilePersonNPC>();
             var blood = hitTransform.GetComponent<EnemyBlood>();
+            var playerEntity = GameManager.Instance.PlayerEntity;
 
             // Hit an innocent peasant walking around town.
             if (mobileNpc)
             {
-                var playerEntity = GameManager.Instance.PlayerEntity;
                 if (!mobileNpc.IsGuard)
                 {
                     if (blood != null)
@@ -164,16 +190,32 @@ namespace FutureShock
 
             if (entityBehaviour == null)
                 return false;
-            // Hit an enemy.
+            // Attempt to hit an enemy.
+            var isHitSuccessful = false;
             if (entityBehaviour.EntityType == EntityTypes.EnemyMonster || entityBehaviour.EntityType == EntityTypes.EnemyClass)
             {
-                var enemyEntity = entityBehaviour.Entity as EnemyEntity;
-                if (blood != null)
-                    blood.ShowBloodSplash(enemyEntity.MobileEnemy.BloodIndex, impactPosition);
-                if (enemyMotor != null && enemyMotor.KnockbackSpeed <= (5 / (PlayerSpeedChanger.classicToUnitySpeedUnitRatio / 10)) &&
-                    entityBehaviour.EntityType == EntityTypes.EnemyClass || enemyEntity.MobileEnemy.Weight > 0)
+                var chanceToHitMod = (int)playerEntity.Skills.GetLiveSkillValue(DFCareer.Skills.Archery);
+                chanceToHitMod += FormulaHelper.CalculateWeaponToHit(PairedItem);
+                var proficiencyMods = FormulaHelper.CalculateProficiencyModifiers(playerEntity, PairedItem);
+                var damageModifiers = proficiencyMods.damageMod;
+                chanceToHitMod += proficiencyMods.toHitMod;
+                var racialMods = FormulaHelper.CalculateRacialModifiers(playerEntity, PairedItem, playerEntity);
+                damageModifiers += racialMods.damageMod;
+                chanceToHitMod += racialMods.toHitMod;
+                var isEnemyFacingAwayFromPlayer = mobileUnit.IsBackFacing &&
+                        mobileUnit.EnemyState != MobileStates.SeducerTransform1 &&
+                        mobileUnit.EnemyState != MobileStates.SeducerTransform2;
+                var backstabChance = FormulaHelper.CalculateBackstabChance(playerEntity, null, isEnemyFacingAwayFromPlayer);
+                chanceToHitMod += backstabChance;
+                isHitSuccessful = FormulaHelper.CalculateSuccessfulHit(playerEntity, entityBehaviour.Entity, chanceToHitMod, FormulaHelper.CalculateStruckBodyPart());
+                var damage = FormulaHelper.CalculateWeaponAttackDamage(playerEntity, entityBehaviour.Entity, damageModifiers, 1, PairedItem);
+                if (isHitSuccessful && damage > 0)
                 {
-                    if (!IsBurstFire || Dice100.SuccessRoll(PainChance))
+                    var enemyEntity = entityBehaviour.Entity as EnemyEntity;
+                    if (blood != null)
+                        blood.ShowBloodSplash(enemyEntity.MobileEnemy.BloodIndex, impactPosition);
+                    if (enemyMotor != null && enemyMotor.KnockbackSpeed <= (5 / (PlayerSpeedChanger.classicToUnitySpeedUnitRatio / 10)) &&
+                        entityBehaviour.EntityType == EntityTypes.EnemyClass || enemyEntity.MobileEnemy.Weight > 0)
                     {
                         var enemyWeight = (float)enemyEntity.GetWeightInClassicUnits();
                         var tenTimesDamage = damage * 10f;
@@ -186,28 +228,28 @@ namespace FutureShock
                         enemyMotor.KnockbackSpeed = knockBackSpeed;
                         enemyMotor.KnockbackDirection = direction;
                     }
+
+                    if (DaggerfallUnity.Settings.CombatVoices && entityBehaviour.EntityType == EntityTypes.EnemyClass && Dice100.SuccessRoll(40))
+                    {
+                        Genders gender;
+                        if (mobileUnit.Enemy.Gender == MobileGender.Male || enemyEntity.MobileEnemy.ID == (int)MobileTypes.Knight_CityWatch)
+                            gender = Genders.Male;
+                        else
+                            gender = Genders.Female;
+
+                        bool heavyDamage = damage >= enemyEntity.MaxHealth / 4;
+                        enemySounds.PlayCombatVoice(gender, false, heavyDamage);
+                    }
+
+                    enemyEntity.DecreaseHealth(damage);
                 }
 
-                if (DaggerfallUnity.Settings.CombatVoices && entityBehaviour.EntityType == EntityTypes.EnemyClass && Dice100.SuccessRoll(40))
-                {
-                    Genders gender;
-                    if (mobileUnit.Enemy.Gender == MobileGender.Male || enemyEntity.MobileEnemy.ID == (int)MobileTypes.Knight_CityWatch)
-                        gender = Genders.Male;
-                    else
-                        gender = Genders.Female;
-
-                    bool heavyDamage = damage >= enemyEntity.MaxHealth / 4;
-                    enemySounds.PlayCombatVoice(gender, false, heavyDamage);
-                }
-
-                enemyEntity.DecreaseHealth(damage);
+                // Become hostile regardless of hit success.
                 if (enemyMotor != null)
-                    enemyMotor.MakeEnemyHostileToAttacker(GameManager.Instance.PlayerEntity.EntityBehaviour);
-
-                return true;
+                    enemyMotor.MakeEnemyHostileToAttacker(playerEntity.EntityBehaviour);
             }
 
-            return false;
+            return isHitSuccessful;
         }
     }
 }

@@ -97,7 +97,9 @@ namespace FutureShock
                 return;
             if (equippedRight != null && equippedRight.currentCondition <= 0)
             {
+                hitScanGun.IsFiring = false;
                 ShowWeapon = false;
+                hitScanGun.Holstered = true;
                 return;
             }
 
@@ -291,10 +293,9 @@ namespace FutureShock
                     hitScanGun.VerticalOffset = 0f;
                     hitScanGun.ShootSound = soundBank[WeaponSound.SHOTS5];
                     hitScanGun.EquipSound = soundBank[WeaponSound.UZICOCK3];
-                    hitScanGun.BulletDamage = 3;
                     hitScanGun.ShotConditionCost = 1;
                     hitScanGun.IsBurstFire = true;
-                    hitScanGun.PainChance = 10;
+                    hitScanGun.IsShotgun = false;
                     break;
                 case FSWeapon.M16:
                     hitScanGun.WeaponFrames = textureBank[WeaponAnimation.WEAPON02];
@@ -302,10 +303,9 @@ namespace FutureShock
                     hitScanGun.VerticalOffset = 0.01f;
                     hitScanGun.ShootSound = soundBank[WeaponSound.SHOTS2];
                     hitScanGun.EquipSound = soundBank[WeaponSound.SGCOCK2];
-                    hitScanGun.BulletDamage = 6;
                     hitScanGun.ShotConditionCost = 1;
                     hitScanGun.IsBurstFire = true;
-                    hitScanGun.PainChance = 15;
+                    hitScanGun.IsShotgun = false;
                     break;
                 case FSWeapon.MachineGun:
                     hitScanGun.WeaponFrames = textureBank[WeaponAnimation.WEAPON03];
@@ -313,10 +313,9 @@ namespace FutureShock
                     hitScanGun.VerticalOffset = 0f;
                     hitScanGun.ShootSound = soundBank[WeaponSound.FASTGUN2];
                     hitScanGun.EquipSound = soundBank[WeaponSound.SGCOCK2];
-                    hitScanGun.BulletDamage = 12;
-                    hitScanGun.ShotConditionCost = 2;
+                    hitScanGun.ShotConditionCost = 3;
                     hitScanGun.IsBurstFire = true;
-                    hitScanGun.PainChance = 20;
+                    hitScanGun.IsShotgun = false;
                     break;
                 case FSWeapon.Shotgun:
                     hitScanGun.WeaponFrames = textureBank[WeaponAnimation.WEAPON04];
@@ -324,9 +323,9 @@ namespace FutureShock
                     hitScanGun.VerticalOffset = 0f;
                     hitScanGun.ShootSound = soundBank[WeaponSound.SHTGUN];
                     hitScanGun.EquipSound = soundBank[WeaponSound.SGCOCK1];
-                    hitScanGun.BulletDamage = 25;
-                    hitScanGun.ShotConditionCost = 4;
+                    hitScanGun.ShotConditionCost = 20;
                     hitScanGun.IsBurstFire = false;
+                    hitScanGun.IsShotgun = true;
                     break;
             }
         }

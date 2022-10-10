@@ -8,6 +8,10 @@
         "Assets/Game/Mods/FutureShockWeapons/Scripts/FutureShockWeapons.cs",
         "Assets/Game/Mods/FutureShockWeapons/Scripts/HitScanGun.cs",
         "Assets/Game/Mods/FutureShockWeapons/ItemTemplates.json",
-        "Assets/Game/Mods/FutureShockWeapons/modsettings.json"
+        "Assets/Game/Mods/FutureShockWeapons/modsettings.json",
+        "Assets/Game/Mods/FutureShockWeapons/FutureShockWeapons.dfmod.json",
+        "Assets/Game/Mods/FutureShockWeapons/Scripts/ErrorNotificationBehaviour.cs",
+        "Assets/Game/Mods/FutureShockWeapons/Scripts/BsaReader.cs",
+        "Assets/Game/Mods/FutureShockWeapons/Scripts/ItemFSGun.cs"
     ]
 }
