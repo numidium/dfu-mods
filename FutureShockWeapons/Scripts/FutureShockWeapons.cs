@@ -99,18 +99,18 @@ namespace FutureShock
             {
                 hitScanGun.IsFiring = false;
                 ShowWeapon = false;
-                hitScanGun.Holstered = true;
+                hitScanGun.IsHolstered = true;
                 return;
             }
 
-            hitScanGun.IsFiring = !hitScanGun.Holstered && InputManager.Instance.HasAction(InputManager.Actions.SwingWeapon);
+            hitScanGun.IsFiring = !hitScanGun.IsHolstered && InputManager.Instance.HasAction(InputManager.Actions.SwingWeapon);
             if (InputManager.Instance.ActionStarted(InputManager.Actions.ReadyWeapon) && IsGun(equippedRight) && !hitScanGun.IsFiring)
                 ShowWeapon = !ShowWeapon;
             if (!ShowWeapon)
-                hitScanGun.Holstered = true;
-            else if (hitScanGun.Holstered && gameManager.WeaponManager.EquipCountdownRightHand <= 0)
+                hitScanGun.IsHolstered = true;
+            else if (hitScanGun.IsHolstered && gameManager.WeaponManager.EquipCountdownRightHand <= 0)
             {
-                hitScanGun.Holstered = false;
+                hitScanGun.IsHolstered = false;
                 hitScanGun.PlayEquipSound();
             }
         }
@@ -129,15 +129,15 @@ namespace FutureShock
                     gameManager.WeaponManager.SheathWeapons();
                 if (equipChanged)
                 {
-                    ShowWeapon = (!IsGun(lastEquippedRight) && !lastNonGunSheathed) || !hitScanGun.Holstered;
+                    ShowWeapon = (!IsGun(lastEquippedRight) && !lastNonGunSheathed) || !hitScanGun.IsHolstered;
                     SetWeapon(GetGunFromMaterial(equippedRight.NativeMaterialValue));
                     hitScanGun.PlayEquipSound();
-                    hitScanGun.Holstered = true;
+                    hitScanGun.IsHolstered = true;
                 }
             }
-            else if (!hitScanGun.Holstered)
+            else if (!hitScanGun.IsHolstered)
             {
-                hitScanGun.Holstered = true;
+                hitScanGun.IsHolstered = true;
                 ShowWeapon = false;
                 gameManager.WeaponManager.Sheathed = false;
             }
@@ -283,7 +283,7 @@ namespace FutureShock
         private static void SetWeapon(FSWeapon weapon)
         {
             hitScanGun.ResetAnimation();
-            hitScanGun.UpdateRequested = true;
+            hitScanGun.IsUpdateRequested = true;
             switch (weapon)
             {
                 case FSWeapon.Uzi:
@@ -313,7 +313,7 @@ namespace FutureShock
                     hitScanGun.VerticalOffset = 0f;
                     hitScanGun.ShootSound = soundBank[WeaponSound.FASTGUN2];
                     hitScanGun.EquipSound = soundBank[WeaponSound.SGCOCK2];
-                    hitScanGun.ShotConditionCost = 3;
+                    hitScanGun.ShotConditionCost = 2;
                     hitScanGun.IsBurstFire = true;
                     hitScanGun.IsShotgun = false;
                     break;

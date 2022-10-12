@@ -50,13 +50,16 @@ namespace MightyFoot
                 return;
 
             // Perform forward kick on keypress and hide weapon from HUD when attack finishes.
-            var playerEntity = GameManager.Instance.PlayerEntity;
-            var weaponManager = GameManager.Instance.WeaponManager;
+            var gameManager = GameManager.Instance;
+            var playerEntity = gameManager.PlayerEntity;
+            var weaponManager = gameManager.WeaponManager;
             if (InputManager.Instance.GetKey(kickKey) &&
                 !Kicker.IsAttacking() &&
                 !weaponManager.ScreenWeapon.IsAttacking() &&
                 weaponManager.ScreenWeapon.WeaponType != WeaponTypes.Melee &&
-                weaponManager.ScreenWeapon.WeaponType != WeaponTypes.Werecreature)
+                weaponManager.ScreenWeapon.WeaponType != WeaponTypes.Werecreature &&
+                gameManager.TransportManager.TransportMode != TransportModes.Horse &&
+                gameManager.TransportManager.TransportMode != TransportModes.Cart)
             {
                 Kicker.ShowWeapon = true;
                 Kicker.OnAttackDirection(WeaponManager.MouseDirections.Up);

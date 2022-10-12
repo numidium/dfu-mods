@@ -31,9 +31,9 @@ namespace FutureShock
         public bool IsFiring { get; set; }
         public bool IsBurstFire { private get; set; } // Some weapons fire more than once in an animation cycle
         public bool IsShotgun { private get; set; }
+        public bool IsUpdateRequested { private get; set; }
+        public bool IsHolstered { get; set; }
         public int ShotConditionCost { private get; set; }
-        public bool UpdateRequested { private get; set; }
-        public bool Holstered { get; set; }
 
         public void ResetAnimation()
         {
@@ -52,7 +52,7 @@ namespace FutureShock
 
         private void Start()
         {
-            Holstered = true;
+            IsHolstered = true;
             ResetAnimation();
             mainCamera = GameObject.FindGameObjectWithTag("MainCamera");
             playerLayerMask = ~(1 << LayerMask.NameToLayer("Player"));
@@ -96,16 +96,17 @@ namespace FutureShock
             var screenRect = DaggerfallUI.Instance.CustomScreenRect ?? new Rect(0, 0, Screen.width, Screen.height);
             if (screenRect.width != lastScreenWidth ||
                 screenRect.height != lastScreenHeight ||
-                UpdateRequested)
+                IsUpdateRequested)
             {
                 lastScreenWidth = screenRect.width;
                 lastScreenHeight = screenRect.height;
                 UpdateWeapon();
             }
 
-            if (Holstered || GameManager.IsGamePaused || SaveLoadManager.Instance.LoadInProgress)
+            GUI.depth = 0;
+            if (IsHolstered || GameManager.IsGamePaused || SaveLoadManager.Instance.LoadInProgress)
                 return;
-            if (Event.current.type.Equals(EventType.Repaint) && !Holstered)
+            if (Event.current.type.Equals(EventType.Repaint) && !IsHolstered)
                 DaggerfallUI.DrawTextureWithTexCoords(weaponPosition, WeaponFrames[currentFrame], new Rect(1, 0, 1 /* -1 to mirror (for left hand) */, 1));
         }
 
