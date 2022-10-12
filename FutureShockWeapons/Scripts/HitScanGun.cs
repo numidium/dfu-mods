@@ -10,6 +10,7 @@ using UnityEngine;
 
 namespace FutureShock
 {
+    [RequireComponent(typeof(AudioSource))]
     public sealed class HitScanWeapon : MonoBehaviour
     {
         private const float nativeScreenWidth = 320f;
@@ -22,6 +23,7 @@ namespace FutureShock
         private int currentFrame;
         private float frameTimeRemaining;
         private float lastScreenWidth, lastScreenHeight;
+        private AudioSource audioSource;
         public DaggerfallUnityItem PairedItem { private get; set; }
         public Texture2D[] WeaponFrames { private get; set; }
         public float HorizontalOffset { private get; set; }
@@ -44,10 +46,14 @@ namespace FutureShock
 
         public void PlayEquipSound()
         {
-            var audioSource = DaggerfallUI.Instance.DaggerfallAudioSource.AudioSource;
             audioSource.clip = EquipSound;
             audioSource.volume = DaggerfallUnity.Settings.SoundVolume;
             audioSource.Play();
+        }
+
+        private void Awake()
+        {
+            audioSource = GetComponent<AudioSource>();
         }
 
         private void Start()
@@ -77,7 +83,6 @@ namespace FutureShock
 
                     if (currentFrame == 1)
                     {
-                        var audioSource = DaggerfallUI.Instance.DaggerfallAudioSource.AudioSource;
                         audioSource.clip = ShootSound;
                         audioSource.volume = DaggerfallUnity.Settings.SoundVolume;
                         audioSource.Play();

@@ -51,6 +51,7 @@ namespace FutureShock
         private static DaggerfallUnityItem lastEquippedRight;
         private static DaggerfallUnityItem equippedRight;
         private static bool ShowWeapon;
+        private static bool isLoadJustFinished = false;
         public static FutureShockWeapons Instance { get; private set; }
         public Type SaveDataType => typeof(FutureShockWeapons);
         public static string ModTitle => mod.Title;
@@ -93,8 +94,21 @@ namespace FutureShock
             var gameManager = GameManager.Instance;
             equippedRight = gameManager.PlayerEntity.ItemEquipTable.GetItem(EquipSlots.RightHand);
             hitScanGun.PairedItem = equippedRight;
-            if (consoleController.ui.isConsoleOpen || GameManager.IsGamePaused || SaveLoadManager.Instance.LoadInProgress || DaggerfallUI.UIManager.WindowCount != 0)
+            if (consoleController.ui.isConsoleOpen || GameManager.IsGamePaused || DaggerfallUI.UIManager.WindowCount != 0)
                 return;
+            if (SaveLoadManager.Instance.LoadInProgress)
+            {
+                isLoadJustFinished = true;
+                return;
+            }
+
+            if (isLoadJustFinished)
+            {
+                // Prevent playing equip sound on load.
+                lastEquippedRight = equippedRight;
+                isLoadJustFinished = false;
+            }
+
             if (equippedRight != null && equippedRight.currentCondition <= 0)
             {
                 hitScanGun.IsFiring = false;

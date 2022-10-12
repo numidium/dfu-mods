@@ -11,7 +11,7 @@ namespace MightyFoot
     {
         public FPSWeapon Kicker { get; set; }
         public string BindText { get; set; }
-        public bool ShowMessage { get; set; }
+        public bool IsMessageEnabled { get; set; }
         private GameObject mainCamera;
         private int playerLayerMask;
         private WeaponManager weaponManager;
@@ -63,7 +63,7 @@ namespace MightyFoot
             {
                 Kicker.ShowWeapon = true;
                 Kicker.OnAttackDirection(WeaponManager.MouseDirections.Up);
-                if (ShowMessage && timeSinceLastKick >= messageCooldownTime)
+                if (IsMessageEnabled && timeSinceLastKick >= messageCooldownTime)
                     DaggerfallUI.AddHUDText("Mighty foot engaged");
                 timeSinceLastKick = 0.0f;
             }
@@ -75,8 +75,7 @@ namespace MightyFoot
                 isDamageFinished = false;
             if (!isDamageFinished && Kicker.GetCurrentFrame() == Kicker.GetHitFrame())
             {
-                bool hitEnemy;
-                MeleeDamage(Kicker, out hitEnemy);
+                MeleeDamage(Kicker, out bool hitEnemy);
                 if (!hitEnemy)
                     Kicker.PlaySwingSound();
                 isDamageFinished = true;
@@ -98,9 +97,8 @@ namespace MightyFoot
                 return;
 
             // Fire ray along player facing using weapon range
-            Ray ray = new Ray(mainCamera.transform.position, mainCamera.transform.forward);
-            RaycastHit hit;
-            if (Physics.SphereCast(ray, 0.25f, out hit, weapon.Reach, playerLayerMask))
+            var ray = new Ray(mainCamera.transform.position, mainCamera.transform.forward);
+            if (Physics.SphereCast(ray, 0.25f, out RaycastHit hit, weapon.Reach, playerLayerMask))
             {
                 if (!GameManager.Instance.WeaponManager.WeaponEnvDamage(null, hit)
                    || Physics.Raycast(ray, out hit, weapon.Reach, playerLayerMask))
@@ -110,8 +108,7 @@ namespace MightyFoot
 
         private void SetKickKeyFromText(string text)
         {
-            KeyCode result;
-            if (System.Enum.TryParse(text, out result))
+            if (System.Enum.TryParse(text, out KeyCode result))
                 kickKey = result;
             else
                 kickKey = KeyCode.K;
