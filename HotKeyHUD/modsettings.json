@@ -7,11 +7,16 @@
             "IsAdvanced": false,
             "Keys": [
 				{
+					"Options": [
+						"Equipped",
+						"Full",
+						"None"
+					],
 					"Value": "false",
-                    "Name": "Hide Hotbar",
-                    "Description": "Don't show hotkey display on the HUD.",
+                    "Name": "HUD Visibility",
+                    "Description": "Which HUD elements to display.",
                     "$version": "v1",
-                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.MultipleChoiceKey"
 				},
 				{
 					"Value": "true",

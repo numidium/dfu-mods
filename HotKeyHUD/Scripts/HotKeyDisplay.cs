@@ -16,6 +16,7 @@ namespace HotKeyHUD
         private readonly HotKeyMenuPopup hotKeyMenuPopup;
         private static HotKeyDisplay instance;
         public HotKeyButton[] HotKeyButtons { get; private set; }
+        public HotKeyButton EquippedButton { get; private set; }
         public static HotKeyDisplay Instance
         {
             get
@@ -71,11 +72,39 @@ namespace HotKeyHUD
                         SetButtonItem(i, null);
                 }
             }
+
+            var weaponManager = GameManager.Instance.WeaponManager;
+            if (weaponManager.UsingRightHand)
+            {
+                var item = playerEntity.ItemEquipTable.GetItem(EquipSlots.RightHand);
+                if (item != (DaggerfallUnityItem)EquippedButton.Payload)
+                    EquippedButton.SetItem(item);
+            }
+            else
+            {
+                var item = playerEntity.ItemEquipTable.GetItem(EquipSlots.LeftHand);
+                if (item != (DaggerfallUnityItem)EquippedButton.Payload)
+                    EquippedButton.SetItem(item);
+            }
+
+            // Update button visibility
+            if (HotKeyUtil.Visibility == HotKeyUtil.HUDVisibility.Equipped && !EquippedButton.Enabled)
+            {
+                EquippedButton.Enabled = true;
+                foreach (var button in HotKeyButtons)
+                    button.Enabled = false;
+            }
+            else if (HotKeyUtil.Visibility == HotKeyUtil.HUDVisibility.Full && EquippedButton.Enabled)
+            {
+                EquippedButton.Enabled = false;
+                foreach (var button in HotKeyButtons)
+                    button.Enabled = true;
+            }
         }
 
         public override void Draw()
         {
-            if (!Enabled || HotKeyUtil.HideHotbar)
+            if (!Enabled || HotKeyUtil.Visibility == HotKeyUtil.HUDVisibility.None)
                 return;
             base.Draw();
         }
@@ -113,6 +142,7 @@ namespace HotKeyHUD
             var i = 0;
             foreach (var button in HotKeyButtons)
                 SetButtonItem(i++, null);
+            EquippedButton.SetItem(null);
         }
 
         public bool KeyItem(DaggerfallUnityItem item, ref int slotNum, IUserInterfaceManager uiManager, IUserInterfaceWindow prevWindow, HotKeyMenuPopup hotKeyMenuPopup,
@@ -216,6 +246,10 @@ namespace HotKeyHUD
                 Components.Add(HotKeyButtons[i]);
             }
 
+            EquippedButton = new HotKeyButton(itemBackdrops[0], new Vector2 { x = 0f, y = iconsY }, 0);
+            EquippedButton.KeyLabel.Enabled = false;
+            EquippedButton.Enabled = false;
+            Components.Add(EquippedButton);
             initialized = true;
         }
 
@@ -224,6 +258,7 @@ namespace HotKeyHUD
             Scale = scale;
             for (int i = 0; i < HotKeyButtons.Length; i++)
                 HotKeyButtons[i].SetScale(scale);
+            EquippedButton.SetScale(scale);
         }
 
         private void SetEquipDelayTime(DaggerfallUnityItem lastRightHandItem, DaggerfallUnityItem lastLeftHandItem)

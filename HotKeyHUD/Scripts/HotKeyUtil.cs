@@ -9,7 +9,8 @@ namespace HotKeyHUD
 {
     public class HotKeyUtil
     {
-        public static bool HideHotbar { get; set; }
+        public enum HUDVisibility { Equipped, Full, None }
+        public static HUDVisibility Visibility { get; set; }
         public static bool OverrideMenus { get; set; }
         public static KeyCode SetupMenuKey { get; set; }
 

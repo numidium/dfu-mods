@@ -33,7 +33,7 @@ namespace HotKeyHUD
         // Load settings that can change during runtime.
         void LoadSettings(ModSettings settings, ModSettingsChange change)
         {
-            HotKeyUtil.HideHotbar = settings.GetValue<bool>("Options", "Hide Hotbar");
+            HotKeyUtil.Visibility = (HotKeyUtil.HUDVisibility)settings.GetValue<int>("Options", "HUD Visibility");
             var menuKeyText = settings.GetValue<string>("Options", "Hotkey Setup Menu Key");
             if (Enum.TryParse(menuKeyText, out KeyCode result))
                 HotKeyUtil.SetupMenuKey = result;
