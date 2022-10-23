@@ -160,12 +160,12 @@ namespace HotKeyHUD
             IsSetup = true;
         }
 
-        protected virtual void SpellsListScrollBar_OnScroll()
+        private void SpellsListScrollBar_OnScroll()
         {
             spellsList.ScrollIndex = spellsListScrollBar.ScrollIndex;
         }
 
-        protected virtual void SpellsListBox_OnMouseScroll(BaseScreenComponent sender)
+        private void SpellsListBox_OnMouseScroll(BaseScreenComponent sender)
         {
             spellsListScrollBar.ScrollIndex = spellsList.ScrollIndex;
         }
