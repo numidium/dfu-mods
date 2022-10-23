@@ -4,7 +4,7 @@ using DaggerfallWorkshop.Game.UserInterfaceWindows;
 
 namespace HotKeyHUD
 {
-    public class HotKeyHUDSpellbookWindow : DaggerfallSpellBookWindow
+    public sealed class HotKeyHUDSpellbookWindow : DaggerfallSpellBookWindow
     {
         private int lastSelectedSlot = -1;
         private readonly HotKeyMenuPopup hotKeyMenuPopup;

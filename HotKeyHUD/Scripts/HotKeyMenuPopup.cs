@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace HotKeyHUD
 {
-    public class HotKeyMenuPopup : Panel
+    public sealed class HotKeyMenuPopup : Panel
     {
         private const float overrideXOffset = 222f;
         private const float overrideYOffset = 9f;

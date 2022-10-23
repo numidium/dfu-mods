@@ -9,7 +9,7 @@ using UnityEngine;
 
 namespace HotKeyHUD
 {
-    public class HotKeyDisplay : Panel
+    public sealed class HotKeyDisplay : Panel
     {
         private bool initialized = false;
         private readonly PlayerEntity playerEntity;

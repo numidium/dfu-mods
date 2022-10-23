@@ -9,7 +9,7 @@ using UnityEngine;
 
 namespace HotKeyHUD
 {
-    public class HotKeySetupWindow : DaggerfallPopupWindow
+    public sealed class HotKeySetupWindow : DaggerfallPopupWindow
     {
         private const float paddingWidth = 21f;
         private const float magicAnimationDelay = 0.15f;

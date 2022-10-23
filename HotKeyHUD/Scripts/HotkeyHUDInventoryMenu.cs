@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace HotKeyHUD
 {
-    public class HotkeyHUDInventoryMenu : DaggerfallInventoryWindow
+    public sealed class HotkeyHUDInventoryMenu : DaggerfallInventoryWindow
     {
         private int slotNum;
         private int lastSelectedSlot = -1;

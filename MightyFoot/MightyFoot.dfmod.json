@@ -1,13 +1,12 @@
 {
     "ModTitle": "Mighty Foot",
-    "ModVersion": "0.0.6",
+    "ModVersion": "0.1.5",
     "ModAuthor": "numidium3rd",
     "DFUnity_Version": "0.14.4",
     "ModDescription": "The Mighty Foot serves essentially the same purpose as it did in Duke Nuke'm 3D - to kick things while your hands are otherwise occupied.",
     "GUID": "84d2fbb6-2ce3-4f59-bf57-f2575020094b",
     "Files": [
         "Assets/Game/Mods/MightyFoot/Scripts/MightyFoot.cs",
-        "Assets/Game/Mods/MightyFoot/Scripts/MightyFootBehaviour.cs",
         "Assets/Game/Mods/MightyFoot/modsettings.json"
     ]
 }

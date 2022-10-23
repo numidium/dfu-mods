@@ -6,7 +6,7 @@ namespace HotKeyHUD
     public enum PayloadType { None, Item, Spell };
 
     [FullSerializer.fsObject("v1")]
-    public class HotKeyHUDSaveData
+    public sealed class HotKeyHUDSaveData
     {
         // If the payload is either an Item or a Spell then save to/load from the next position in their respective lists.
         public List<bool> forceUseSlots;

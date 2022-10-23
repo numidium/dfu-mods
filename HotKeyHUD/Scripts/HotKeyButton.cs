@@ -12,7 +12,7 @@ using UnityEngine;
 
 namespace HotKeyHUD
 {
-    public class HotKeyButton : Panel
+    public sealed class HotKeyButton : Panel
     {
         public const float buttonWidth = 22f;
         public const float buttonHeight = 22f;

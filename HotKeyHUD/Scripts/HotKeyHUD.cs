@@ -11,11 +11,10 @@ using DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings;
 
 namespace HotKeyHUD
 {
-    public class HotKeyHUD : MonoBehaviour, IHasModSaveData
+    public sealed class HotKeyHUD : MonoBehaviour, IHasModSaveData
     {
         private static Mod mod;
         private bool componentAdded;
-
         public static HotKeyHUD Instance { get; private set; }
         public Type SaveDataType => typeof(HotKeyHUDSaveData);
         public static string ModTitle => mod.Title;
@@ -44,7 +43,7 @@ namespace HotKeyHUD
             }
         }
 
-        void Awake()
+        private void Awake()
         {
             // Load settings that require a restart.
             var settings = mod.GetSettings();
