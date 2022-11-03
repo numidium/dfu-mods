@@ -14,7 +14,7 @@ namespace FutureShock
         public override int InventoryTextureArchive => 233;
         public override int InventoryTextureRecord => 1;
         public override int GetBaseDamageMin() => 1;
-        public override int GetBaseDamageMax() => 3;
+        public override int GetBaseDamageMax() => 2;
         public override string ItemName => GunName;
         public override string LongName => GunName;
         public override int GroupIndex => 0;

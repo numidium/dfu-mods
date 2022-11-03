@@ -13,6 +13,13 @@ namespace FutureShock
     [RequireComponent(typeof(AudioSource))]
     public sealed class HitScanWeapon : MonoBehaviour
     {
+        enum ShotResult
+        {
+            HitTarget,
+            MissedTarget,
+            HitOther
+        }
+
         private const float nativeScreenWidth = 320f;
         private const float nativeScreenHeight = 200f;
         private const float frameTime = 0.0625f;
@@ -26,8 +33,10 @@ namespace FutureShock
         private AudioSource audioSource;
         public DaggerfallUnityItem PairedItem { private get; set; }
         public Texture2D[] WeaponFrames { private get; set; }
+        public Texture2D[] ImpactFrames { private get; set; }
         public float HorizontalOffset { private get; set; }
         public float VerticalOffset { private get; set; }
+        public float ShotSpread { private get; set; }
         public AudioClip ShootSound { private get; set; }
         public AudioClip EquipSound { private get; set; }
         public bool IsFiring { get; set; }
@@ -75,9 +84,9 @@ namespace FutureShock
                     if (IsBurstFire || currentFrame == 1)
                     {
                         if (IsShotgun)
-                            FireRaySpread();
+                            FireMultipleRays();
                         else
-                            FireScanRay();
+                            FireSingleRay();
                         PairedItem.LowerCondition(ShotConditionCost);
                     }
 
@@ -97,6 +106,8 @@ namespace FutureShock
 
         private void OnGUI()
         {
+            if (IsHolstered || GameManager.IsGamePaused || SaveLoadManager.Instance.LoadInProgress)
+                return;
             // Update weapon when resolution changes
             var screenRect = DaggerfallUI.Instance.CustomScreenRect ?? new Rect(0, 0, Screen.width, Screen.height);
             if (screenRect.width != lastScreenWidth ||
@@ -109,8 +120,6 @@ namespace FutureShock
             }
 
             GUI.depth = 0;
-            if (IsHolstered || GameManager.IsGamePaused || SaveLoadManager.Instance.LoadInProgress)
-                return;
             if (Event.current.type.Equals(EventType.Repaint) && !IsHolstered)
                 DaggerfallUI.DrawTextureWithTexCoords(weaponPosition, WeaponFrames[currentFrame], new Rect(1, 0, 1 /* -1 to mirror (for left hand) */, 1));
         }
@@ -127,38 +136,55 @@ namespace FutureShock
                 WeaponFrames[currentFrame].height * weaponScaleY);
         }
 
-        private void FireScanRay()
+        private void FireSingleRay()
         {
-            var ray = new Ray(mainCamera.transform.position, mainCamera.transform.forward);
+            var ray = new Ray(mainCamera.transform.position, mainCamera.transform.forward + new Vector3(Random.Range(-ShotSpread, ShotSpread), Random.Range(-ShotSpread, ShotSpread), Random.Range(-ShotSpread, ShotSpread)));
             if (Physics.Raycast(ray, out RaycastHit hit, wepRange, playerLayerMask))
             {
-                if (DealDamage(hit.transform, hit.point, mainCamera.transform.forward))
-                    GameManager.Instance.PlayerEntity.TallySkill(DFCareer.Skills.Archery, 1);
+                switch (DealDamage(hit.transform, hit.point, ray.direction))
+                {
+                    case ShotResult.HitTarget:
+                        GameManager.Instance.PlayerEntity.TallySkill(DFCareer.Skills.Archery, 1);
+                        break;
+                    case ShotResult.HitOther:
+                        CreateImpactBillboard(hit.point - ray.direction * 0.1f);
+                        break;
+                    default:
+                        break;
+                }
             }
         }
 
-        private void FireRaySpread()
+        private void FireMultipleRays()
         {
-            const float spreadMin = -.1f;
-            const float spreadMax = .1f;
             var rays = new Ray[]
             {
-                new Ray(mainCamera.transform.position, mainCamera.transform.forward + new Vector3(Random.Range(spreadMin, spreadMax), Random.Range(spreadMin, spreadMax), 0f)),
-                new Ray(mainCamera.transform.position, mainCamera.transform.forward + new Vector3(Random.Range(spreadMin, spreadMax), Random.Range(spreadMin, spreadMax), 0f)),
-                new Ray(mainCamera.transform.position, mainCamera.transform.forward + new Vector3(Random.Range(spreadMin, spreadMax), Random.Range(spreadMin, spreadMax), 0f)),
-                new Ray(mainCamera.transform.position, mainCamera.transform.forward + new Vector3(Random.Range(spreadMin, spreadMax), Random.Range(spreadMin, spreadMax), 0f)),
+                new Ray(mainCamera.transform.position, mainCamera.transform.forward + new Vector3(Random.Range(-ShotSpread, ShotSpread), Random.Range(-ShotSpread, ShotSpread), Random.Range(-ShotSpread, ShotSpread))),
+                new Ray(mainCamera.transform.position, mainCamera.transform.forward + new Vector3(Random.Range(-ShotSpread, ShotSpread), Random.Range(-ShotSpread, ShotSpread), Random.Range(-ShotSpread, ShotSpread))),
+                new Ray(mainCamera.transform.position, mainCamera.transform.forward + new Vector3(Random.Range(-ShotSpread, ShotSpread), Random.Range(-ShotSpread, ShotSpread), Random.Range(-ShotSpread, ShotSpread))),
+                new Ray(mainCamera.transform.position, mainCamera.transform.forward + new Vector3(Random.Range(-ShotSpread, ShotSpread), Random.Range(-ShotSpread, ShotSpread), Random.Range(-ShotSpread, ShotSpread))),
             };
 
             var tallySkill = false;
             foreach (var ray in rays)
                 if (Physics.Raycast(ray, out RaycastHit hit, wepRange, playerLayerMask))
-                    if (DealDamage(hit.transform, hit.point, ray.direction))
-                        tallySkill = true;
+                    switch (DealDamage(hit.transform, hit.point, ray.direction))
+                    {
+                        case ShotResult.HitTarget:
+                            tallySkill = true;
+                            break;
+                        case ShotResult.HitOther:
+                            CreateImpactBillboard(hit.point - ray.direction * 0.1f);
+                            break;
+                        default:
+                            break;
+                    }
+
             if (tallySkill)
                 GameManager.Instance.PlayerEntity.TallySkill(DFCareer.Skills.Archery, 1);
         }
 
-        private bool DealDamage(Transform hitTransform, Vector3 impactPosition, Vector3 direction)
+        private ShotResult DealDamage(Transform hitTransform, Vector3 impactPosition, Vector3 direction)
         {
             // Note: Most of this is adapted from EnemyAttack.cs
             var entityBehaviour = hitTransform.GetComponent<DaggerfallEntityBehaviour>();
@@ -195,7 +221,7 @@ namespace FutureShock
             }
 
             if (entityBehaviour == null)
-                return false;
+                return ShotResult.HitOther;
             // Attempt to hit an enemy.
             var isHitSuccessful = false;
             if (entityBehaviour.EntityType == EntityTypes.EnemyMonster || entityBehaviour.EntityType == EntityTypes.EnemyClass)
@@ -255,7 +281,15 @@ namespace FutureShock
                     enemyMotor.MakeEnemyHostileToAttacker(playerEntity.EntityBehaviour);
             }
 
-            return isHitSuccessful;
+            return isHitSuccessful ? ShotResult.HitTarget : ShotResult.MissedTarget;
+        }
+
+        private void CreateImpactBillboard(Vector3 point)
+        {
+            var go = new GameObject("ImpactBillboard");
+            go.transform.position = point;
+            var billboard = go.AddComponent<ImpactBillboard>();
+            billboard.SetFrames(ImpactFrames);
         }
     }
 }

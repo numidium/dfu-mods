@@ -18,10 +18,16 @@ namespace FutureShock
     {
         enum WeaponAnimation
         {
-            WEAPON01, // Uzi
-            WEAPON02, // M16
-            WEAPON03, // Machine Gun
-            WEAPON04  // Shotgun
+            WEAPON01,     // Uzi
+            WEAPON02,     // M16
+            WEAPON03,     // Machine Gun
+            WEAPON04     // Shotgun
+        }
+
+        enum ImpactAnimation
+        {
+            PelletsImpact,
+            BulletImpact
         }
 
         enum WeaponSound
@@ -44,14 +50,14 @@ namespace FutureShock
         }
 
         private static Mod mod;
-        private static HitScanWeapon hitScanGun;
-        private static Dictionary<WeaponAnimation, Texture2D[]> textureBank;
-        private static Dictionary<WeaponSound, AudioClip> soundBank;
         private static ConsoleController consoleController;
-        private static DaggerfallUnityItem lastEquippedRight;
-        private static DaggerfallUnityItem equippedRight;
-        private static bool ShowWeapon;
-        private static bool isLoadJustFinished = false;
+        private HitScanWeapon hitScanGun;
+        private Dictionary<WeaponAnimation, Texture2D[]> weaponAnimBank;
+        private Dictionary<ImpactAnimation, Texture2D[]> impactAnimBank;
+        private Dictionary<WeaponSound, AudioClip> weaponSoundBank;
+        private DaggerfallUnityItem lastEquippedRight;
+        private DaggerfallUnityItem equippedRight;
+        private bool ShowWeapon;
         public static FutureShockWeapons Instance { get; private set; }
         public Type SaveDataType => typeof(FutureShockWeapons);
         public static string ModTitle => mod.Title;
@@ -96,18 +102,6 @@ namespace FutureShock
             hitScanGun.PairedItem = equippedRight;
             if (consoleController.ui.isConsoleOpen || GameManager.IsGamePaused || DaggerfallUI.UIManager.WindowCount != 0)
                 return;
-            if (SaveLoadManager.Instance.LoadInProgress)
-            {
-                isLoadJustFinished = true;
-                return;
-            }
-
-            if (isLoadJustFinished)
-            {
-                // Prevent playing equip sound on load.
-                lastEquippedRight = equippedRight;
-                isLoadJustFinished = false;
-            }
 
             if (equippedRight != null && equippedRight.currentCondition <= 0)
             {
@@ -160,16 +154,44 @@ namespace FutureShock
                 lastEquippedRight = equippedRight;
         }
 
+        private void OnDestroy()
+        {
+            SaveLoadManager.OnLoad -= SaveLoadManager_OnLoad;
+        }
+
         private static bool IsGun(DaggerfallUnityItem item) => item != null && item.TemplateIndex == ItemFSGun.customTemplateIndex;
 
-        public static bool InitMod(string gameDataPath)
+        public bool InitMod(string gameDataPath)
         {
-            // Import Textures
-            textureBank = new Dictionary<WeaponAnimation, Texture2D[]>();
             var shockPalette = new DFPalette($"{gameDataPath}SHOCK.COL");
+            // Import HUD animations
+            weaponAnimBank = new Dictionary<WeaponAnimation, Texture2D[]>();
             // Check for and/or load loose CFA files. Normally these will not exist until first run.
             foreach (WeaponAnimation textureName in Enum.GetValues(typeof(WeaponAnimation)))
-                textureBank[textureName] = GetTextureAnimFromCfaFile($"{gameDataPath}{textureName}.CFA", shockPalette);
+                weaponAnimBank[textureName] = GetTextureAnimFromCfaFile($"{gameDataPath}{textureName}.CFA", shockPalette);
+            // Import impact/explosion animations
+            var impactAnimFile = new TextureFile($"{gameDataPath}TEXTURE.357", FileUsage.UseMemory, true);
+            impactAnimBank = new Dictionary<ImpactAnimation, Texture2D[]>();
+            for (var record = 0; record < impactAnimFile.RecordCount; record++)
+            {
+                var frameCount = impactAnimFile.GetFrameCount(record);
+                var textures = new Texture2D[frameCount];
+                for (int frame = 0; frame < frameCount; frame++)
+                {
+                    var colors = impactAnimFile.GetColor32(record, frame, 0);
+                    textures[frame] = new Texture2D(impactAnimFile.GetWidth(record), impactAnimFile.GetHeight(record))
+                    {
+                        filterMode = FilterMode.Point
+                    };
+
+                    textures[frame].SetPixels32(colors);
+                    textures[frame].Apply();
+                }
+
+                impactAnimBank[(ImpactAnimation)record] = textures;
+            }
+
+            //impactAnimBank[ImpactAnimation.BulletImpact]
             using (var textureReader = new BsaReader($"{gameDataPath}MDMDIMGS.BSA"))
             {
                 if (textureReader.Reader == null)
@@ -183,7 +205,7 @@ namespace FutureShock
                     var fileName = textureReader.GetFileName(textureIndex);
                     var fileLength = textureReader.GetFileLength(textureIndex);
                     // Skip file if not in bank or already loaded.
-                    if (!Enum.TryParse(Path.GetFileNameWithoutExtension(fileName), out WeaponAnimation weaponAnimation) || textureBank[weaponAnimation] != null)
+                    if (!Enum.TryParse(Path.GetFileNameWithoutExtension(fileName), out WeaponAnimation weaponAnimation) || weaponAnimBank[weaponAnimation] != null)
                     {
                         textureReader.Reader.BaseStream.Seek(fileLength, SeekOrigin.Current);
                         continue;
@@ -197,12 +219,12 @@ namespace FutureShock
                         binaryWriter.Write(textureData);
                     }
 
-                    textureBank[weaponAnimation] = GetTextureAnimFromCfaFile(cfaPath, shockPalette);
+                    weaponAnimBank[weaponAnimation] = GetTextureAnimFromCfaFile(cfaPath, shockPalette);
                 }
             }
 
             // Import Sounds
-            soundBank = new Dictionary<WeaponSound, AudioClip>();
+            weaponSoundBank = new Dictionary<WeaponSound, AudioClip>();
             using (var soundReader = new BsaReader($"{gameDataPath}MDMDSFXS.BSA"))
             {
                 if (soundReader.Reader == null)
@@ -241,15 +263,21 @@ namespace FutureShock
                         samples[i] = (soundData[i] - 128) * conversionFactor;
                     var clip = AudioClip.Create(fileName, fileLength, 1, 11025, false);
                     clip.SetData(samples, 0);
-                    soundBank[weaponSound] = clip;
+                    weaponSoundBank[weaponSound] = clip;
                 }
             }
 
             var player = GameObject.FindGameObjectWithTag("Player");
             hitScanGun = player.AddComponent<HitScanWeapon>();
-            SetWeapon((int)WeaponMaterialTypes.Iron);
             DaggerfallUnity.Instance.ItemHelper.RegisterCustomItem(ItemFSGun.customTemplateIndex, ItemGroups.Weapons, typeof(ItemFSGun));
+            SaveLoadManager.OnLoad += SaveLoadManager_OnLoad;
             return true;
+        }
+
+        private void SaveLoadManager_OnLoad(SaveData_v1 saveData)
+        {
+            lastEquippedRight = equippedRight = GameManager.Instance.PlayerEntity.ItemEquipTable.GetItem(EquipSlots.RightHand);
+            SetWeapon(GetGunFromMaterial(equippedRight.NativeMaterialValue));
         }
 
         private static Texture2D[] GetTextureAnimFromCfaFile(string path, DFPalette palette)
@@ -294,7 +322,7 @@ namespace FutureShock
             }
         }
         
-        private static void SetWeapon(FSWeapon weapon)
+        private void SetWeapon(FSWeapon weapon)
         {
             hitScanGun.ResetAnimation();
             hitScanGun.IsUpdateRequested = true;
@@ -302,44 +330,52 @@ namespace FutureShock
             {
                 case FSWeapon.Uzi:
                 default:
-                    hitScanGun.WeaponFrames = textureBank[WeaponAnimation.WEAPON01];
-                    hitScanGun.HorizontalOffset = -0.3f;
+                    hitScanGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON01];
+                    hitScanGun.ImpactFrames = impactAnimBank[ImpactAnimation.PelletsImpact];
+                    hitScanGun.HorizontalOffset = -.3f;
                     hitScanGun.VerticalOffset = 0f;
-                    hitScanGun.ShootSound = soundBank[WeaponSound.SHOTS5];
-                    hitScanGun.EquipSound = soundBank[WeaponSound.UZICOCK3];
+                    hitScanGun.ShootSound = weaponSoundBank[WeaponSound.SHOTS5];
+                    hitScanGun.EquipSound = weaponSoundBank[WeaponSound.UZICOCK3];
                     hitScanGun.ShotConditionCost = 1;
                     hitScanGun.IsBurstFire = true;
                     hitScanGun.IsShotgun = false;
+                    hitScanGun.ShotSpread = .15f;
                     break;
                 case FSWeapon.M16:
-                    hitScanGun.WeaponFrames = textureBank[WeaponAnimation.WEAPON02];
-                    hitScanGun.HorizontalOffset = 0.1f;
-                    hitScanGun.VerticalOffset = 0.01f;
-                    hitScanGun.ShootSound = soundBank[WeaponSound.SHOTS2];
-                    hitScanGun.EquipSound = soundBank[WeaponSound.SGCOCK2];
+                    hitScanGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON02];
+                    hitScanGun.ImpactFrames = impactAnimBank[ImpactAnimation.PelletsImpact];
+                    hitScanGun.HorizontalOffset = .1f;
+                    hitScanGun.VerticalOffset = .01f;
+                    hitScanGun.ShootSound = weaponSoundBank[WeaponSound.SHOTS2];
+                    hitScanGun.EquipSound = weaponSoundBank[WeaponSound.SGCOCK2];
                     hitScanGun.ShotConditionCost = 1;
                     hitScanGun.IsBurstFire = true;
                     hitScanGun.IsShotgun = false;
+                    hitScanGun.ShotSpread = .05f;
                     break;
                 case FSWeapon.MachineGun:
-                    hitScanGun.WeaponFrames = textureBank[WeaponAnimation.WEAPON03];
+                    hitScanGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON03];
+                    hitScanGun.ImpactFrames = impactAnimBank[ImpactAnimation.PelletsImpact];
                     hitScanGun.HorizontalOffset = 0f;
                     hitScanGun.VerticalOffset = 0f;
-                    hitScanGun.ShootSound = soundBank[WeaponSound.FASTGUN2];
-                    hitScanGun.EquipSound = soundBank[WeaponSound.SGCOCK2];
+                    hitScanGun.ShootSound = weaponSoundBank[WeaponSound.FASTGUN2];
+                    hitScanGun.EquipSound = weaponSoundBank[WeaponSound.SGCOCK2];
                     hitScanGun.ShotConditionCost = 2;
                     hitScanGun.IsBurstFire = true;
                     hitScanGun.IsShotgun = false;
+                    hitScanGun.ShotSpread = .1f;
                     break;
                 case FSWeapon.Shotgun:
-                    hitScanGun.WeaponFrames = textureBank[WeaponAnimation.WEAPON04];
-                    hitScanGun.HorizontalOffset = -0.25f;
+                    hitScanGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON04];
+                    hitScanGun.ImpactFrames = impactAnimBank[ImpactAnimation.PelletsImpact];
+                    hitScanGun.HorizontalOffset = -.25f;
                     hitScanGun.VerticalOffset = 0f;
-                    hitScanGun.ShootSound = soundBank[WeaponSound.SHTGUN];
-                    hitScanGun.EquipSound = soundBank[WeaponSound.SGCOCK1];
+                    hitScanGun.ShootSound = weaponSoundBank[WeaponSound.SHTGUN];
+                    hitScanGun.EquipSound = weaponSoundBank[WeaponSound.SGCOCK1];
                     hitScanGun.ShotConditionCost = 20;
                     hitScanGun.IsBurstFire = false;
                     hitScanGun.IsShotgun = true;
+                    hitScanGun.ShotSpread = .2f;
                     break;
             }
         }
