@@ -21,24 +21,57 @@ namespace FutureShock
             WEAPON01,     // Uzi
             WEAPON02,     // M16
             WEAPON03,     // Machine Gun
-            WEAPON04     // Shotgun
+            WEAPON04,     // Shotgun
+            WEAPON05,     // Grenade Launcher
+            WEAPON06,     // RPG
+            WEAPON07,     // Laser Rifle
+            WEAPON08,     // Heavy Laser
+            //WEAPON09,     // Plasma Pistol
+            WEAPON10,     // Plasma Rifle
+            WEAPON11     // Heavy Plasma
+            //WEAPON12      // Red-tinted Uzi (?)
+            // Unusable files (removed?)
+            /*
+            WEAPON13,
+            WEAPON14,
+            WEAPON15,
+            WEAPON16,
+            WEAPON17,
+            WEAPON18,
+            WEAPON19,
+            WEAPON20,
+            WEAPON21,
+            WEAPON22,
+            WEAPON23,
+            WEAPON24
+            */
         }
 
         enum ImpactAnimation
         {
-            PelletsImpact,
-            BulletImpact
+            Impact1 // Small explosion with many yellow dots (presumably shotgun pellets).
+            //Impact2   // Multiple impacts animated. Doesn't work well for a single impact.
         }
 
         enum WeaponSound
         {
-            SHOTS5,   // Uzi
-            SHOTS2,   // M16 (SHOTS3 is seemingly identical)
-            FASTGUN2, // Machine Gun
-            SHTGUN,   // Shotgun
-            SGCOCK1,  // Shotgun equip
-            SGCOCK2,  // M16/MG equip
-            UZICOCK3  // Uzi equip
+            FASTGUN2,  // Machine Gun
+            GRNLAUN2,  // Grenade Launcher
+            LASER1,    // Laser Rifle
+            LASER2,    // Heavy Laser
+            LASER3,    // Heavy Plasma
+            //LASER4,    // *pshew* (unused?)
+            //LASER5,    // Collection of cartoony laser sounds
+            LASER6,    // Plasma Rifle
+            //LASER7,    // Plasma Pistol
+            //LASER8,    // Plasma Pistol (one of these, not sure which)
+            PPCLOAD,   // Energy weapon equip
+            ROCKET1,   // Rocket sound
+            ROCKET2,   // RPG fire
+            SHOTS2,    // M16 (SHOTS3 is seemingly identical)
+            SHOTS5,    // Uzi
+            SHTGUN,    // Shotgun (includes cocking)
+            UZICOCK3   // Ballistic weapon equip
         }
 
         enum FSWeapon
@@ -46,12 +79,19 @@ namespace FutureShock
             Uzi,
             M16,
             MachineGun,
-            Shotgun
+            Shotgun,
+            GrenadeLauncher,
+            RPG,
+            LaserRifle,
+            HeavyLaser,
+            PlasmaPistol,
+            PlasmaRifle,
+            HeavyPlasma
         }
 
         private static Mod mod;
         private static ConsoleController consoleController;
-        private HitScanWeapon hitScanGun;
+        private FutureShockGun hitScanGun;
         private Dictionary<WeaponAnimation, Texture2D[]> weaponAnimBank;
         private Dictionary<ImpactAnimation, Texture2D[]> impactAnimBank;
         private Dictionary<WeaponSound, AudioClip> weaponSoundBank;
@@ -191,7 +231,6 @@ namespace FutureShock
                 impactAnimBank[(ImpactAnimation)record] = textures;
             }
 
-            //impactAnimBank[ImpactAnimation.BulletImpact]
             using (var textureReader = new BsaReader($"{gameDataPath}MDMDIMGS.BSA"))
             {
                 if (textureReader.Reader == null)
@@ -268,7 +307,7 @@ namespace FutureShock
             }
 
             var player = GameObject.FindGameObjectWithTag("Player");
-            hitScanGun = player.AddComponent<HitScanWeapon>();
+            hitScanGun = player.AddComponent<FutureShockGun>();
             DaggerfallUnity.Instance.ItemHelper.RegisterCustomItem(ItemFSGun.customTemplateIndex, ItemGroups.Weapons, typeof(ItemFSGun));
             SaveLoadManager.OnLoad += SaveLoadManager_OnLoad;
             return true;
@@ -308,17 +347,25 @@ namespace FutureShock
             switch ((WeaponMaterialTypes)material)
             {
                 case WeaponMaterialTypes.Iron:
-                case WeaponMaterialTypes.Steel:
-                case WeaponMaterialTypes.Silver:
                     return FSWeapon.Uzi;
-                case WeaponMaterialTypes.Elven:
-                case WeaponMaterialTypes.Dwarven:
+                case WeaponMaterialTypes.Steel:
                     return FSWeapon.M16;
-                case WeaponMaterialTypes.Mithril:
-                case WeaponMaterialTypes.Adamantium:
+                case WeaponMaterialTypes.Silver:
                     return FSWeapon.Shotgun;
-                default:
+                case WeaponMaterialTypes.Elven:
                     return FSWeapon.MachineGun;
+                case WeaponMaterialTypes.Dwarven:
+                    return FSWeapon.LaserRifle;
+                case WeaponMaterialTypes.Mithril:
+                    return FSWeapon.HeavyLaser;
+                case WeaponMaterialTypes.Adamantium:
+                    return FSWeapon.PlasmaRifle;
+                case WeaponMaterialTypes.Ebony:
+                    return FSWeapon.HeavyPlasma;
+                case WeaponMaterialTypes.Orcish:
+                    return FSWeapon.GrenadeLauncher;
+                default:
+                    return FSWeapon.RPG;
             }
         }
         
@@ -331,7 +378,7 @@ namespace FutureShock
                 case FSWeapon.Uzi:
                 default:
                     hitScanGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON01];
-                    hitScanGun.ImpactFrames = impactAnimBank[ImpactAnimation.PelletsImpact];
+                    hitScanGun.ImpactFrames = impactAnimBank[ImpactAnimation.Impact1];
                     hitScanGun.HorizontalOffset = -.3f;
                     hitScanGun.VerticalOffset = 0f;
                     hitScanGun.ShootSound = weaponSoundBank[WeaponSound.SHOTS5];
@@ -343,11 +390,11 @@ namespace FutureShock
                     break;
                 case FSWeapon.M16:
                     hitScanGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON02];
-                    hitScanGun.ImpactFrames = impactAnimBank[ImpactAnimation.PelletsImpact];
+                    hitScanGun.ImpactFrames = impactAnimBank[ImpactAnimation.Impact1];
                     hitScanGun.HorizontalOffset = .1f;
                     hitScanGun.VerticalOffset = .01f;
                     hitScanGun.ShootSound = weaponSoundBank[WeaponSound.SHOTS2];
-                    hitScanGun.EquipSound = weaponSoundBank[WeaponSound.SGCOCK2];
+                    hitScanGun.EquipSound = weaponSoundBank[WeaponSound.UZICOCK3];
                     hitScanGun.ShotConditionCost = 1;
                     hitScanGun.IsBurstFire = true;
                     hitScanGun.IsShotgun = false;
@@ -355,11 +402,11 @@ namespace FutureShock
                     break;
                 case FSWeapon.MachineGun:
                     hitScanGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON03];
-                    hitScanGun.ImpactFrames = impactAnimBank[ImpactAnimation.PelletsImpact];
+                    hitScanGun.ImpactFrames = impactAnimBank[ImpactAnimation.Impact1];
                     hitScanGun.HorizontalOffset = 0f;
                     hitScanGun.VerticalOffset = 0f;
                     hitScanGun.ShootSound = weaponSoundBank[WeaponSound.FASTGUN2];
-                    hitScanGun.EquipSound = weaponSoundBank[WeaponSound.SGCOCK2];
+                    hitScanGun.EquipSound = weaponSoundBank[WeaponSound.UZICOCK3];
                     hitScanGun.ShotConditionCost = 2;
                     hitScanGun.IsBurstFire = true;
                     hitScanGun.IsShotgun = false;
@@ -367,14 +414,100 @@ namespace FutureShock
                     break;
                 case FSWeapon.Shotgun:
                     hitScanGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON04];
-                    hitScanGun.ImpactFrames = impactAnimBank[ImpactAnimation.PelletsImpact];
+                    hitScanGun.ImpactFrames = impactAnimBank[ImpactAnimation.Impact1];
                     hitScanGun.HorizontalOffset = -.25f;
                     hitScanGun.VerticalOffset = 0f;
                     hitScanGun.ShootSound = weaponSoundBank[WeaponSound.SHTGUN];
-                    hitScanGun.EquipSound = weaponSoundBank[WeaponSound.SGCOCK1];
+                    hitScanGun.EquipSound = weaponSoundBank[WeaponSound.UZICOCK3];
                     hitScanGun.ShotConditionCost = 20;
                     hitScanGun.IsBurstFire = false;
                     hitScanGun.IsShotgun = true;
+                    hitScanGun.ShotSpread = .2f;
+                    break;
+                case FSWeapon.GrenadeLauncher:
+                    hitScanGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON05];
+                    hitScanGun.ImpactFrames = impactAnimBank[ImpactAnimation.Impact1];
+                    hitScanGun.HorizontalOffset = -.1f;
+                    hitScanGun.VerticalOffset = 0f;
+                    hitScanGun.ShootSound = weaponSoundBank[WeaponSound.GRNLAUN2];
+                    hitScanGun.EquipSound = weaponSoundBank[WeaponSound.UZICOCK3];
+                    hitScanGun.ShotConditionCost = 50;
+                    hitScanGun.IsBurstFire = false;
+                    hitScanGun.IsShotgun = false;
+                    hitScanGun.ShotSpread = .2f;
+                    break;
+                case FSWeapon.RPG:
+                    hitScanGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON06];
+                    hitScanGun.ImpactFrames = impactAnimBank[ImpactAnimation.Impact1];
+                    hitScanGun.HorizontalOffset = 0f;
+                    hitScanGun.VerticalOffset = 0f;
+                    hitScanGun.ShootSound = weaponSoundBank[WeaponSound.ROCKET2];
+                    hitScanGun.EquipSound = weaponSoundBank[WeaponSound.UZICOCK3];
+                    hitScanGun.ShotConditionCost = 100;
+                    hitScanGun.IsBurstFire = false;
+                    hitScanGun.IsShotgun = false;
+                    hitScanGun.ShotSpread = .2f;
+                    break;
+                case FSWeapon.LaserRifle:
+                    hitScanGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON07];
+                    hitScanGun.ImpactFrames = impactAnimBank[ImpactAnimation.Impact1];
+                    hitScanGun.HorizontalOffset = -.05f;
+                    hitScanGun.VerticalOffset = 0f;
+                    hitScanGun.ShootSound = weaponSoundBank[WeaponSound.LASER1];
+                    hitScanGun.EquipSound = weaponSoundBank[WeaponSound.PPCLOAD];
+                    hitScanGun.ShotConditionCost = 10;
+                    hitScanGun.IsBurstFire = false;
+                    hitScanGun.IsShotgun = false;
+                    hitScanGun.ShotSpread = .2f;
+                    break;
+                case FSWeapon.HeavyLaser:
+                    hitScanGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON08];
+                    hitScanGun.ImpactFrames = impactAnimBank[ImpactAnimation.Impact1];
+                    hitScanGun.HorizontalOffset = 0f;
+                    hitScanGun.VerticalOffset = 0f;
+                    hitScanGun.ShootSound = weaponSoundBank[WeaponSound.LASER2];
+                    hitScanGun.EquipSound = weaponSoundBank[WeaponSound.PPCLOAD];
+                    hitScanGun.ShotConditionCost = 20;
+                    hitScanGun.IsBurstFire = false;
+                    hitScanGun.IsShotgun = false;
+                    hitScanGun.ShotSpread = .2f;
+                    break;
+                /*
+                case FSWeapon.PlasmaPistol:
+                    hitScanGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON09];
+                    hitScanGun.ImpactFrames = impactAnimBank[ImpactAnimation.Impact1];
+                    hitScanGun.HorizontalOffset = -.15f;
+                    hitScanGun.VerticalOffset = 0f;
+                    hitScanGun.ShootSound = weaponSoundBank[WeaponSound.LASER7];
+                    hitScanGun.EquipSound = weaponSoundBank[WeaponSound.PPCLOAD];
+                    hitScanGun.ShotConditionCost = 20;
+                    hitScanGun.IsBurstFire = false;
+                    hitScanGun.IsShotgun = false;
+                    hitScanGun.ShotSpread = .2f;
+                    break;
+                */
+                case FSWeapon.PlasmaRifle:
+                    hitScanGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON10];
+                    hitScanGun.ImpactFrames = impactAnimBank[ImpactAnimation.Impact1];
+                    hitScanGun.HorizontalOffset = -.1f;
+                    hitScanGun.VerticalOffset = 0f;
+                    hitScanGun.ShootSound = weaponSoundBank[WeaponSound.LASER6];
+                    hitScanGun.EquipSound = weaponSoundBank[WeaponSound.PPCLOAD];
+                    hitScanGun.ShotConditionCost = 20;
+                    hitScanGun.IsBurstFire = false;
+                    hitScanGun.IsShotgun = false;
+                    hitScanGun.ShotSpread = .2f;
+                    break;
+                case FSWeapon.HeavyPlasma:
+                    hitScanGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON11];
+                    hitScanGun.ImpactFrames = impactAnimBank[ImpactAnimation.Impact1];
+                    hitScanGun.HorizontalOffset = 0f;
+                    hitScanGun.VerticalOffset = 0f;
+                    hitScanGun.ShootSound = weaponSoundBank[WeaponSound.LASER3];
+                    hitScanGun.EquipSound = weaponSoundBank[WeaponSound.PPCLOAD];
+                    hitScanGun.ShotConditionCost = 30;
+                    hitScanGun.IsBurstFire = false;
+                    hitScanGun.IsShotgun = false;
                     hitScanGun.ShotSpread = .2f;
                     break;
             }

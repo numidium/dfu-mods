@@ -34,17 +34,27 @@ namespace FutureShock
                 switch (NativeMaterialValue)
                 {
                     case (int)WeaponMaterialTypes.Iron:
-                    case (int)WeaponMaterialTypes.Steel:
-                    case (int)WeaponMaterialTypes.Silver:
                         return "Uzi";
-                    case (int)WeaponMaterialTypes.Elven:
-                    case (int)WeaponMaterialTypes.Dwarven:
+                    case (int)WeaponMaterialTypes.Steel:
                         return "M16";
-                    case (int)WeaponMaterialTypes.Mithril:
-                    case (int)WeaponMaterialTypes.Adamantium:
+                    case (int)WeaponMaterialTypes.Silver:
                         return "Shotgun";
-                    default:
+                    case (int)WeaponMaterialTypes.Elven:
                         return "Machine Gun";
+                    case (int)WeaponMaterialTypes.Dwarven:
+                        return "Laser Rifle";
+                    case (int)WeaponMaterialTypes.Mithril:
+                        return "Heavy Laser";
+                    case (int)WeaponMaterialTypes.Adamantium:
+                        return "Plasma Rifle";
+                    case (int)WeaponMaterialTypes.Ebony:
+                        return "Heavy Plasma";
+                    case (int)WeaponMaterialTypes.Orcish:
+                        return "Grenade Launcher";
+                    case (int)WeaponMaterialTypes.Daedric:
+                        return "RPG";
+                    default:
+                        return "Unknown Gun";
                 }
             }
         }
