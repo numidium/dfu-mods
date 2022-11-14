@@ -13,6 +13,13 @@ namespace FutureShock
     [RequireComponent(typeof(AudioSource))]
     public sealed class FutureShockGun : MonoBehaviour
     {
+        enum FiringType
+        {
+            Burst,
+            Pellets,
+            Projectile
+        }
+
         enum ShotResult
         {
             HitTarget,
@@ -24,6 +31,7 @@ namespace FutureShock
         private const float nativeScreenHeight = 200f;
         private const float frameTime = 0.0625f;
         private const float wepRange = 25f;
+        private FiringType firingType;
         private GameObject mainCamera;
         private int playerLayerMask;
         private Rect weaponPosition;
@@ -40,11 +48,15 @@ namespace FutureShock
         public AudioClip ShootSound { private get; set; }
         public AudioClip EquipSound { private get; set; }
         public bool IsFiring { get; set; }
-        public bool IsBurstFire { private get; set; } // Some weapons fire more than once in an animation cycle
-        public bool IsShotgun { private get; set; }
         public bool IsUpdateRequested { private get; set; }
         public bool IsHolstered { get; set; }
         public int ShotConditionCost { private get; set; }
+
+        public void SetBurst() { firingType = FiringType.Burst; }
+
+        public void SetPellets() { firingType = FiringType.Pellets; }
+
+        public void SetProjectile() { firingType = FiringType.Projectile; }
 
         public void ResetAnimation()
         {
@@ -81,10 +93,12 @@ namespace FutureShock
                 {
                     currentFrame = (currentFrame + 1) % WeaponFrames.Length;
                     frameTimeRemaining = frameTime;
-                    if (IsBurstFire || currentFrame == 1)
+                    if (firingType == FiringType.Burst || currentFrame == 1)
                     {
-                        if (IsShotgun)
+                        if (firingType == FiringType.Pellets)
                             FireMultipleRays();
+                        else if (firingType == FiringType.Projectile)
+                            FireProjectile();
                         else
                             FireSingleRay();
                         PairedItem.LowerCondition(ShotConditionCost);
@@ -282,6 +296,14 @@ namespace FutureShock
             }
 
             return isHitSuccessful ? ShotResult.HitTarget : ShotResult.MissedTarget;
+        }
+
+        private void FireProjectile()
+        {
+            var go = new GameObject("FS Projectile");
+            var projectile = go.AddComponent<FutureShockProjectile>();
+            projectile.Caster = GameManager.Instance.PlayerEntityBehaviour;
+            projectile.ImpactFrames = ImpactFrames;
         }
 
         private void CreateImpactBillboard(Vector3 point)

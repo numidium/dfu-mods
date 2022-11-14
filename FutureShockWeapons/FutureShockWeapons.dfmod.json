@@ -12,6 +12,7 @@
         "Assets/Game/Mods/FutureShockWeapons/FutureShockWeapons.dfmod.json",
         "Assets/Game/Mods/FutureShockWeapons/Scripts/ErrorNotificationBehaviour.cs",
         "Assets/Game/Mods/FutureShockWeapons/Scripts/BsaReader.cs",
-        "Assets/Game/Mods/FutureShockWeapons/Scripts/ItemFSGun.cs"
+        "Assets/Game/Mods/FutureShockWeapons/Scripts/ItemFSGun.cs",
+        "Assets/Game/Mods/FutureShockWeapons/Scripts/FutureShockProjectile.cs"
     ]
 }
