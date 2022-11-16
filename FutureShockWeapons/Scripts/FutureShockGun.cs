@@ -301,6 +301,7 @@ namespace FutureShock
         private void FireProjectile()
         {
             var go = new GameObject("FS Projectile");
+            go.layer = LayerMask.NameToLayer("Player");
             var projectile = go.AddComponent<FutureShockProjectile>();
             projectile.Caster = GameManager.Instance.PlayerEntityBehaviour;
             projectile.ImpactFrames = ImpactFrames;

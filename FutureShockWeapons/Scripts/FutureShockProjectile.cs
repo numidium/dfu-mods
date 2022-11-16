@@ -112,10 +112,12 @@ namespace FutureShock
             // Setup collider
             myCollider = GetComponent<SphereCollider>();
             myCollider.radius = ColliderRadius;
+            myCollider.isTrigger = true;
 
             // Setup rigidbody
             myRigidbody = GetComponent<Rigidbody>();
             myRigidbody.useGravity = false;
+            myRigidbody.isKinematic = true;
 
             // Setup senses
             if (caster && caster != GameManager.Instance.PlayerEntityBehaviour)
@@ -126,7 +128,7 @@ namespace FutureShock
             // Setup arrow
             // Create and orient 3d arrow
             goModel = GameObjectHelper.CreateDaggerfallMeshGameObject(99800, transform);
-            MeshCollider arrowCollider = goModel.GetComponent<MeshCollider>();
+            var arrowCollider = goModel.GetComponent<MeshCollider>();
             arrowCollider.sharedMesh = goModel.GetComponent<MeshFilter>().sharedMesh;
             arrowCollider.convex = true;
             arrowCollider.isTrigger = true;
@@ -141,24 +143,26 @@ namespace FutureShock
             }
             else
             {
-                // Offset forward to avoid collision with player
-                adjust = GameManager.Instance.MainCamera.transform.forward * 0.6f;
-                // Adjust slightly downward to match bow animation
-                adjust.y -= 0.11f;
-                // Adjust to the right or left to match bow animation
+                // Adjust to fit gun animations. TODO: Refine so it fits all animations better.
+                adjust = Vector3.zero;
+                adjust.y -= 0.17f;
                 if (!GameManager.Instance.WeaponManager.ScreenWeapon.FlipHorizontal)
-                    adjust += GameManager.Instance.MainCamera.transform.right * 0.15f;
+                    adjust += GameManager.Instance.MainCamera.transform.right * 0.12f;
                 else
-                    adjust -= GameManager.Instance.MainCamera.transform.right * 0.15f;
+                    adjust -= GameManager.Instance.MainCamera.transform.right * 0.12f;
             }
 
             goModel.transform.localPosition = adjust;
             goModel.transform.rotation = Quaternion.LookRotation(GetAimDirection());
             goModel.layer = gameObject.layer;
 
-            // Ignore missile collision with caster (this is a different check to AOE targets)
+            // Ignore collision with caster
             if (caster)
-                Physics.IgnoreCollision(caster.GetComponent<Collider>(), this.GetComponent<Collider>());
+            {
+                var casterCollider = caster.GetComponent<Collider>();
+                Physics.IgnoreCollision(casterCollider, this.GetComponent<Collider>());
+                Physics.IgnoreCollision(casterCollider, arrowCollider);
+            }
         }
 
         private void Update()
@@ -221,11 +225,6 @@ namespace FutureShock
             // Missile collision should only happen once
             if (impactDetected)
                 return;
-            if (myCollider)
-                myCollider.isTrigger = true;
-            if (myRigidbody)
-                myRigidbody.isKinematic = true;
-
             // Get entity based on collision type
             DaggerfallEntityBehaviour entityBehaviour = null;
             if (collision != null && other == null)
@@ -251,10 +250,10 @@ namespace FutureShock
                 billboard.SetFrames(ImpactFrames);
             }
 
-            // Destroy 3d arrow
-            Destroy(goModel.gameObject);
+            // Destroy projectile and disable collider.
+            Destroy(goModel);
+            myCollider.enabled = false;
             impactDetected = true;
-
             if (IsExplosive)
                 DoAreaOfEffect(transform.position);
         }
@@ -271,7 +270,6 @@ namespace FutureShock
             missileReleased = true;
         }
 
-        // AOE can strike any number of targets within range with an option to exclude caster
         void DoAreaOfEffect(Vector3 position, bool ignoreCaster = false)
         {
             List<DaggerfallEntityBehaviour> entities = new List<DaggerfallEntityBehaviour>();
