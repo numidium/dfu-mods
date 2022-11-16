@@ -100,7 +100,7 @@ namespace FutureShock
 
         private static Mod mod;
         private static ConsoleController consoleController;
-        private FutureShockGun hitScanGun;
+        private FutureShockGun fpsGun;
         private Dictionary<WeaponAnimation, Texture2D[]> weaponAnimBank;
         private Dictionary<ImpactAnimation, Texture2D[]> impactAnimBank;
         private Dictionary<ProjectileModel, Mesh> projectileMeshBank;
@@ -149,26 +149,26 @@ namespace FutureShock
         {
             var gameManager = GameManager.Instance;
             equippedRight = gameManager.PlayerEntity.ItemEquipTable.GetItem(EquipSlots.RightHand);
-            hitScanGun.PairedItem = equippedRight;
+            fpsGun.PairedItem = equippedRight;
             if (consoleController.ui.isConsoleOpen || GameManager.IsGamePaused || DaggerfallUI.UIManager.WindowCount != 0)
                 return;
             if (equippedRight != null && equippedRight.currentCondition <= 0)
             {
-                hitScanGun.IsFiring = false;
+                fpsGun.IsFiring = false;
                 ShowWeapon = false;
-                hitScanGun.IsHolstered = true;
+                fpsGun.IsHolstered = true;
                 return;
             }
 
-            hitScanGun.IsFiring = !hitScanGun.IsHolstered && InputManager.Instance.HasAction(InputManager.Actions.SwingWeapon);
-            if (InputManager.Instance.ActionStarted(InputManager.Actions.ReadyWeapon) && IsGun(equippedRight) && !hitScanGun.IsFiring)
+            fpsGun.IsFiring = !fpsGun.IsHolstered && InputManager.Instance.HasAction(InputManager.Actions.SwingWeapon);
+            if (InputManager.Instance.ActionStarted(InputManager.Actions.ReadyWeapon) && IsGun(equippedRight) && !fpsGun.IsFiring)
                 ShowWeapon = !ShowWeapon;
             if (!ShowWeapon)
-                hitScanGun.IsHolstered = true;
-            else if (hitScanGun.IsHolstered && gameManager.WeaponManager.EquipCountdownRightHand <= 0)
+                fpsGun.IsHolstered = true;
+            else if (fpsGun.IsHolstered && gameManager.WeaponManager.EquipCountdownRightHand <= 0)
             {
-                hitScanGun.IsHolstered = false;
-                hitScanGun.PlayEquipSound();
+                fpsGun.IsHolstered = false;
+                fpsGun.PlayEquipSound();
             }
         }
 
@@ -186,15 +186,15 @@ namespace FutureShock
                     gameManager.WeaponManager.SheathWeapons();
                 if (equipChanged)
                 {
-                    ShowWeapon = (!IsGun(lastEquippedRight) && !lastNonGunSheathed) || !hitScanGun.IsHolstered;
+                    ShowWeapon = (!IsGun(lastEquippedRight) && !lastNonGunSheathed) || !fpsGun.IsHolstered;
                     SetWeapon(GetGunFromMaterial(equippedRight.NativeMaterialValue));
-                    hitScanGun.PlayEquipSound();
-                    hitScanGun.IsHolstered = true;
+                    fpsGun.PlayEquipSound();
+                    fpsGun.IsHolstered = true;
                 }
             }
-            else if (!hitScanGun.IsHolstered)
+            else if (!fpsGun.IsHolstered)
             {
-                hitScanGun.IsHolstered = true;
+                fpsGun.IsHolstered = true;
                 ShowWeapon = false;
                 gameManager.WeaponManager.Sheathed = false;
             }
@@ -363,7 +363,7 @@ namespace FutureShock
             */
 
             var player = GameObject.FindGameObjectWithTag("Player");
-            hitScanGun = player.AddComponent<FutureShockGun>();
+            fpsGun = player.AddComponent<FutureShockGun>();
             DaggerfallUnity.Instance.ItemHelper.RegisterCustomItem(ItemFSGun.customTemplateIndex, ItemGroups.Weapons, typeof(ItemFSGun));
             SaveLoadManager.OnLoad += SaveLoadManager_OnLoad;
             return true;
@@ -457,98 +457,98 @@ namespace FutureShock
         
         private void SetWeapon(FSWeapon weapon)
         {
-            hitScanGun.ResetAnimation();
-            hitScanGun.IsUpdateRequested = true;
+            fpsGun.ResetAnimation();
+            fpsGun.IsUpdateRequested = true;
             switch (weapon)
             {
                 case FSWeapon.Uzi:
                 default:
-                    hitScanGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON01];
-                    hitScanGun.ImpactFrames = impactAnimBank[ImpactAnimation.Bullet];
-                    hitScanGun.HorizontalOffset = -.3f;
-                    hitScanGun.VerticalOffset = 0f;
-                    hitScanGun.ShootSound = weaponSoundBank[WeaponSound.SHOTS5];
-                    hitScanGun.EquipSound = weaponSoundBank[WeaponSound.UZICOCK3];
-                    hitScanGun.ShotConditionCost = 1;
-                    hitScanGun.SetBurst();
-                    hitScanGun.ShotSpread = .15f;
+                    fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON01];
+                    fpsGun.ImpactFrames = impactAnimBank[ImpactAnimation.Bullet];
+                    fpsGun.HorizontalOffset = -.3f;
+                    fpsGun.VerticalOffset = 0f;
+                    fpsGun.ShootSound = weaponSoundBank[WeaponSound.SHOTS5];
+                    fpsGun.EquipSound = weaponSoundBank[WeaponSound.UZICOCK3];
+                    fpsGun.ShotConditionCost = 1;
+                    fpsGun.SetBurst();
+                    fpsGun.ShotSpread = .15f;
                     break;
                 case FSWeapon.M16:
-                    hitScanGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON02];
-                    hitScanGun.ImpactFrames = impactAnimBank[ImpactAnimation.Bullet];
-                    hitScanGun.HorizontalOffset = .1f;
-                    hitScanGun.VerticalOffset = .01f;
-                    hitScanGun.ShootSound = weaponSoundBank[WeaponSound.SHOTS2];
-                    hitScanGun.EquipSound = weaponSoundBank[WeaponSound.UZICOCK3];
-                    hitScanGun.ShotConditionCost = 1;
-                    hitScanGun.SetBurst();
-                    hitScanGun.ShotSpread = .05f;
+                    fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON02];
+                    fpsGun.ImpactFrames = impactAnimBank[ImpactAnimation.Bullet];
+                    fpsGun.HorizontalOffset = .1f;
+                    fpsGun.VerticalOffset = .01f;
+                    fpsGun.ShootSound = weaponSoundBank[WeaponSound.SHOTS2];
+                    fpsGun.EquipSound = weaponSoundBank[WeaponSound.UZICOCK3];
+                    fpsGun.ShotConditionCost = 1;
+                    fpsGun.SetBurst();
+                    fpsGun.ShotSpread = .05f;
                     break;
                 case FSWeapon.MachineGun:
-                    hitScanGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON03];
-                    hitScanGun.ImpactFrames = impactAnimBank[ImpactAnimation.Bullet];
-                    hitScanGun.HorizontalOffset = 0f;
-                    hitScanGun.VerticalOffset = 0f;
-                    hitScanGun.ShootSound = weaponSoundBank[WeaponSound.FASTGUN2];
-                    hitScanGun.EquipSound = weaponSoundBank[WeaponSound.UZICOCK3];
-                    hitScanGun.ShotConditionCost = 2;
-                    hitScanGun.SetBurst();
-                    hitScanGun.ShotSpread = .1f;
+                    fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON03];
+                    fpsGun.ImpactFrames = impactAnimBank[ImpactAnimation.Bullet];
+                    fpsGun.HorizontalOffset = 0f;
+                    fpsGun.VerticalOffset = 0f;
+                    fpsGun.ShootSound = weaponSoundBank[WeaponSound.FASTGUN2];
+                    fpsGun.EquipSound = weaponSoundBank[WeaponSound.UZICOCK3];
+                    fpsGun.ShotConditionCost = 2;
+                    fpsGun.SetBurst();
+                    fpsGun.ShotSpread = .1f;
                     break;
                 case FSWeapon.Shotgun:
-                    hitScanGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON04];
-                    hitScanGun.ImpactFrames = impactAnimBank[ImpactAnimation.Bullet];
-                    hitScanGun.HorizontalOffset = -.25f;
-                    hitScanGun.VerticalOffset = 0f;
-                    hitScanGun.ShootSound = weaponSoundBank[WeaponSound.SHTGUN];
-                    hitScanGun.EquipSound = weaponSoundBank[WeaponSound.UZICOCK3];
-                    hitScanGun.ShotConditionCost = 20;
-                    hitScanGun.SetPellets();
-                    hitScanGun.ShotSpread = .2f;
+                    fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON04];
+                    fpsGun.ImpactFrames = impactAnimBank[ImpactAnimation.Bullet];
+                    fpsGun.HorizontalOffset = -.25f;
+                    fpsGun.VerticalOffset = 0f;
+                    fpsGun.ShootSound = weaponSoundBank[WeaponSound.SHTGUN];
+                    fpsGun.EquipSound = weaponSoundBank[WeaponSound.UZICOCK3];
+                    fpsGun.ShotConditionCost = 20;
+                    fpsGun.SetPellets();
+                    fpsGun.ShotSpread = .2f;
                     break;
                 case FSWeapon.GrenadeLauncher:
-                    hitScanGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON05];
-                    hitScanGun.ImpactFrames = impactAnimBank[ImpactAnimation.Grenade];
-                    hitScanGun.HorizontalOffset = -.1f;
-                    hitScanGun.VerticalOffset = 0f;
-                    hitScanGun.ShootSound = weaponSoundBank[WeaponSound.GRNLAUN2];
-                    hitScanGun.EquipSound = weaponSoundBank[WeaponSound.UZICOCK3];
-                    hitScanGun.ShotConditionCost = 50;
-                    hitScanGun.SetProjectile();
-                    hitScanGun.ShotSpread = .2f;
+                    fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON05];
+                    fpsGun.ImpactFrames = impactAnimBank[ImpactAnimation.Grenade];
+                    fpsGun.HorizontalOffset = -.1f;
+                    fpsGun.VerticalOffset = 0f;
+                    fpsGun.ShootSound = weaponSoundBank[WeaponSound.GRNLAUN2];
+                    fpsGun.EquipSound = weaponSoundBank[WeaponSound.UZICOCK3];
+                    fpsGun.ShotConditionCost = 50;
+                    fpsGun.SetProjectile();
+                    fpsGun.ShotSpread = .2f;
                     break;
                 case FSWeapon.RPG:
-                    hitScanGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON06];
-                    hitScanGun.ImpactFrames = impactAnimBank[ImpactAnimation.RPG];
-                    hitScanGun.HorizontalOffset = 0f;
-                    hitScanGun.VerticalOffset = 0f;
-                    hitScanGun.ShootSound = weaponSoundBank[WeaponSound.ROCKET2];
-                    hitScanGun.EquipSound = weaponSoundBank[WeaponSound.UZICOCK3];
-                    hitScanGun.ShotConditionCost = 100;
-                    hitScanGun.SetProjectile();
-                    hitScanGun.ShotSpread = .2f;
+                    fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON06];
+                    fpsGun.ImpactFrames = impactAnimBank[ImpactAnimation.RPG];
+                    fpsGun.HorizontalOffset = 0f;
+                    fpsGun.VerticalOffset = 0f;
+                    fpsGun.ShootSound = weaponSoundBank[WeaponSound.ROCKET2];
+                    fpsGun.EquipSound = weaponSoundBank[WeaponSound.UZICOCK3];
+                    fpsGun.ShotConditionCost = 100;
+                    fpsGun.SetProjectile();
+                    fpsGun.ShotSpread = .2f;
                     break;
                 case FSWeapon.LaserRifle:
-                    hitScanGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON07];
-                    hitScanGun.ImpactFrames = impactAnimBank[ImpactAnimation.Laser];
-                    hitScanGun.HorizontalOffset = -.05f;
-                    hitScanGun.VerticalOffset = 0f;
-                    hitScanGun.ShootSound = weaponSoundBank[WeaponSound.LASER1];
-                    hitScanGun.EquipSound = weaponSoundBank[WeaponSound.PPCLOAD];
-                    hitScanGun.ShotConditionCost = 10;
-                    hitScanGun.SetProjectile();
-                    hitScanGun.ShotSpread = .2f;
+                    fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON07];
+                    fpsGun.ImpactFrames = impactAnimBank[ImpactAnimation.Laser];
+                    fpsGun.HorizontalOffset = -.05f;
+                    fpsGun.VerticalOffset = 0f;
+                    fpsGun.ShootSound = weaponSoundBank[WeaponSound.LASER1];
+                    fpsGun.EquipSound = weaponSoundBank[WeaponSound.PPCLOAD];
+                    fpsGun.ShotConditionCost = 10;
+                    fpsGun.SetProjectile();
+                    fpsGun.ShotSpread = .2f;
                     break;
                 case FSWeapon.HeavyLaser:
-                    hitScanGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON08];
-                    hitScanGun.ImpactFrames = impactAnimBank[ImpactAnimation.Laser];
-                    hitScanGun.HorizontalOffset = 0f;
-                    hitScanGun.VerticalOffset = 0f;
-                    hitScanGun.ShootSound = weaponSoundBank[WeaponSound.LASER2];
-                    hitScanGun.EquipSound = weaponSoundBank[WeaponSound.PPCLOAD];
-                    hitScanGun.ShotConditionCost = 20;
-                    hitScanGun.SetProjectile();
-                    hitScanGun.ShotSpread = .2f;
+                    fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON08];
+                    fpsGun.ImpactFrames = impactAnimBank[ImpactAnimation.Laser];
+                    fpsGun.HorizontalOffset = 0f;
+                    fpsGun.VerticalOffset = 0f;
+                    fpsGun.ShootSound = weaponSoundBank[WeaponSound.LASER2];
+                    fpsGun.EquipSound = weaponSoundBank[WeaponSound.PPCLOAD];
+                    fpsGun.ShotConditionCost = 20;
+                    fpsGun.SetProjectile();
+                    fpsGun.ShotSpread = .2f;
                     break;
                 /*
                 case FSWeapon.PlasmaPistol:
@@ -565,26 +565,26 @@ namespace FutureShock
                     break;
                 */
                 case FSWeapon.PlasmaRifle:
-                    hitScanGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON10];
-                    hitScanGun.ImpactFrames = impactAnimBank[ImpactAnimation.Plasma];
-                    hitScanGun.HorizontalOffset = -.1f;
-                    hitScanGun.VerticalOffset = 0f;
-                    hitScanGun.ShootSound = weaponSoundBank[WeaponSound.LASER6];
-                    hitScanGun.EquipSound = weaponSoundBank[WeaponSound.PPCLOAD];
-                    hitScanGun.ShotConditionCost = 20;
-                    hitScanGun.SetProjectile();
-                    hitScanGun.ShotSpread = .2f;
+                    fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON10];
+                    fpsGun.ImpactFrames = impactAnimBank[ImpactAnimation.Plasma];
+                    fpsGun.HorizontalOffset = -.1f;
+                    fpsGun.VerticalOffset = 0f;
+                    fpsGun.ShootSound = weaponSoundBank[WeaponSound.LASER6];
+                    fpsGun.EquipSound = weaponSoundBank[WeaponSound.PPCLOAD];
+                    fpsGun.ShotConditionCost = 20;
+                    fpsGun.SetProjectile();
+                    fpsGun.ShotSpread = .2f;
                     break;
                 case FSWeapon.HeavyPlasma:
-                    hitScanGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON11];
-                    hitScanGun.ImpactFrames = impactAnimBank[ImpactAnimation.Plasma];
-                    hitScanGun.HorizontalOffset = 0f;
-                    hitScanGun.VerticalOffset = 0f;
-                    hitScanGun.ShootSound = weaponSoundBank[WeaponSound.LASER3];
-                    hitScanGun.EquipSound = weaponSoundBank[WeaponSound.PPCLOAD];
-                    hitScanGun.ShotConditionCost = 30;
-                    hitScanGun.SetProjectile();
-                    hitScanGun.ShotSpread = .2f;
+                    fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON11];
+                    fpsGun.ImpactFrames = impactAnimBank[ImpactAnimation.Plasma];
+                    fpsGun.HorizontalOffset = 0f;
+                    fpsGun.VerticalOffset = 0f;
+                    fpsGun.ShootSound = weaponSoundBank[WeaponSound.LASER3];
+                    fpsGun.EquipSound = weaponSoundBank[WeaponSound.PPCLOAD];
+                    fpsGun.ShotConditionCost = 30;
+                    fpsGun.SetProjectile();
+                    fpsGun.ShotSpread = .2f;
                     break;
             }
         }

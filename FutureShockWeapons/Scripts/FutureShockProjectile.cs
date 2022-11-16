@@ -1,6 +1,7 @@
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.Entity;
+using DaggerfallWorkshop.Game.Items;
 using DaggerfallWorkshop.Utility;
 using System.Collections.Generic;
 using UnityEngine;
@@ -13,7 +14,7 @@ namespace FutureShock
     [RequireComponent(typeof(SphereCollider))]
     [RequireComponent(typeof(MeshCollider))]
     [RequireComponent(typeof(Rigidbody))]
-    [RequireComponent(typeof(DaggerfallAudioSource))]
+    [RequireComponent(typeof(AudioSource))]
     public sealed class FutureShockProjectile : MonoBehaviour
     {
         #region Unity Properties
@@ -30,7 +31,10 @@ namespace FutureShock
         public float LifespanInSeconds = 8f;                    // How long missile will persist in world before self-destructing if no target found
         public float PostImpactLifespanInSeconds = 0.6f;        // Time in seconds missile will persist after impact
         public float PostImpactLightMultiplier = 1f;            // Scale of light intensity and range during post-impact lifespan - use 1.0 for no change, 0.0 for lights-out
-        public SoundClips ImpactSound = SoundClips.None;        // Impact sound of missile
+        public DaggerfallUnityItem OriginWeapon { private get; set; }
+        public AudioClip ImpactSound { private get; set; }
+        public AudioClip TravelSound { private get; set; }
+        public bool LoopTravelSound { private get; set; }
 
         #endregion
 
@@ -40,7 +44,7 @@ namespace FutureShock
         Vector3 direction;
         Light myLight;
         SphereCollider myCollider;
-        DaggerfallAudioSource audioSource;
+        AudioSource audioSource;
         Rigidbody myRigidbody;
         bool forceDisableSpellLighting;
         float lifespan = 0f;
@@ -53,7 +57,6 @@ namespace FutureShock
         float initialIntensity;
         GameObject goModel = null;
         EnemySenses enemySenses;
-
         List<DaggerfallEntityBehaviour> targetEntities = new List<DaggerfallEntityBehaviour>();
 
 
@@ -95,7 +98,7 @@ namespace FutureShock
 
         private void Awake()
         {
-            audioSource = transform.GetComponent<DaggerfallAudioSource>();
+            audioSource = transform.GetComponent<AudioSource>();
         }
 
         private void Start()
@@ -163,6 +166,9 @@ namespace FutureShock
                 Physics.IgnoreCollision(casterCollider, this.GetComponent<Collider>());
                 Physics.IgnoreCollision(casterCollider, arrowCollider);
             }
+
+            if (TravelSound)
+                PlaySound(TravelSound, LoopTravelSound);
         }
 
         private void Update()
@@ -186,7 +192,8 @@ namespace FutureShock
                 // Notify listeners work is done and automatically assign impact
                 if (!impactAssigned)
                 {
-                    PlayImpactSound();
+                    if (ImpactSound)
+                        PlaySound(ImpactSound);
                     RaiseOnCompleteEvent();
                     // TODO: Assign damage to targetEntities here
                     impactAssigned = true;
@@ -203,7 +210,16 @@ namespace FutureShock
             }
 
             // Update light
-            UpdateLight();
+            // Do nothing if light disabled by missile properties or force disabled in user settings
+            if (!EnableLight || forceDisableSpellLighting)
+                return;
+
+            // Scale post-impact
+            if (impactDetected)
+            {
+                myLight.range = initialRange * PostImpactLightMultiplier;
+                myLight.intensity = initialIntensity * PostImpactLightMultiplier;
+            }
         }
 
         #endregion
@@ -236,18 +252,18 @@ namespace FutureShock
 
             // If entity was hit then add to target list
             if (entityBehaviour)
-            {
                 targetEntities.Add(entityBehaviour);
-                //Debug.LogFormat("Missile hit target {0} by range", entityBehaviour.name);
-            }
 
             if (other != null)
             {
-                AssignBowDamageToTarget(other);
-                var go = new GameObject("ImpactBillboard");
-                go.transform.position = transform.position;
-                var billboard = go.AddComponent<ImpactBillboard>();
-                billboard.SetFrames(ImpactFrames);
+                AssignBowDamageToTarget(other, out var shotResult);
+                if (shotResult == FutureShockAttack.ShotResult.HitOther)
+                {
+                    var go = new GameObject("ImpactBillboard");
+                    go.transform.position = transform.position;
+                    var billboard = go.AddComponent<ImpactBillboard>();
+                    billboard.SetFrames(ImpactFrames);
+                }
             }
 
             // Destroy projectile and disable collider.
@@ -351,22 +367,9 @@ namespace FutureShock
             return aimDirection;
         }
 
-        void UpdateLight()
+        void AssignBowDamageToTarget(Collider arrowHitCollider, out FutureShockAttack.ShotResult shotResult)
         {
-            // Do nothing if light disabled by missile properties or force disabled in user settings
-            if (!EnableLight || forceDisableSpellLighting)
-                return;
-
-            // Scale post-impact
-            if (impactDetected)
-            {
-                myLight.range = initialRange * PostImpactLightMultiplier;
-                myLight.intensity = initialIntensity * PostImpactLightMultiplier;
-            }
-        }
-
-        void AssignBowDamageToTarget(Collider arrowHitCollider)
-        {
+            shotResult = FutureShockAttack.ShotResult.HitOther;
             if (targetEntities.Count == 0)
                 return;
             if (caster != GameManager.Instance.PlayerEntityBehaviour)
@@ -375,22 +378,23 @@ namespace FutureShock
                 {
                     EnemyAttack attack = caster.GetComponent<EnemyAttack>();
                     if (attack)
-                    {
                         attack.BowDamage(goModel.transform.forward);
-                    }
                 }
             }
             else
             {
                 Transform hitTransform = arrowHitCollider.gameObject.transform;
-                //GameManager.Instance.WeaponManager.WeaponDamage(GameManager.Instance.WeaponManager.LastBowUsed, true, isArrowSummoned, hitTransform, hitTransform.position, goModel.transform.forward);
+                if (OriginWeapon != null)
+                    shotResult = FutureShockAttack.DealDamage(OriginWeapon, hitTransform, hitTransform.position, goModel.transform.forward);
             }
         }
 
-        void PlayImpactSound()
+        private void PlaySound(AudioClip clip, bool loop = false)
         {
-            if (audioSource && ImpactSound != SoundClips.None)
-                audioSource.PlayOneShot(ImpactSound, 1f);
+            audioSource.clip = clip;
+            audioSource.volume = DaggerfallUnity.Settings.SoundVolume;
+            audioSource.loop = loop;
+            audioSource.Play();
         }
 
         #endregion

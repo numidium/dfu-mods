@@ -1,11 +1,8 @@
 using DaggerfallConnect;
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
-using DaggerfallWorkshop.Game.Entity;
-using DaggerfallWorkshop.Game.Formulas;
 using DaggerfallWorkshop.Game.Items;
 using DaggerfallWorkshop.Game.Serialization;
-using DaggerfallWorkshop.Game.Utility;
 using UnityEngine;
 
 namespace FutureShock
@@ -18,13 +15,6 @@ namespace FutureShock
             Burst,
             Pellets,
             Projectile
-        }
-
-        enum ShotResult
-        {
-            HitTarget,
-            MissedTarget,
-            HitOther
         }
 
         private const float nativeScreenWidth = 320f;
@@ -154,19 +144,17 @@ namespace FutureShock
         {
             var ray = new Ray(mainCamera.transform.position, mainCamera.transform.forward + new Vector3(Random.Range(-ShotSpread, ShotSpread), Random.Range(-ShotSpread, ShotSpread), Random.Range(-ShotSpread, ShotSpread)));
             if (Physics.Raycast(ray, out RaycastHit hit, wepRange, playerLayerMask))
-            {
-                switch (DealDamage(hit.transform, hit.point, ray.direction))
+                switch (FutureShockAttack.DealDamage(PairedItem, hit.transform, hit.point, ray.direction))
                 {
-                    case ShotResult.HitTarget:
+                    case FutureShockAttack.ShotResult.HitTarget:
                         GameManager.Instance.PlayerEntity.TallySkill(DFCareer.Skills.Archery, 1);
                         break;
-                    case ShotResult.HitOther:
+                    case FutureShockAttack.ShotResult.HitOther:
                         CreateImpactBillboard(hit.point - ray.direction * 0.1f);
                         break;
                     default:
                         break;
                 }
-            }
         }
 
         private void FireMultipleRays()
@@ -177,17 +165,18 @@ namespace FutureShock
                 new Ray(mainCamera.transform.position, mainCamera.transform.forward + new Vector3(Random.Range(-ShotSpread, ShotSpread), Random.Range(-ShotSpread, ShotSpread), Random.Range(-ShotSpread, ShotSpread))),
                 new Ray(mainCamera.transform.position, mainCamera.transform.forward + new Vector3(Random.Range(-ShotSpread, ShotSpread), Random.Range(-ShotSpread, ShotSpread), Random.Range(-ShotSpread, ShotSpread))),
                 new Ray(mainCamera.transform.position, mainCamera.transform.forward + new Vector3(Random.Range(-ShotSpread, ShotSpread), Random.Range(-ShotSpread, ShotSpread), Random.Range(-ShotSpread, ShotSpread))),
+                new Ray(mainCamera.transform.position, mainCamera.transform.forward + new Vector3(Random.Range(-ShotSpread, ShotSpread), Random.Range(-ShotSpread, ShotSpread), Random.Range(-ShotSpread, ShotSpread)))
             };
 
             var tallySkill = false;
             foreach (var ray in rays)
                 if (Physics.Raycast(ray, out RaycastHit hit, wepRange, playerLayerMask))
-                    switch (DealDamage(hit.transform, hit.point, ray.direction))
+                    switch (FutureShockAttack.DealDamage(PairedItem, hit.transform, hit.point, ray.direction))
                     {
-                        case ShotResult.HitTarget:
+                        case FutureShockAttack.ShotResult.HitTarget:
                             tallySkill = true;
                             break;
-                        case ShotResult.HitOther:
+                        case FutureShockAttack.ShotResult.HitOther:
                             CreateImpactBillboard(hit.point - ray.direction * 0.1f);
                             break;
                         default:
@@ -198,106 +187,6 @@ namespace FutureShock
                 GameManager.Instance.PlayerEntity.TallySkill(DFCareer.Skills.Archery, 1);
         }
 
-        private ShotResult DealDamage(Transform hitTransform, Vector3 impactPosition, Vector3 direction)
-        {
-            // Note: Most of this is adapted from EnemyAttack.cs
-            var entityBehaviour = hitTransform.GetComponent<DaggerfallEntityBehaviour>();
-            var mobileUnit = hitTransform.GetComponentInChildren<MobileUnit>();
-            var enemyMotor = hitTransform.GetComponent<EnemyMotor>();
-            var enemySounds = hitTransform.GetComponent<EnemySounds>();
-            var mobileNpc = hitTransform.GetComponent<MobilePersonNPC>();
-            var blood = hitTransform.GetComponent<EnemyBlood>();
-            var playerEntity = GameManager.Instance.PlayerEntity;
-
-            // Hit an innocent peasant walking around town.
-            if (mobileNpc)
-            {
-                if (!mobileNpc.IsGuard)
-                {
-                    if (blood != null)
-                        blood.ShowBloodSplash(0, impactPosition);
-                    mobileNpc.Motor.gameObject.SetActive(false);
-                    playerEntity.TallyCrimeGuildRequirements(false, 5);
-                    playerEntity.CrimeCommitted = PlayerEntity.Crimes.Murder;
-                    playerEntity.SpawnCityGuards(true);
-                }
-                else
-                {
-                    playerEntity.CrimeCommitted = PlayerEntity.Crimes.Assault;
-                    var guard = playerEntity.SpawnCityGuard(mobileNpc.transform.position, mobileNpc.transform.forward);
-                    entityBehaviour = guard.GetComponent<DaggerfallEntityBehaviour>();
-                    mobileUnit = guard.GetComponentInChildren<MobileUnit>();
-                    enemyMotor = guard.GetComponent<EnemyMotor>();
-                    enemySounds = guard.GetComponent<EnemySounds>();
-                }
-
-                mobileNpc.Motor.gameObject.SetActive(false);
-            }
-
-            if (entityBehaviour == null)
-                return ShotResult.HitOther;
-            // Attempt to hit an enemy.
-            var isHitSuccessful = false;
-            if (entityBehaviour.EntityType == EntityTypes.EnemyMonster || entityBehaviour.EntityType == EntityTypes.EnemyClass)
-            {
-                var chanceToHitMod = (int)playerEntity.Skills.GetLiveSkillValue(DFCareer.Skills.Archery);
-                chanceToHitMod += FormulaHelper.CalculateWeaponToHit(PairedItem);
-                var proficiencyMods = FormulaHelper.CalculateProficiencyModifiers(playerEntity, PairedItem);
-                var damageModifiers = proficiencyMods.damageMod;
-                chanceToHitMod += proficiencyMods.toHitMod;
-                var racialMods = FormulaHelper.CalculateRacialModifiers(playerEntity, PairedItem, playerEntity);
-                damageModifiers += racialMods.damageMod;
-                chanceToHitMod += racialMods.toHitMod;
-                var isEnemyFacingAwayFromPlayer = mobileUnit.IsBackFacing &&
-                        mobileUnit.EnemyState != MobileStates.SeducerTransform1 &&
-                        mobileUnit.EnemyState != MobileStates.SeducerTransform2;
-                var backstabChance = FormulaHelper.CalculateBackstabChance(playerEntity, null, isEnemyFacingAwayFromPlayer);
-                chanceToHitMod += backstabChance;
-                isHitSuccessful = FormulaHelper.CalculateSuccessfulHit(playerEntity, entityBehaviour.Entity, chanceToHitMod, FormulaHelper.CalculateStruckBodyPart());
-                var damage = FormulaHelper.CalculateWeaponAttackDamage(playerEntity, entityBehaviour.Entity, damageModifiers, 1, PairedItem);
-                if (isHitSuccessful && damage > 0)
-                {
-                    var enemyEntity = entityBehaviour.Entity as EnemyEntity;
-                    if (blood != null)
-                        blood.ShowBloodSplash(enemyEntity.MobileEnemy.BloodIndex, impactPosition);
-                    if (enemyMotor != null && enemyMotor.KnockbackSpeed <= (5 / (PlayerSpeedChanger.classicToUnitySpeedUnitRatio / 10)) &&
-                        entityBehaviour.EntityType == EntityTypes.EnemyClass || enemyEntity.MobileEnemy.Weight > 0)
-                    {
-                        var enemyWeight = (float)enemyEntity.GetWeightInClassicUnits();
-                        var tenTimesDamage = damage * 10f;
-                        var twoTimesDamage = damage * 2f;
-                        var knockBackAmount = ((tenTimesDamage - enemyWeight) * 256f) / (enemyWeight + tenTimesDamage) * twoTimesDamage;
-                        var knockBackSpeed = (tenTimesDamage / enemyWeight) * (twoTimesDamage - (knockBackAmount / 256f));
-                        knockBackSpeed /= (PlayerSpeedChanger.classicToUnitySpeedUnitRatio / 10f);
-                        if (knockBackSpeed < (15f / (PlayerSpeedChanger.classicToUnitySpeedUnitRatio / 10f)))
-                            knockBackSpeed = (15f / (PlayerSpeedChanger.classicToUnitySpeedUnitRatio / 10f));
-                        enemyMotor.KnockbackSpeed = knockBackSpeed;
-                        enemyMotor.KnockbackDirection = direction;
-                    }
-
-                    if (DaggerfallUnity.Settings.CombatVoices && entityBehaviour.EntityType == EntityTypes.EnemyClass && Dice100.SuccessRoll(40))
-                    {
-                        Genders gender;
-                        if (mobileUnit.Enemy.Gender == MobileGender.Male || enemyEntity.MobileEnemy.ID == (int)MobileTypes.Knight_CityWatch)
-                            gender = Genders.Male;
-                        else
-                            gender = Genders.Female;
-
-                        bool heavyDamage = damage >= enemyEntity.MaxHealth / 4;
-                        enemySounds.PlayCombatVoice(gender, false, heavyDamage);
-                    }
-
-                    enemyEntity.DecreaseHealth(damage);
-                }
-
-                // Become hostile regardless of hit success.
-                if (enemyMotor != null)
-                    enemyMotor.MakeEnemyHostileToAttacker(playerEntity.EntityBehaviour);
-            }
-
-            return isHitSuccessful ? ShotResult.HitTarget : ShotResult.MissedTarget;
-        }
-
         private void FireProjectile()
         {
             var go = new GameObject("FS Projectile");
@@ -305,6 +194,7 @@ namespace FutureShock
             var projectile = go.AddComponent<FutureShockProjectile>();
             projectile.Caster = GameManager.Instance.PlayerEntityBehaviour;
             projectile.ImpactFrames = ImpactFrames;
+            projectile.OriginWeapon = PairedItem;
         }
 
         private void CreateImpactBillboard(Vector3 point)
