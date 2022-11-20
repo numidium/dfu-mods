@@ -43,7 +43,7 @@ namespace FutureShock
             }
         }
 
-        public bool SetFrames(Texture2D[] textures)
+        public bool SetFrames(Texture2D[] textures, Vector2 size)
         {
             DaggerfallUnity dfUnity = DaggerfallUnity.Instance;
             if (!dfUnity.IsReady)
@@ -51,7 +51,7 @@ namespace FutureShock
             meshRenderer = GetComponent<MeshRenderer>();
             var material = MaterialReader.CreateBillboardMaterial();
             material.mainTexture = textures[0];
-            var mesh = dfUnity.MeshReader.GetSimpleBillboardMesh(new Vector2(.5f, .5f));
+            var mesh = dfUnity.MeshReader.GetSimpleBillboardMesh(size);
             var meshFilter = GetComponent<MeshFilter>();
             var oldMesh = meshFilter.sharedMesh;
             if (mesh)

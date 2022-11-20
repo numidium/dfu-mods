@@ -69,18 +69,22 @@ namespace FutureShock
             LASER1,    // Laser Rifle
             LASER2,    // Heavy Laser
             LASER3,    // Heavy Plasma
-            //LASER4,    // *pshew* (unused?)
-            //LASER5,    // Collection of cartoony laser sounds
+            //LASER4,  // *pshew* (unused?)
+            //LASER5,  // Collection of cartoony laser sounds
             LASER6,    // Plasma Rifle
-            //LASER7,    // Plasma Pistol
-            //LASER8,    // Plasma Pistol (one of these, not sure which)
+            //LASER7,  // Plasma Pistol
+            //LASER8,  // Plasma Pistol (one of these, not sure which)
             PPCLOAD,   // Energy weapon equip
             ROCKET1,   // Rocket sound
             ROCKET2,   // RPG fire
             SHOTS2,    // M16 (SHOTS3 is seemingly identical)
             SHOTS5,    // Uzi
             SHTGUN,    // Shotgun (includes cocking)
-            UZICOCK3   // Ballistic weapon equip
+            UZICOCK3,  // Ballistic weapon equip
+            EXPLO1,    // Big explosion, meant for grenades I think?
+            EXPLO2,    // Small explosion
+            EXPLO3     // Big explosion, meant for RPGs?
+            //EXPLO4,  // Big explosion, for when big robots die I think.
         }
 
         enum FSWeapon
@@ -465,10 +469,12 @@ namespace FutureShock
                 default:
                     fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON01];
                     fpsGun.ImpactFrames = impactAnimBank[ImpactAnimation.Bullet];
+                    fpsGun.ImpactFrameSize = new Vector2(.5f, .5f);
                     fpsGun.HorizontalOffset = -.3f;
                     fpsGun.VerticalOffset = 0f;
                     fpsGun.ShootSound = weaponSoundBank[WeaponSound.SHOTS5];
                     fpsGun.EquipSound = weaponSoundBank[WeaponSound.UZICOCK3];
+                    fpsGun.TravelSound = null;
                     fpsGun.ShotConditionCost = 1;
                     fpsGun.SetBurst();
                     fpsGun.ShotSpread = .15f;
@@ -476,10 +482,12 @@ namespace FutureShock
                 case FSWeapon.M16:
                     fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON02];
                     fpsGun.ImpactFrames = impactAnimBank[ImpactAnimation.Bullet];
+                    fpsGun.ImpactFrameSize = new Vector2(.5f, .5f);
                     fpsGun.HorizontalOffset = .1f;
                     fpsGun.VerticalOffset = .01f;
                     fpsGun.ShootSound = weaponSoundBank[WeaponSound.SHOTS2];
                     fpsGun.EquipSound = weaponSoundBank[WeaponSound.UZICOCK3];
+                    fpsGun.TravelSound = null;
                     fpsGun.ShotConditionCost = 1;
                     fpsGun.SetBurst();
                     fpsGun.ShotSpread = .05f;
@@ -487,10 +495,12 @@ namespace FutureShock
                 case FSWeapon.MachineGun:
                     fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON03];
                     fpsGun.ImpactFrames = impactAnimBank[ImpactAnimation.Bullet];
+                    fpsGun.ImpactFrameSize = new Vector2(.5f, .5f);
                     fpsGun.HorizontalOffset = 0f;
                     fpsGun.VerticalOffset = 0f;
                     fpsGun.ShootSound = weaponSoundBank[WeaponSound.FASTGUN2];
                     fpsGun.EquipSound = weaponSoundBank[WeaponSound.UZICOCK3];
+                    fpsGun.TravelSound = null;
                     fpsGun.ShotConditionCost = 2;
                     fpsGun.SetBurst();
                     fpsGun.ShotSpread = .1f;
@@ -498,10 +508,12 @@ namespace FutureShock
                 case FSWeapon.Shotgun:
                     fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON04];
                     fpsGun.ImpactFrames = impactAnimBank[ImpactAnimation.Bullet];
+                    fpsGun.ImpactFrameSize = new Vector2(.5f, .5f);
                     fpsGun.HorizontalOffset = -.25f;
                     fpsGun.VerticalOffset = 0f;
                     fpsGun.ShootSound = weaponSoundBank[WeaponSound.SHTGUN];
                     fpsGun.EquipSound = weaponSoundBank[WeaponSound.UZICOCK3];
+                    fpsGun.TravelSound = null;
                     fpsGun.ShotConditionCost = 20;
                     fpsGun.SetPellets();
                     fpsGun.ShotSpread = .2f;
@@ -509,45 +521,62 @@ namespace FutureShock
                 case FSWeapon.GrenadeLauncher:
                     fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON05];
                     fpsGun.ImpactFrames = impactAnimBank[ImpactAnimation.Grenade];
+                    fpsGun.ImpactFrameSize = new Vector2(2.5f, 2.5f);
                     fpsGun.HorizontalOffset = -.1f;
                     fpsGun.VerticalOffset = 0f;
                     fpsGun.ShootSound = weaponSoundBank[WeaponSound.GRNLAUN2];
                     fpsGun.EquipSound = weaponSoundBank[WeaponSound.UZICOCK3];
+                    fpsGun.TravelSound = null;
+                    fpsGun.ImpactSound = weaponSoundBank[WeaponSound.EXPLO1];
                     fpsGun.ShotConditionCost = 50;
                     fpsGun.SetProjectile();
+                    fpsGun.IsExplosive = true;
                     fpsGun.ShotSpread = .2f;
                     break;
                 case FSWeapon.RPG:
                     fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON06];
                     fpsGun.ImpactFrames = impactAnimBank[ImpactAnimation.RPG];
+                    fpsGun.ImpactFrameSize = new Vector2(3f, 3f);
                     fpsGun.HorizontalOffset = 0f;
                     fpsGun.VerticalOffset = 0f;
                     fpsGun.ShootSound = weaponSoundBank[WeaponSound.ROCKET2];
                     fpsGun.EquipSound = weaponSoundBank[WeaponSound.UZICOCK3];
+                    fpsGun.TravelSound = weaponSoundBank[WeaponSound.ROCKET1];
+                    fpsGun.ImpactSound = weaponSoundBank[WeaponSound.EXPLO3];
+                    fpsGun.IsTravelSoundLooped = false;
                     fpsGun.ShotConditionCost = 100;
                     fpsGun.SetProjectile();
+                    fpsGun.IsExplosive = true;
                     fpsGun.ShotSpread = .2f;
                     break;
                 case FSWeapon.LaserRifle:
                     fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON07];
                     fpsGun.ImpactFrames = impactAnimBank[ImpactAnimation.Laser];
+                    fpsGun.ImpactFrameSize = new Vector2(.7f, .7f);
                     fpsGun.HorizontalOffset = -.05f;
                     fpsGun.VerticalOffset = 0f;
                     fpsGun.ShootSound = weaponSoundBank[WeaponSound.LASER1];
                     fpsGun.EquipSound = weaponSoundBank[WeaponSound.PPCLOAD];
+                    fpsGun.ImpactSound = weaponSoundBank[WeaponSound.EXPLO2];
+                    fpsGun.TravelSound = null;
                     fpsGun.ShotConditionCost = 10;
                     fpsGun.SetProjectile();
+                    fpsGun.IsExplosive = false;
                     fpsGun.ShotSpread = .2f;
                     break;
                 case FSWeapon.HeavyLaser:
                     fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON08];
                     fpsGun.ImpactFrames = impactAnimBank[ImpactAnimation.Laser];
+                    fpsGun.ImpactFrameSize = new Vector2(.7f, .7f);
                     fpsGun.HorizontalOffset = 0f;
                     fpsGun.VerticalOffset = 0f;
                     fpsGun.ShootSound = weaponSoundBank[WeaponSound.LASER2];
                     fpsGun.EquipSound = weaponSoundBank[WeaponSound.PPCLOAD];
+                    fpsGun.ImpactSound = weaponSoundBank[WeaponSound.EXPLO2];
+                    fpsGun.TravelSound = null;
                     fpsGun.ShotConditionCost = 20;
                     fpsGun.SetProjectile();
+                    fpsGun.IsExplosive = false;
                     fpsGun.ShotSpread = .2f;
                     break;
                 /*
@@ -567,23 +596,31 @@ namespace FutureShock
                 case FSWeapon.PlasmaRifle:
                     fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON10];
                     fpsGun.ImpactFrames = impactAnimBank[ImpactAnimation.Plasma];
+                    fpsGun.ImpactFrameSize = new Vector2(.5f, .5f);
                     fpsGun.HorizontalOffset = -.1f;
                     fpsGun.VerticalOffset = 0f;
                     fpsGun.ShootSound = weaponSoundBank[WeaponSound.LASER6];
                     fpsGun.EquipSound = weaponSoundBank[WeaponSound.PPCLOAD];
+                    fpsGun.ImpactSound = weaponSoundBank[WeaponSound.EXPLO2];
+                    fpsGun.TravelSound = null;
                     fpsGun.ShotConditionCost = 20;
                     fpsGun.SetProjectile();
+                    fpsGun.IsExplosive = false;
                     fpsGun.ShotSpread = .2f;
                     break;
                 case FSWeapon.HeavyPlasma:
                     fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON11];
                     fpsGun.ImpactFrames = impactAnimBank[ImpactAnimation.Plasma];
+                    fpsGun.ImpactFrameSize = new Vector2(.5f, .5f);
                     fpsGun.HorizontalOffset = 0f;
                     fpsGun.VerticalOffset = 0f;
                     fpsGun.ShootSound = weaponSoundBank[WeaponSound.LASER3];
                     fpsGun.EquipSound = weaponSoundBank[WeaponSound.PPCLOAD];
+                    fpsGun.ImpactSound = weaponSoundBank[WeaponSound.EXPLO2];
+                    fpsGun.TravelSound = null;
                     fpsGun.ShotConditionCost = 30;
                     fpsGun.SetProjectile();
+                    fpsGun.IsExplosive = false;
                     fpsGun.ShotSpread = .2f;
                     break;
             }

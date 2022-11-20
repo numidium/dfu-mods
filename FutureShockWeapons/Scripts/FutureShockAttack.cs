@@ -18,16 +18,16 @@ namespace FutureShock
             HitOther
         }
 
-        public static ShotResult DealDamage(DaggerfallUnityItem weapon, Transform hitTransform, Vector3 impactPosition, Vector3 direction)
+        public static ShotResult DealDamage(DaggerfallUnityItem weapon, Transform hitTransform, Vector3 impactPosition, Vector3 direction, bool bypassHitSuccessCheck = false)
         {
             // Note: Most of this is adapted from EnemyAttack.cs
-            var entityBehaviour = hitTransform.GetComponent<DaggerfallEntityBehaviour>();
-            var mobileUnit = hitTransform.GetComponentInChildren<MobileUnit>();
-            var enemyMotor = hitTransform.GetComponent<EnemyMotor>();
-            var enemySounds = hitTransform.GetComponent<EnemySounds>();
             var mobileNpc = hitTransform.GetComponent<MobilePersonNPC>();
             var blood = hitTransform.GetComponent<EnemyBlood>();
             var playerEntity = GameManager.Instance.PlayerEntity;
+            DaggerfallEntityBehaviour entityBehaviour;
+            MobileUnit mobileUnit;
+            EnemyMotor enemyMotor;
+            EnemySounds enemySounds;
 
             // Hit an innocent peasant walking around town.
             if (mobileNpc)
@@ -40,6 +40,7 @@ namespace FutureShock
                     playerEntity.TallyCrimeGuildRequirements(false, 5);
                     playerEntity.CrimeCommitted = PlayerEntity.Crimes.Murder;
                     playerEntity.SpawnCityGuards(true);
+                    return ShotResult.HitTarget;
                 }
                 else
                 {
@@ -53,9 +54,16 @@ namespace FutureShock
 
                 mobileNpc.Motor.gameObject.SetActive(false);
             }
+            else
+            {
+                entityBehaviour = hitTransform.GetComponent<DaggerfallEntityBehaviour>();
+                if (entityBehaviour == null)
+                    return ShotResult.HitOther;
+                mobileUnit = hitTransform.GetComponentInChildren<MobileUnit>();
+                enemyMotor = hitTransform.GetComponent<EnemyMotor>();
+                enemySounds = hitTransform.GetComponent<EnemySounds>();
+            }
 
-            if (entityBehaviour == null)
-                return ShotResult.HitOther;
             // Attempt to hit an enemy.
             var isHitSuccessful = false;
             if (entityBehaviour.EntityType == EntityTypes.EnemyMonster || entityBehaviour.EntityType == EntityTypes.EnemyClass)
@@ -73,7 +81,7 @@ namespace FutureShock
                         mobileUnit.EnemyState != MobileStates.SeducerTransform2;
                 var backstabChance = FormulaHelper.CalculateBackstabChance(playerEntity, null, isEnemyFacingAwayFromPlayer);
                 chanceToHitMod += backstabChance;
-                isHitSuccessful = FormulaHelper.CalculateSuccessfulHit(playerEntity, entityBehaviour.Entity, chanceToHitMod, FormulaHelper.CalculateStruckBodyPart());
+                isHitSuccessful = bypassHitSuccessCheck || FormulaHelper.CalculateSuccessfulHit(playerEntity, entityBehaviour.Entity, chanceToHitMod, FormulaHelper.CalculateStruckBodyPart());
                 var damage = FormulaHelper.CalculateWeaponAttackDamage(playerEntity, entityBehaviour.Entity, damageModifiers, 1, weapon);
                 if (isHitSuccessful && damage > 0)
                 {

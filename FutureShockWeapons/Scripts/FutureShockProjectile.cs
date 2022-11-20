@@ -3,7 +3,6 @@ using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.Entity;
 using DaggerfallWorkshop.Game.Items;
 using DaggerfallWorkshop.Utility;
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace FutureShock
@@ -17,11 +16,10 @@ namespace FutureShock
     [RequireComponent(typeof(AudioSource))]
     public sealed class FutureShockProjectile : MonoBehaviour
     {
-        #region Unity Properties
-
+        public const float SphereCastRadius = 0.25f;
         public float MovementSpeed = 25.0f;                     // Speed missile moves through world
         public float ColliderRadius = 0.45f;                    // Radius of missile contact sphere
-        public float ExplosionRadius = 4.0f;                    // Radius of area of effect explosion
+        public float ExplosionRadius = 5.0f;                    // Radius of area of effect explosion
         public bool EnableLight = true;                         // Show a light with this missile - player can force disable from settings
         public bool EnableShadows = true;                       // Light will cast shadows - player can force disable from settings
         public Color[] PulseColors;                             // Array of colours for pulse cycle, light will lerp from item-to-item and loop back to start - ignored if empty
@@ -32,40 +30,32 @@ namespace FutureShock
         public float PostImpactLifespanInSeconds = 0.6f;        // Time in seconds missile will persist after impact
         public float PostImpactLightMultiplier = 1f;            // Scale of light intensity and range during post-impact lifespan - use 1.0 for no change, 0.0 for lights-out
         public DaggerfallUnityItem OriginWeapon { private get; set; }
-        public AudioClip ImpactSound { private get; set; }
-        public AudioClip TravelSound { private get; set; }
-        public bool LoopTravelSound { private get; set; }
 
-        #endregion
-
-        #region Fields
-        public const float SphereCastRadius = 0.25f;
-
-        Vector3 direction;
-        Light myLight;
-        SphereCollider myCollider;
-        AudioSource audioSource;
-        Rigidbody myRigidbody;
-        bool forceDisableSpellLighting;
-        float lifespan = 0f;
-        float postImpactLifespan = 0f;
-        DaggerfallEntityBehaviour caster = null;
-        bool missileReleased = false;
-        bool impactDetected = false;
-        bool impactAssigned = false;
-        float initialRange;
-        float initialIntensity;
-        GameObject goModel = null;
-        EnemySenses enemySenses;
-        List<DaggerfallEntityBehaviour> targetEntities = new List<DaggerfallEntityBehaviour>();
-
-
-        #endregion
+        private Vector3 direction;
+        private Light myLight;
+        private SphereCollider myCollider;
+        private AudioSource audioSource;
+        private AudioClip impactSound;
+        private AudioClip travelSound;
+        private bool travelSoundIsLooped;
+        private Rigidbody myRigidbody;
+        private bool forceDisableSpellLighting;
+        private float lifespan = 0f;
+        private float postImpactLifespan = 0f;
+        private DaggerfallEntityBehaviour caster = null;
+        private bool missileReleased = false;
+        private bool impactDetected = false;
+        private bool impactAssigned = false;
+        private float initialRange;
+        private float initialIntensity;
+        private GameObject goModel = null;
+        private EnemySenses enemySenses;
+        private Texture2D[] impactFrames;
+        private Vector2 impactSize;
 
         #region Properties
 
         public bool IsExplosive { get; set; }
-        public Texture2D[] ImpactFrames { private get; set; }
 
         /// <summary>
         /// Gets or sets caster who is origin of missile.
@@ -78,14 +68,17 @@ namespace FutureShock
             set { caster = value; }
         }
 
-        /// <summary>
-        /// Gets all target entities affected by this missile.
-        /// Any effect bundle payload will be applied automatically.
-        /// Use this property and OnComplete event for custom work.
-        /// </summary>
-        public DaggerfallEntityBehaviour[] Targets
+        public void SetImpactFrames(Texture2D[] frames, Vector2 size)
         {
-            get { return targetEntities.ToArray(); }
+            impactFrames = frames;
+            impactSize = size;
+        }
+
+        public void SetSounds(AudioClip travel, AudioClip impact, bool travelIsLooped)
+        {
+            travelSound = travel;
+            impactSound = impact;
+            travelSoundIsLooped = travelIsLooped;
         }
 
         public Vector3 CustomAimPosition { get; set; }
@@ -167,8 +160,8 @@ namespace FutureShock
                 Physics.IgnoreCollision(casterCollider, arrowCollider);
             }
 
-            if (TravelSound)
-                PlaySound(TravelSound, LoopTravelSound);
+            if (travelSound)
+                PlaySound(travelSound, 0.6f, travelSoundIsLooped);
         }
 
         private void Update()
@@ -192,10 +185,8 @@ namespace FutureShock
                 // Notify listeners work is done and automatically assign impact
                 if (!impactAssigned)
                 {
-                    if (ImpactSound)
-                        PlaySound(ImpactSound);
-                    RaiseOnCompleteEvent();
-                    // TODO: Assign damage to targetEntities here
+                    if (impactSound)
+                        PlaySound(impactSound, 0.9f);
                     impactAssigned = true;
                 }
 
@@ -204,8 +195,8 @@ namespace FutureShock
                 if (postImpactLifespan > PostImpactLifespanInSeconds)
                 {
                     myLight.enabled = false;
-                    //if (ImpactSound != SoundClips.None && !audioSource.IsPlaying())
-                    Destroy(gameObject);
+                    if (audioSource && !audioSource.isPlaying)
+                        Destroy(gameObject);
                 }
             }
 
@@ -242,27 +233,24 @@ namespace FutureShock
             if (impactDetected)
                 return;
             // Get entity based on collision type
-            DaggerfallEntityBehaviour entityBehaviour = null;
+            DaggerfallEntityBehaviour entityBehaviour;
             if (collision != null && other == null)
                 entityBehaviour = collision.gameObject.transform.GetComponent<DaggerfallEntityBehaviour>();
             else if (collision == null && other != null)
                 entityBehaviour = other.gameObject.transform.GetComponent<DaggerfallEntityBehaviour>();
             else
                 return;
-
-            // If entity was hit then add to target list
-            if (entityBehaviour)
-                targetEntities.Add(entityBehaviour);
-
             if (other != null)
             {
-                AssignBowDamageToTarget(other, out var shotResult);
-                if (shotResult == FutureShockAttack.ShotResult.HitOther)
+                var shotResult = FutureShockAttack.ShotResult.HitOther;
+                if (entityBehaviour)
+                    DamageTarget(other, out shotResult);
+                if (IsExplosive || shotResult == FutureShockAttack.ShotResult.HitOther)
                 {
                     var go = new GameObject("ImpactBillboard");
                     go.transform.position = transform.position;
                     var billboard = go.AddComponent<ImpactBillboard>();
-                    billboard.SetFrames(ImpactFrames);
+                    billboard.SetFrames(impactFrames, impactSize);
                 }
             }
 
@@ -271,7 +259,7 @@ namespace FutureShock
             myCollider.enabled = false;
             impactDetected = true;
             if (IsExplosive)
-                DoAreaOfEffect(transform.position);
+                DoSplashDamage(transform.position);
         }
 
         #endregion
@@ -284,35 +272,6 @@ namespace FutureShock
             direction = GetAimDirection();
             transform.position = GetAimPosition() + direction * ColliderRadius;
             missileReleased = true;
-        }
-
-        void DoAreaOfEffect(Vector3 position, bool ignoreCaster = false)
-        {
-            List<DaggerfallEntityBehaviour> entities = new List<DaggerfallEntityBehaviour>();
-
-            transform.position = position;
-
-            // Collect AOE targets and ignore duplicates
-            Collider[] overlaps = Physics.OverlapSphere(position, ExplosionRadius);
-            for (int i = 0; i < overlaps.Length; i++)
-            {
-                DaggerfallEntityBehaviour aoeEntity = overlaps[i].GetComponent<DaggerfallEntityBehaviour>();
-
-                if (ignoreCaster && aoeEntity == caster)
-                    continue;
-
-                if (aoeEntity && !targetEntities.Contains(aoeEntity))
-                {
-                    entities.Add(aoeEntity);
-                    //Debug.LogFormat("Missile hit target {0} by AOE", aoeEntity.name);
-                }
-            }
-
-            // Add collection to target entities
-            if (entities.Count > 0)
-                targetEntities.AddRange(entities);
-
-            impactDetected = true;
         }
 
         // Get missile aim position from player or enemy mobile
@@ -358,56 +317,37 @@ namespace FutureShock
                     aimDirection = caster.transform.forward;
                 else
                     aimDirection = (predictedPosition - caster.transform.position).normalized;
-
-                // Enemy archers must aim lower to compensate for crouched player capsule
-                if (enemySenses.Target?.EntityType == EntityTypes.Player && GameManager.Instance.PlayerMotor.IsCrouching)
-                    aimDirection += Vector3.down * 0.05f;
             }
 
             return aimDirection;
         }
 
-        void AssignBowDamageToTarget(Collider arrowHitCollider, out FutureShockAttack.ShotResult shotResult)
+        void DamageTarget(Collider arrowHitCollider, out FutureShockAttack.ShotResult shotResult)
         {
             shotResult = FutureShockAttack.ShotResult.HitOther;
-            if (targetEntities.Count == 0)
-                return;
-            if (caster != GameManager.Instance.PlayerEntityBehaviour)
-            {
-                if (targetEntities[0] == caster.GetComponent<EnemySenses>().Target)
-                {
-                    EnemyAttack attack = caster.GetComponent<EnemyAttack>();
-                    if (attack)
-                        attack.BowDamage(goModel.transform.forward);
-                }
-            }
-            else
-            {
-                Transform hitTransform = arrowHitCollider.gameObject.transform;
-                if (OriginWeapon != null)
-                    shotResult = FutureShockAttack.DealDamage(OriginWeapon, hitTransform, hitTransform.position, goModel.transform.forward);
-            }
+            // Assumes caster is player for now.
+            Transform hitTransform = arrowHitCollider.gameObject.transform;
+            if (OriginWeapon != null)
+                shotResult = FutureShockAttack.DealDamage(OriginWeapon, hitTransform, hitTransform.position, goModel.transform.forward);
         }
 
-        private void PlaySound(AudioClip clip, bool loop = false)
+        void DoSplashDamage(Vector3 position)
+        {
+            transform.position = position;
+            var overlaps = Physics.OverlapSphere(position, ExplosionRadius);
+            foreach (var overlap in overlaps)
+                FutureShockAttack.DealDamage(OriginWeapon, overlap.transform, overlap.transform.position, overlap.transform.position - position, true);
+            impactDetected = true;
+        }
+
+        private void PlaySound(AudioClip clip, float spatialBlend, bool loop = false)
         {
             audioSource.clip = clip;
             audioSource.volume = DaggerfallUnity.Settings.SoundVolume;
             audioSource.loop = loop;
+            audioSource.dopplerLevel = 0f;
+            audioSource.spatialBlend = spatialBlend;
             audioSource.Play();
-        }
-
-        #endregion
-
-        #region Events
-
-        // OnComplete
-        public delegate void OnCompleteEventHandler();
-        public static event OnCompleteEventHandler OnComplete;
-        private void RaiseOnCompleteEvent()
-        {
-            if (OnComplete != null)
-                OnComplete();
         }
 
         #endregion

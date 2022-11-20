@@ -32,14 +32,19 @@ namespace FutureShock
         public DaggerfallUnityItem PairedItem { private get; set; }
         public Texture2D[] WeaponFrames { private get; set; }
         public Texture2D[] ImpactFrames { private get; set; }
+        public Vector2 ImpactFrameSize { private get; set; }
         public float HorizontalOffset { private get; set; }
         public float VerticalOffset { private get; set; }
         public float ShotSpread { private get; set; }
         public AudioClip ShootSound { private get; set; }
         public AudioClip EquipSound { private get; set; }
+        public AudioClip ImpactSound { private get; set; }
+        public AudioClip TravelSound { private get; set; }
+        public bool IsTravelSoundLooped { private get; set; }
         public bool IsFiring { get; set; }
         public bool IsUpdateRequested { private get; set; }
         public bool IsHolstered { get; set; }
+        public bool IsExplosive { private get; set; }
         public int ShotConditionCost { private get; set; }
 
         public void SetBurst() { firingType = FiringType.Burst; }
@@ -189,12 +194,17 @@ namespace FutureShock
 
         private void FireProjectile()
         {
-            var go = new GameObject("FS Projectile");
-            go.layer = LayerMask.NameToLayer("Player");
+            var go = new GameObject("FS Projectile")
+            {
+                layer = LayerMask.NameToLayer("Player")
+            };
+
             var projectile = go.AddComponent<FutureShockProjectile>();
             projectile.Caster = GameManager.Instance.PlayerEntityBehaviour;
-            projectile.ImpactFrames = ImpactFrames;
+            projectile.SetImpactFrames(ImpactFrames, ImpactFrameSize);
+            projectile.SetSounds(TravelSound, ImpactSound, IsTravelSoundLooped);
             projectile.OriginWeapon = PairedItem;
+            projectile.IsExplosive = IsExplosive;
         }
 
         private void CreateImpactBillboard(Vector3 point)
@@ -202,7 +212,7 @@ namespace FutureShock
             var go = new GameObject("ImpactBillboard");
             go.transform.position = point;
             var billboard = go.AddComponent<ImpactBillboard>();
-            billboard.SetFrames(ImpactFrames);
+            billboard.SetFrames(ImpactFrames, new Vector2(.5f, .5f));
         }
     }
 }
