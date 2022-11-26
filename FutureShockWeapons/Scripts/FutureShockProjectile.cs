@@ -48,14 +48,16 @@ namespace FutureShock
         private bool impactAssigned = false;
         private float initialRange;
         private float initialIntensity;
-        private GameObject goModel = null;
+        private GameObject goProjectile = null;
         private EnemySenses enemySenses;
         private Texture2D[] impactFrames;
+        private Texture2D[] projectileFrames;
         private Vector2 impactSize;
-
-        #region Properties
+        private Vector2 projectileSize;
+        private float downwardVelocity = 0f;
 
         public bool IsExplosive { get; set; }
+        public bool IsGrenade { get; set; }
 
         /// <summary>
         /// Gets or sets caster who is origin of missile.
@@ -74,6 +76,12 @@ namespace FutureShock
             impactSize = size;
         }
 
+        public void SetProjectileFrames(Texture2D[] frames, Vector2 size)
+        {
+            projectileFrames = frames;
+            projectileSize = size;
+        }
+
         public void SetSounds(AudioClip travel, AudioClip impact, bool travelIsLooped)
         {
             travelSound = travel;
@@ -84,8 +92,6 @@ namespace FutureShock
         public Vector3 CustomAimPosition { get; set; }
 
         public Vector3 CustomAimDirection { get; set; }
-
-        #endregion
 
         #region Unity
 
@@ -121,43 +127,63 @@ namespace FutureShock
                 enemySenses = caster.GetComponent<EnemySenses>();
             }
 
-            // Setup arrow
-            // Create and orient 3d arrow
-            goModel = GameObjectHelper.CreateDaggerfallMeshGameObject(99800, transform);
-            var arrowCollider = goModel.GetComponent<MeshCollider>();
-            arrowCollider.sharedMesh = goModel.GetComponent<MeshFilter>().sharedMesh;
-            arrowCollider.convex = true;
-            arrowCollider.isTrigger = true;
-
-            // Offset up so it comes from same place LOS check is done from
+            // Setup projectile
+            MeshCollider arrowCollider = null;
             Vector3 adjust;
-            if (caster != GameManager.Instance.PlayerEntityBehaviour)
+            if (!IsGrenade)
             {
-                CharacterController controller = caster.transform.GetComponent<CharacterController>();
-                adjust = caster.transform.forward * 0.6f;
-                adjust.y += controller.height / 3;
+                goProjectile = GameObjectHelper.CreateDaggerfallMeshGameObject(99800, transform);
+                arrowCollider = goProjectile.GetComponent<MeshCollider>();
+                arrowCollider.sharedMesh = goProjectile.GetComponent<MeshFilter>().sharedMesh;
+                arrowCollider.convex = true;
+                arrowCollider.isTrigger = true;
+
+                // Offset up so it comes from same place LOS check is done from
+                if (caster != GameManager.Instance.PlayerEntityBehaviour)
+                {
+                    CharacterController controller = caster.transform.GetComponent<CharacterController>();
+                    adjust = caster.transform.forward * 0.6f;
+                    adjust.y += controller.height / 3;
+                }
+                else
+                {
+                    // Adjust to fit gun animations. TODO: Refine so it fits all animations better.
+                    adjust = Vector3.zero;
+                    adjust.y -= 0.17f;
+                    if (!GameManager.Instance.WeaponManager.ScreenWeapon.FlipHorizontal)
+                        adjust += GameManager.Instance.MainCamera.transform.right * 0.12f;
+                    else
+                        adjust -= GameManager.Instance.MainCamera.transform.right * 0.12f;
+                }
+
+                goProjectile.transform.localPosition = adjust;
+                goProjectile.transform.rotation = Quaternion.LookRotation(GetAimDirection());
+                goProjectile.layer = gameObject.layer;
             }
             else
             {
-                // Adjust to fit gun animations. TODO: Refine so it fits all animations better.
                 adjust = Vector3.zero;
                 adjust.y -= 0.17f;
                 if (!GameManager.Instance.WeaponManager.ScreenWeapon.FlipHorizontal)
                     adjust += GameManager.Instance.MainCamera.transform.right * 0.12f;
                 else
                     adjust -= GameManager.Instance.MainCamera.transform.right * 0.12f;
+                goProjectile = new GameObject("FlatProjectile");
+                goProjectile.transform.parent = gameObject.transform;
+                goProjectile.transform.localPosition = adjust;
+                goProjectile.transform.rotation = Quaternion.LookRotation(GetAimDirection());
+                goProjectile.layer = gameObject.layer;
+                var flatProjectile = goProjectile.AddComponent<FSBillboard>();
+                flatProjectile.SetFrames(projectileFrames, projectileSize);
             }
-
-            goModel.transform.localPosition = adjust;
-            goModel.transform.rotation = Quaternion.LookRotation(GetAimDirection());
-            goModel.layer = gameObject.layer;
 
             // Ignore collision with caster
             if (caster)
             {
                 var casterCollider = caster.GetComponent<Collider>();
-                Physics.IgnoreCollision(casterCollider, this.GetComponent<Collider>());
-                Physics.IgnoreCollision(casterCollider, arrowCollider);
+                Physics.IgnoreCollision(casterCollider, GetComponent<Collider>());
+                if (arrowCollider != null)
+                    Physics.IgnoreCollision(casterCollider, arrowCollider);
             }
 
             if (travelSound)
@@ -166,6 +192,7 @@ namespace FutureShock
 
         private void Update()
         {
+            const float gravity = 11f;
             if (!missileReleased)
                 DoMissile();
 
@@ -174,6 +201,11 @@ namespace FutureShock
             {
                 // Transform missile along direction vector
                 transform.position += (direction * MovementSpeed) * Time.deltaTime;
+                if (IsGrenade)
+                {
+                    downwardVelocity += gravity * Time.deltaTime;
+                    transform.position += (Vector3.down * downwardVelocity) * Time.deltaTime;
+                }
 
                 // Update lifespan and self-destruct if expired (e.g. spell fired straight up and will never hit anything)
                 lifespan += Time.deltaTime;
@@ -186,7 +218,7 @@ namespace FutureShock
                 if (!impactAssigned)
                 {
                     if (impactSound)
-                        PlaySound(impactSound, 0.9f);
+                        PlaySound(impactSound, 0.8f);
                     impactAssigned = true;
                 }
 
@@ -248,14 +280,14 @@ namespace FutureShock
                 if (IsExplosive || shotResult == FutureShockAttack.ShotResult.HitOther)
                 {
                     var go = new GameObject("ImpactBillboard");
-                    go.transform.position = transform.position;
-                    var billboard = go.AddComponent<ImpactBillboard>();
+                    go.transform.position = transform.position - direction * .1f;
+                    var billboard = go.AddComponent<FSBillboard>();
                     billboard.SetFrames(impactFrames, impactSize);
                 }
             }
 
             // Destroy projectile and disable collider.
-            Destroy(goModel);
+            Destroy(goProjectile);
             myCollider.enabled = false;
             impactDetected = true;
             if (IsExplosive)
@@ -328,7 +360,7 @@ namespace FutureShock
             // Assumes caster is player for now.
             Transform hitTransform = arrowHitCollider.gameObject.transform;
             if (OriginWeapon != null)
-                shotResult = FutureShockAttack.DealDamage(OriginWeapon, hitTransform, hitTransform.position, goModel.transform.forward);
+                shotResult = FutureShockAttack.DealDamage(OriginWeapon, hitTransform, hitTransform.position, goProjectile.transform.forward);
         }
 
         void DoSplashDamage(Vector3 position)

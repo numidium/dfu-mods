@@ -14,6 +14,7 @@
         "Assets/Game/Mods/FutureShockWeapons/Scripts/BsaReader.cs",
         "Assets/Game/Mods/FutureShockWeapons/Scripts/ItemFSGun.cs",
         "Assets/Game/Mods/FutureShockWeapons/Scripts/FutureShockProjectile.cs",
-        "Assets/Game/Mods/FutureShockWeapons/Scripts/FutureShockAttack.cs"
+        "Assets/Game/Mods/FutureShockWeapons/Scripts/FutureShockAttack.cs",
+        "Assets/Game/Mods/FutureShockWeapons/Scripts/FSBillboard.cs"
     ]
 }

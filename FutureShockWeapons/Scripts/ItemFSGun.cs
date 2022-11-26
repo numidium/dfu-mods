@@ -7,19 +7,19 @@ namespace FutureShock
     public sealed class ItemFSGun : DaggerfallUnityItem
     {
         public const int customTemplateIndex = 288;
-        public ItemFSGun() : base(ItemGroups.Weapons, customTemplateIndex)
-        {
-        }
-
         public override int InventoryTextureArchive => 233;
         public override int InventoryTextureRecord => 1;
-        public override int GetBaseDamageMin() => 1;
-        public override int GetBaseDamageMax() => 2;
+        public override int GetBaseDamageMin() => 1 + ExplosiveBonus;
+        public override int GetBaseDamageMax() => 2 + ExplosiveBonus;
         public override string ItemName => GunName;
         public override string LongName => GunName;
         public override int GroupIndex => 0;
         public override ItemHands GetItemHands() => ItemHands.Both;
         public override WeaponTypes GetWeaponType() => WeaponTypes.Staff; // Just need something that is 2-handed
+        public ItemFSGun() : base(ItemGroups.Weapons, customTemplateIndex)
+        {
+        }
+
         public override ItemData_v1 GetSaveData()
         {
             var data = base.GetSaveData();
@@ -27,6 +27,8 @@ namespace FutureShock
             return data;
         }
 
+        // Assumes that explosive weapons are Orcish or above.
+        private int ExplosiveBonus => NativeMaterialValue >= (int)WeaponMaterialTypes.Orcish ? 5 : 0;
         private string GunName
         {
             get
