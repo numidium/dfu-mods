@@ -37,6 +37,8 @@ namespace FutureShock
         public Vector2 ProjectileFrameSize { private get; set; }
         public float HorizontalOffset { private get; set; }
         public float VerticalOffset { private get; set; }
+        public float HorizProjAdjust { private get; set; }
+        public float VertProjAdjust { private get; set; }
         public float ShotSpread { private get; set; }
         public AudioClip ShootSound { private get; set; }
         public AudioClip EquipSound { private get; set; }
@@ -185,7 +187,7 @@ namespace FutureShock
                             tallySkill = true;
                             break;
                         case FutureShockAttack.ShotResult.HitOther:
-                            CreateImpactBillboard(hit.point - ray.direction * 0.1f);
+                            CreateImpactBillboard(hit.point - ray.direction * .1f);
                             break;
                         default:
                             break;
@@ -210,6 +212,8 @@ namespace FutureShock
             projectile.OriginWeapon = PairedItem;
             projectile.IsExplosive = IsExplosive;
             projectile.IsGrenade = IsGrenadeLauncher;
+            projectile.HorizontalAdjust = HorizProjAdjust;
+            projectile.VerticalAdjust = VertProjAdjust;
         }
 
         private void CreateImpactBillboard(Vector3 point)

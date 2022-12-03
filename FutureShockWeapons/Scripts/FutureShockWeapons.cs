@@ -543,6 +543,8 @@ namespace FutureShock
                     fpsGun.ProjectileFrameSize = new Vector2(.2f, .2f);
                     fpsGun.HorizontalOffset = -.1f;
                     fpsGun.VerticalOffset = 0f;
+                    fpsGun.HorizProjAdjust = .12f;
+                    fpsGun.VertProjAdjust = .17f;
                     fpsGun.ShootSound = weaponSoundBank[WeaponSound.GRNLAUN2];
                     fpsGun.EquipSound = weaponSoundBank[WeaponSound.UZICOCK3];
                     fpsGun.TravelSound = null;
@@ -559,6 +561,8 @@ namespace FutureShock
                     fpsGun.ImpactFrameSize = new Vector2(3f, 3f);
                     fpsGun.HorizontalOffset = 0f;
                     fpsGun.VerticalOffset = 0f;
+                    fpsGun.HorizProjAdjust = .17f;
+                    fpsGun.VertProjAdjust = .05f;
                     fpsGun.ShootSound = weaponSoundBank[WeaponSound.ROCKET2];
                     fpsGun.EquipSound = weaponSoundBank[WeaponSound.UZICOCK3];
                     fpsGun.TravelSound = weaponSoundBank[WeaponSound.ROCKET1];
@@ -576,6 +580,8 @@ namespace FutureShock
                     fpsGun.ImpactFrameSize = new Vector2(.7f, .7f);
                     fpsGun.HorizontalOffset = -.05f;
                     fpsGun.VerticalOffset = 0f;
+                    fpsGun.HorizProjAdjust = .12f;
+                    fpsGun.VertProjAdjust = .17f;
                     fpsGun.ShootSound = weaponSoundBank[WeaponSound.LASER1];
                     fpsGun.EquipSound = weaponSoundBank[WeaponSound.PPCLOAD];
                     fpsGun.ImpactSound = weaponSoundBank[WeaponSound.EXPLO2];
@@ -592,6 +598,8 @@ namespace FutureShock
                     fpsGun.ImpactFrameSize = new Vector2(.7f, .7f);
                     fpsGun.HorizontalOffset = 0f;
                     fpsGun.VerticalOffset = 0f;
+                    fpsGun.HorizProjAdjust = .12f;
+                    fpsGun.VertProjAdjust = .17f;
                     fpsGun.ShootSound = weaponSoundBank[WeaponSound.LASER2];
                     fpsGun.EquipSound = weaponSoundBank[WeaponSound.PPCLOAD];
                     fpsGun.ImpactSound = weaponSoundBank[WeaponSound.EXPLO2];
@@ -622,6 +630,8 @@ namespace FutureShock
                     fpsGun.ImpactFrameSize = new Vector2(.5f, .5f);
                     fpsGun.HorizontalOffset = -.1f;
                     fpsGun.VerticalOffset = 0f;
+                    fpsGun.HorizProjAdjust = .13f;
+                    fpsGun.VertProjAdjust = .16f;
                     fpsGun.ShootSound = weaponSoundBank[WeaponSound.LASER6];
                     fpsGun.EquipSound = weaponSoundBank[WeaponSound.PPCLOAD];
                     fpsGun.ImpactSound = weaponSoundBank[WeaponSound.EXPLO2];
@@ -638,6 +648,8 @@ namespace FutureShock
                     fpsGun.ImpactFrameSize = new Vector2(.5f, .5f);
                     fpsGun.HorizontalOffset = 0f;
                     fpsGun.VerticalOffset = 0f;
+                    fpsGun.HorizProjAdjust = .12f;
+                    fpsGun.VertProjAdjust = .17f;
                     fpsGun.ShootSound = weaponSoundBank[WeaponSound.LASER3];
                     fpsGun.EquipSound = weaponSoundBank[WeaponSound.PPCLOAD];
                     fpsGun.ImpactSound = weaponSoundBank[WeaponSound.EXPLO2];

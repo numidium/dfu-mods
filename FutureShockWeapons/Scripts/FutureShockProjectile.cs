@@ -10,65 +10,45 @@ namespace FutureShock
     // NOTE: This class is more or less a copy-paste job from DaggerfallMissile.cs.
     // TODO: Trim class down only to what is essential.
     [RequireComponent(typeof(Light))]
-    [RequireComponent(typeof(SphereCollider))]
-    [RequireComponent(typeof(MeshCollider))]
-    [RequireComponent(typeof(Rigidbody))]
     [RequireComponent(typeof(AudioSource))]
     public sealed class FutureShockProjectile : MonoBehaviour
     {
-        public const float SphereCastRadius = 0.25f;
-        public float MovementSpeed = 25.0f;                     // Speed missile moves through world
-        public float ColliderRadius = 0.45f;                    // Radius of missile contact sphere
+        public float MovementSpeed = 42f;                       // Speed missile moves through world
+        public float ColliderRadius = 0.35f;                    // Radius of missile contact sphere
         public float ExplosionRadius = 5.0f;                    // Radius of area of effect explosion
         public bool EnableLight = true;                         // Show a light with this missile - player can force disable from settings
         public bool EnableShadows = true;                       // Light will cast shadows - player can force disable from settings
-        public Color[] PulseColors;                             // Array of colours for pulse cycle, light will lerp from item-to-item and loop back to start - ignored if empty
-        public float PulseSpeed = 0f;                           // Time in seconds light will lerp between pulse colours - 0 to disable
-        public float FlickerMaxInterval = 0f;                   // Maximum interval for random flicker - 0 to disable
-        public int ImpactBillboardFramesPerSecond = 15;         // Speed of contact billboard animation
         public float LifespanInSeconds = 8f;                    // How long missile will persist in world before self-destructing if no target found
         public float PostImpactLifespanInSeconds = 0.6f;        // Time in seconds missile will persist after impact
-        public float PostImpactLightMultiplier = 1f;            // Scale of light intensity and range during post-impact lifespan - use 1.0 for no change, 0.0 for lights-out
+        public float PostImpactLightMultiplier = 1.6f;          // Scale of light intensity and range during post-impact lifespan - use 1.0 for no change, 0.0 for lights-out
+        public float PostImpactFade = 4f;
         public DaggerfallUnityItem OriginWeapon { private get; set; }
-
+        public float HorizontalAdjust { private get; set; }
+        public float VerticalAdjust { private get; set; }
+        public bool IsExplosive { get; set; }
+        public bool IsGrenade { get; set; }
+        public DaggerfallEntityBehaviour Caster { get; set; }
         private Vector3 direction;
         private Light myLight;
-        private SphereCollider myCollider;
         private AudioSource audioSource;
         private AudioClip impactSound;
         private AudioClip travelSound;
         private bool travelSoundIsLooped;
-        private Rigidbody myRigidbody;
-        private bool forceDisableSpellLighting;
         private float lifespan = 0f;
         private float postImpactLifespan = 0f;
-        private DaggerfallEntityBehaviour caster = null;
         private bool missileReleased = false;
         private bool impactDetected = false;
         private bool impactAssigned = false;
+        private bool postImpactLightAssigned = false;
         private float initialRange;
         private float initialIntensity;
         private GameObject goProjectile = null;
-        private EnemySenses enemySenses;
         private Texture2D[] impactFrames;
         private Texture2D[] projectileFrames;
         private Vector2 impactSize;
         private Vector2 projectileSize;
         private float downwardVelocity = 0f;
-
-        public bool IsExplosive { get; set; }
-        public bool IsGrenade { get; set; }
-
-        /// <summary>
-        /// Gets or sets caster who is origin of missile.
-        /// This must be set for all missile target types.
-        /// Caster is set automatically from payload when available.
-        /// </summary>
-        public DaggerfallEntityBehaviour Caster
-        {
-            get { return caster; }
-            set { caster = value; }
-        }
+        private int playerLayerMask;
 
         public void SetImpactFrames(Texture2D[] frames, Vector2 size)
         {
@@ -89,12 +69,6 @@ namespace FutureShock
             travelSoundIsLooped = travelIsLooped;
         }
 
-        public Vector3 CustomAimPosition { get; set; }
-
-        public Vector3 CustomAimDirection { get; set; }
-
-        #region Unity
-
         private void Awake()
         {
             audioSource = transform.GetComponent<AudioSource>();
@@ -105,116 +79,81 @@ namespace FutureShock
             // Setup light and shadows
             myLight = GetComponent<Light>();
             myLight.enabled = EnableLight;
-            forceDisableSpellLighting = !DaggerfallUnity.Settings.EnableSpellLighting;
-            if (forceDisableSpellLighting) myLight.enabled = false;
             if (!DaggerfallUnity.Settings.EnableSpellShadows) myLight.shadows = LightShadows.None;
             initialRange = myLight.range;
             initialIntensity = myLight.intensity;
 
-            // Setup collider
-            myCollider = GetComponent<SphereCollider>();
-            myCollider.radius = ColliderRadius;
-            myCollider.isTrigger = true;
-
-            // Setup rigidbody
-            myRigidbody = GetComponent<Rigidbody>();
-            myRigidbody.useGravity = false;
-            myRigidbody.isKinematic = true;
-
-            // Setup senses
-            if (caster && caster != GameManager.Instance.PlayerEntityBehaviour)
-            {
-                enemySenses = caster.GetComponent<EnemySenses>();
-            }
-
             // Setup projectile
-            MeshCollider arrowCollider = null;
             Vector3 adjust;
-            if (!IsGrenade)
+            // Adjust to fit gun HUD position.
+            adjust = (GameManager.Instance.MainCamera.transform.rotation * -Caster.transform.up) * VerticalAdjust;
+            if (!IsGrenade) // Grenades use 2D projectiles
             {
-                goProjectile = GameObjectHelper.CreateDaggerfallMeshGameObject(99800, transform);
-                arrowCollider = goProjectile.GetComponent<MeshCollider>();
-                arrowCollider.sharedMesh = goProjectile.GetComponent<MeshFilter>().sharedMesh;
-                arrowCollider.convex = true;
-                arrowCollider.isTrigger = true;
-
-                // Offset up so it comes from same place LOS check is done from
-                if (caster != GameManager.Instance.PlayerEntityBehaviour)
-                {
-                    CharacterController controller = caster.transform.GetComponent<CharacterController>();
-                    adjust = caster.transform.forward * 0.6f;
-                    adjust.y += controller.height / 3;
-                }
+                goProjectile = GameObjectHelper.CreateDaggerfallMeshGameObject(99800, transform, ignoreCollider: true); // TODO: Use proper models
+                if (!GameManager.Instance.WeaponManager.ScreenWeapon.FlipHorizontal)
+                    adjust += GameManager.Instance.MainCamera.transform.right * HorizontalAdjust;
                 else
-                {
-                    // Adjust to fit gun animations. TODO: Refine so it fits all animations better.
-                    adjust = Vector3.zero;
-                    adjust.y -= 0.17f;
-                    if (!GameManager.Instance.WeaponManager.ScreenWeapon.FlipHorizontal)
-                        adjust += GameManager.Instance.MainCamera.transform.right * 0.12f;
-                    else
-                        adjust -= GameManager.Instance.MainCamera.transform.right * 0.12f;
-                }
-
+                    adjust -= GameManager.Instance.MainCamera.transform.right * HorizontalAdjust;
                 goProjectile.transform.localPosition = adjust;
-                goProjectile.transform.rotation = Quaternion.LookRotation(GetAimDirection());
+                goProjectile.transform.rotation = Quaternion.LookRotation(GameManager.Instance.MainCamera.transform.forward);
                 goProjectile.layer = gameObject.layer;
             }
             else
             {
-                adjust = Vector3.zero;
-                adjust.y -= 0.17f;
                 if (!GameManager.Instance.WeaponManager.ScreenWeapon.FlipHorizontal)
-                    adjust += GameManager.Instance.MainCamera.transform.right * 0.12f;
+                    adjust += GameManager.Instance.MainCamera.transform.right * HorizontalAdjust;
                 else
-                    adjust -= GameManager.Instance.MainCamera.transform.right * 0.12f;
+                    adjust -= GameManager.Instance.MainCamera.transform.right * HorizontalAdjust;
                 goProjectile = new GameObject("FlatProjectile");
                 goProjectile.transform.parent = gameObject.transform;
                 goProjectile.transform.localPosition = adjust;
-                goProjectile.transform.rotation = Quaternion.LookRotation(GetAimDirection());
+                goProjectile.transform.rotation = Quaternion.LookRotation(GameManager.Instance.MainCamera.transform.forward);
                 goProjectile.layer = gameObject.layer;
                 var flatProjectile = goProjectile.AddComponent<FSBillboard>();
-                flatProjectile.SetFrames(projectileFrames, projectileSize);
-            }
-
-            // Ignore collision with caster
-            if (caster)
-            {
-                var casterCollider = caster.GetComponent<Collider>();
-                Physics.IgnoreCollision(casterCollider, GetComponent<Collider>());
-                if (arrowCollider != null)
-                    Physics.IgnoreCollision(casterCollider, arrowCollider);
+                flatProjectile.SetFrames(projectileFrames, projectileSize, false);
             }
 
             if (travelSound)
                 PlaySound(travelSound, 0.6f, travelSoundIsLooped);
+            playerLayerMask = ~(1 << LayerMask.NameToLayer("Player"));
         }
 
         private void Update()
         {
             const float gravity = 11f;
+            var deltaTime = Time.deltaTime;
             if (!missileReleased)
-                DoMissile();
+            {
+                direction = GameManager.Instance.MainCamera.transform.forward;
+                transform.position = GameManager.Instance.MainCamera.transform.position;
+                missileReleased = true;
+            }
 
-            // Handle missile lifespan pre and post-impact
             if (!impactDetected)
             {
                 // Transform missile along direction vector
-                transform.position += (direction * MovementSpeed) * Time.deltaTime;
+                var displacement = (direction * MovementSpeed) * deltaTime;
+                // TODO: Only raycast as frequently as necessary.
+                if (Physics.Raycast(goProjectile.transform.position, direction, out var hitInfo, displacement.magnitude + ColliderRadius, playerLayerMask))
+                {
+                    transform.position = hitInfo.point - (transform.forward * (ColliderRadius - .05f));
+                    HandleCollision(hitInfo.collider);
+                    return;
+                }
+                else
+                    transform.position += displacement;
                 if (IsGrenade)
                 {
-                    downwardVelocity += gravity * Time.deltaTime;
-                    transform.position += (Vector3.down * downwardVelocity) * Time.deltaTime;
+                    downwardVelocity += gravity * deltaTime;
+                    transform.position += (Vector3.down * downwardVelocity) * deltaTime;
                 }
 
-                // Update lifespan and self-destruct if expired (e.g. spell fired straight up and will never hit anything)
-                lifespan += Time.deltaTime;
+                lifespan += deltaTime;
                 if (lifespan > LifespanInSeconds)
                     Destroy(gameObject);
             }
             else
             {
-                // Notify listeners work is done and automatically assign impact
                 if (!impactAssigned)
                 {
                     if (impactSound)
@@ -222,136 +161,67 @@ namespace FutureShock
                     impactAssigned = true;
                 }
 
-                // Track post impact lifespan and allow impact clip to finish playing
-                postImpactLifespan += Time.deltaTime;
+                // Wait for light.
+                postImpactLifespan += deltaTime;
                 if (postImpactLifespan > PostImpactLifespanInSeconds)
                 {
                     myLight.enabled = false;
+                    // Wait for audio clip.
                     if (audioSource && !audioSource.isPlaying)
                         Destroy(gameObject);
                 }
             }
 
-            // Update light
-            // Do nothing if light disabled by missile properties or force disabled in user settings
-            if (!EnableLight || forceDisableSpellLighting)
+            // Light
+            if (!EnableLight)
                 return;
-
-            // Scale post-impact
             if (impactDetected)
             {
                 myLight.range = initialRange * PostImpactLightMultiplier;
-                myLight.intensity = initialIntensity * PostImpactLightMultiplier;
+                if (!postImpactLightAssigned)
+                {
+                    myLight.intensity = initialIntensity * PostImpactLightMultiplier;
+                    postImpactLightAssigned = true;
+                }
+                else
+                {
+                    // Fade out light.
+                    myLight.intensity -= PostImpactFade * deltaTime;
+                }
             }
         }
 
-        #endregion
-
-        #region Collision Handling
-
-        private void OnCollisionEnter(Collision collision)
-        {
-            DoCollision(collision, null);
-        }
-
-        private void OnTriggerEnter(Collider other)
-        {
-            DoCollision(null, other);
-        }
-
-        void DoCollision(Collision collision, Collider other)
+        private void HandleCollision(Collider other)
         {
             // Missile collision should only happen once
             if (impactDetected)
                 return;
             // Get entity based on collision type
             DaggerfallEntityBehaviour entityBehaviour;
-            if (collision != null && other == null)
-                entityBehaviour = collision.gameObject.transform.GetComponent<DaggerfallEntityBehaviour>();
-            else if (collision == null && other != null)
+            if (other != null)
                 entityBehaviour = other.gameObject.transform.GetComponent<DaggerfallEntityBehaviour>();
             else
                 return;
             if (other != null)
             {
                 var shotResult = FutureShockAttack.ShotResult.HitOther;
+                // Move back to contact point
+                transform.position = other.ClosestPointOnBounds(transform.position - direction * (ColliderRadius * MovementSpeed * Time.deltaTime)) - direction * ColliderRadius;
                 if (entityBehaviour)
                     DamageTarget(other, out shotResult);
                 if (IsExplosive || shotResult == FutureShockAttack.ShotResult.HitOther)
                 {
                     var go = new GameObject("ImpactBillboard");
-                    go.transform.position = transform.position - direction * .1f;
+                    go.transform.position = transform.position;
                     var billboard = go.AddComponent<FSBillboard>();
                     billboard.SetFrames(impactFrames, impactSize);
                 }
             }
 
-            // Destroy projectile and disable collider.
             Destroy(goProjectile);
-            myCollider.enabled = false;
             impactDetected = true;
             if (IsExplosive)
                 DoSplashDamage(transform.position);
-        }
-
-        #endregion
-
-        #region Private Methods
-
-        // Missile can hit environment or target at range
-        void DoMissile()
-        {
-            direction = GetAimDirection();
-            transform.position = GetAimPosition() + direction * ColliderRadius;
-            missileReleased = true;
-        }
-
-        // Get missile aim position from player or enemy mobile
-        Vector3 GetAimPosition()
-        {
-            // Aim position from custom source
-            if (CustomAimPosition != Vector3.zero)
-                return CustomAimPosition;
-
-            // Aim position is from eye level for player or origin for other mobile
-            // Player must aim from camera position or it feels out of alignment
-            Vector3 aimPosition = caster.transform.position;
-            if (caster == GameManager.Instance.PlayerEntityBehaviour)
-            {
-                aimPosition = GameManager.Instance.MainCamera.transform.position;
-            }
-
-            return aimPosition;
-        }
-
-        // Get missile aim direction from player or enemy mobile
-        Vector3 GetAimDirection()
-        {
-            // Aim direction from custom source
-            if (CustomAimDirection != Vector3.zero)
-                return CustomAimDirection;
-
-            // Aim direction should be from camera for player or facing for other mobile
-            Vector3 aimDirection = Vector3.zero;
-            if (caster == GameManager.Instance.PlayerEntityBehaviour)
-            {
-                aimDirection = GameManager.Instance.MainCamera.transform.forward;
-            }
-            else if (enemySenses)
-            {
-                Vector3 predictedPosition;
-                if (DaggerfallUnity.Settings.EnhancedCombatAI)
-                    predictedPosition = enemySenses.PredictNextTargetPos(MovementSpeed);
-                else
-                    predictedPosition = enemySenses.LastKnownTargetPos;
-
-                if (predictedPosition == EnemySenses.ResetPlayerPos)
-                    aimDirection = caster.transform.forward;
-                else
-                    aimDirection = (predictedPosition - caster.transform.position).normalized;
-            }
-
-            return aimDirection;
         }
 
         void DamageTarget(Collider arrowHitCollider, out FutureShockAttack.ShotResult shotResult)
@@ -368,8 +238,12 @@ namespace FutureShock
             transform.position = position;
             var overlaps = Physics.OverlapSphere(position, ExplosionRadius);
             foreach (var overlap in overlaps)
-                FutureShockAttack.DealDamage(OriginWeapon, overlap.transform, overlap.transform.position, overlap.transform.position - position, true);
-            impactDetected = true;
+            {
+                var direction = (overlap.transform.position - position).normalized;
+                var ray = new Ray(position, direction);
+                if (Physics.Raycast(ray, out RaycastHit hit, ExplosionRadius, playerLayerMask))
+                    FutureShockAttack.DealDamage(OriginWeapon, hit.transform, hit.point, ray.direction, true);
+            }
         }
 
         private void PlaySound(AudioClip clip, float spatialBlend, bool loop = false)
@@ -381,8 +255,5 @@ namespace FutureShock
             audioSource.spatialBlend = spatialBlend;
             audioSource.Play();
         }
-
-        #endregion
-
     }
 }
