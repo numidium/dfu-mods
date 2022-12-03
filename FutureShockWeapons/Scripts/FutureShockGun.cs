@@ -10,17 +10,18 @@ namespace FutureShock
     [RequireComponent(typeof(AudioSource))]
     public sealed class FutureShockGun : MonoBehaviour
     {
-        enum FiringType
+        private enum FiringType
         {
             Burst,
             Pellets,
-            Projectile
+            Projectile,
+            ProjectileRapid
         }
 
         private const float nativeScreenWidth = 320f;
         private const float nativeScreenHeight = 200f;
         private const float frameTime = 0.0625f;
-        private const float wepRange = 25f;
+        private const float wepRange = 35f;
         private FiringType firingType;
         private GameObject mainCamera;
         private int playerLayerMask;
@@ -40,6 +41,7 @@ namespace FutureShock
         public float HorizProjAdjust { private get; set; }
         public float VertProjAdjust { private get; set; }
         public float ShotSpread { private get; set; }
+        public float ProjVelocity { private get; set; }
         public AudioClip ShootSound { private get; set; }
         public AudioClip EquipSound { private get; set; }
         public AudioClip ImpactSound { private get; set; }
@@ -57,6 +59,8 @@ namespace FutureShock
         public void SetPellets() { firingType = FiringType.Pellets; }
 
         public void SetProjectile() { firingType = FiringType.Projectile; }
+
+        public void SetProjectileRapid() { firingType = FiringType.ProjectileRapid; }
 
         public void ResetAnimation()
         {
@@ -93,18 +97,26 @@ namespace FutureShock
                 {
                     currentFrame = (currentFrame + 1) % WeaponFrames.Length;
                     frameTimeRemaining = frameTime;
+                    var isSoundRequested = false;
                     if (firingType == FiringType.Burst || currentFrame == 1)
                     {
                         if (firingType == FiringType.Pellets)
                             FireMultipleRays();
-                        else if (firingType == FiringType.Projectile)
+                        else if (firingType == FiringType.Projectile || firingType == FiringType.ProjectileRapid)
                             FireProjectile();
                         else
                             FireSingleRay();
                         PairedItem.LowerCondition(ShotConditionCost);
+                        isSoundRequested = currentFrame == 1;
+                    }
+                    else if (currentFrame == 3 && IsFiring && firingType == FiringType.ProjectileRapid)
+                    {
+                        FireProjectile();
+                        PairedItem.LowerCondition(ShotConditionCost);
+                        isSoundRequested = true;
                     }
 
-                    if (currentFrame == 1)
+                    if (isSoundRequested)
                     {
                         audioSource.clip = ShootSound;
                         audioSource.volume = DaggerfallUnity.Settings.SoundVolume;
@@ -169,17 +181,11 @@ namespace FutureShock
 
         private void FireMultipleRays()
         {
-            var rays = new Ray[]
-            {
-                new Ray(mainCamera.transform.position, mainCamera.transform.forward + new Vector3(Random.Range(-ShotSpread, ShotSpread), Random.Range(-ShotSpread, ShotSpread), Random.Range(-ShotSpread, ShotSpread))),
-                new Ray(mainCamera.transform.position, mainCamera.transform.forward + new Vector3(Random.Range(-ShotSpread, ShotSpread), Random.Range(-ShotSpread, ShotSpread), Random.Range(-ShotSpread, ShotSpread))),
-                new Ray(mainCamera.transform.position, mainCamera.transform.forward + new Vector3(Random.Range(-ShotSpread, ShotSpread), Random.Range(-ShotSpread, ShotSpread), Random.Range(-ShotSpread, ShotSpread))),
-                new Ray(mainCamera.transform.position, mainCamera.transform.forward + new Vector3(Random.Range(-ShotSpread, ShotSpread), Random.Range(-ShotSpread, ShotSpread), Random.Range(-ShotSpread, ShotSpread))),
-                new Ray(mainCamera.transform.position, mainCamera.transform.forward + new Vector3(Random.Range(-ShotSpread, ShotSpread), Random.Range(-ShotSpread, ShotSpread), Random.Range(-ShotSpread, ShotSpread)))
-            };
-
+            const int rayCount = 6;
             var tallySkill = false;
-            foreach (var ray in rays)
+            for (var i = 0; i < rayCount; i++)
+            {
+                var ray = new Ray(mainCamera.transform.position, mainCamera.transform.forward + new Vector3(Random.Range(-ShotSpread, ShotSpread), Random.Range(-ShotSpread, ShotSpread), Random.Range(-ShotSpread, ShotSpread)));
                 if (Physics.Raycast(ray, out RaycastHit hit, wepRange, playerLayerMask))
                     switch (FutureShockAttack.DealDamage(PairedItem, hit.transform, hit.point, ray.direction))
                     {
@@ -192,6 +198,7 @@ namespace FutureShock
                         default:
                             break;
                     }
+            }
 
             if (tallySkill)
                 GameManager.Instance.PlayerEntity.TallySkill(DFCareer.Skills.Archery, 1);
@@ -214,6 +221,7 @@ namespace FutureShock
             projectile.IsGrenade = IsGrenadeLauncher;
             projectile.HorizontalAdjust = HorizProjAdjust;
             projectile.VerticalAdjust = VertProjAdjust;
+            projectile.Velocity = ProjVelocity;
         }
 
         private void CreateImpactBillboard(Vector3 point)

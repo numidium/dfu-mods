@@ -118,6 +118,7 @@ namespace FutureShock
         private DaggerfallUnityItem lastEquippedRight;
         private DaggerfallUnityItem equippedRight;
         private bool ShowWeapon;
+        private const string textureFilePrefix = "TEXTURE.";
         public static FutureShockWeapons Instance { get; private set; }
         public Type SaveDataType => typeof(FutureShockWeapons);
         public static string ModTitle => mod.Title;
@@ -238,11 +239,15 @@ namespace FutureShock
                 [ImpactAnimation.Plasma] = GetTextureAnimation(gameDataPath, 364, 0)
             };
 
+            // Archive 217 has a banned filename. Need to clone it so DFU's texture reader can use it.
+            const int badArchive = 217;
+            const int goodArchive = 512;
+            if (!File.Exists($"{gameDataPath}{textureFilePrefix}{goodArchive}"))
+                File.Copy($"{gameDataPath}{textureFilePrefix}{badArchive}", $"{gameDataPath}{textureFilePrefix}{goodArchive}");
+
             // Import 2D projectile animations
             projectileAnimBank = new Dictionary<ProjectileAnimation, Texture2D[]>()
             {
-                // Note: actual archive is 217 but that's a banned number
-                // TODO: clone archive with allowed file name
                 [ProjectileAnimation.Grenade] = GetTextureAnimation(gameDataPath, 512, 2)
             };
 
@@ -431,7 +436,7 @@ namespace FutureShock
 
         private static Texture2D[] GetTextureAnimation(string path, int archiveindex, int recordIndex)
         {
-            var textureFile = new TextureFile($"{path}TEXTURE.{archiveindex}", FileUsage.UseMemory, true);
+            var textureFile = new TextureFile($"{path}{textureFilePrefix}{archiveindex}", FileUsage.UseMemory, true);
             var frameCount = textureFile.GetFrameCount(recordIndex);
             var textures = new Texture2D[frameCount];
             for (int frame = 0; frame < frameCount; frame++)
@@ -554,6 +559,7 @@ namespace FutureShock
                     fpsGun.IsExplosive = true;
                     fpsGun.IsGrenadeLauncher = true;
                     fpsGun.ShotSpread = .2f;
+                    fpsGun.ProjVelocity = 25f;
                     break;
                 case FSWeapon.RPG:
                     fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON06];
@@ -573,6 +579,7 @@ namespace FutureShock
                     fpsGun.IsExplosive = true;
                     fpsGun.IsGrenadeLauncher = false;
                     fpsGun.ShotSpread = .2f;
+                    fpsGun.ProjVelocity = 30f;
                     break;
                 case FSWeapon.LaserRifle:
                     fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON07];
@@ -587,10 +594,11 @@ namespace FutureShock
                     fpsGun.ImpactSound = weaponSoundBank[WeaponSound.EXPLO2];
                     fpsGun.TravelSound = null;
                     fpsGun.ShotConditionCost = 10;
-                    fpsGun.SetProjectile();
+                    fpsGun.SetProjectileRapid();
                     fpsGun.IsExplosive = false;
                     fpsGun.IsGrenadeLauncher = false;
                     fpsGun.ShotSpread = .2f;
+                    fpsGun.ProjVelocity = 45f;
                     break;
                 case FSWeapon.HeavyLaser:
                     fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON08];
@@ -605,10 +613,11 @@ namespace FutureShock
                     fpsGun.ImpactSound = weaponSoundBank[WeaponSound.EXPLO2];
                     fpsGun.TravelSound = null;
                     fpsGun.ShotConditionCost = 20;
-                    fpsGun.SetProjectile();
+                    fpsGun.SetProjectileRapid();
                     fpsGun.IsExplosive = false;
                     fpsGun.IsGrenadeLauncher = false;
                     fpsGun.ShotSpread = .2f;
+                    fpsGun.ProjVelocity = 45f;
                     break;
                 /*
                 case FSWeapon.PlasmaPistol:
@@ -641,6 +650,7 @@ namespace FutureShock
                     fpsGun.IsExplosive = false;
                     fpsGun.IsGrenadeLauncher = false;
                     fpsGun.ShotSpread = .2f;
+                    fpsGun.ProjVelocity = 45f;
                     break;
                 case FSWeapon.HeavyPlasma:
                     fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON11];
@@ -659,6 +669,7 @@ namespace FutureShock
                     fpsGun.IsExplosive = false;
                     fpsGun.IsGrenadeLauncher = false;
                     fpsGun.ShotSpread = .2f;
+                    fpsGun.ProjVelocity = 45f;
                     break;
             }
         }

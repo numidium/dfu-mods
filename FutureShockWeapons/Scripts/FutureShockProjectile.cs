@@ -7,13 +7,12 @@ using UnityEngine;
 
 namespace FutureShock
 {
-    // NOTE: This class is more or less a copy-paste job from DaggerfallMissile.cs.
-    // TODO: Trim class down only to what is essential.
+    // Credits: Interkarma and Allofich for their work on DaggerfallMissile.cs, which this class is based on.
     [RequireComponent(typeof(Light))]
     [RequireComponent(typeof(AudioSource))]
     public sealed class FutureShockProjectile : MonoBehaviour
     {
-        public float MovementSpeed = 42f;
+        public float Velocity { private get; set; }
         public float CollisionRadius = 0.35f;
         public float ExplosionRadius = 5.0f;
         public bool EnableLight = true;
@@ -49,7 +48,6 @@ namespace FutureShock
         private Vector2 impactSize;
         private Vector2 projectileSize;
         private int playerLayerMask;
-        private const float tickTime = 1f / 30f; // 30 ticks/second
         private float tickTimeRemaining = 0f;
         private bool tickRequested = false;
 
@@ -123,7 +121,7 @@ namespace FutureShock
 
         private void Update()
         {
-            const float downwardCurve = .03f;
+            const float tickTime = 1f / 30f; // 30 ticks/second
             if (tickTimeRemaining <= 0f)
             {
                 tickTimeRemaining = tickTime;
@@ -141,15 +139,15 @@ namespace FutureShock
             var frameDeltaTime = Time.deltaTime;
             if (!impactDetected)
             {
+                const float downwardCurve = .2f;
                 tickTimeRemaining -= frameDeltaTime;
                 if (tickRequested)
                 {
                     tickRequested = false;
                     if (IsGrenade)
                         direction += Vector3.down * (downwardCurve * tickTime);
-                    var displacement = (direction * MovementSpeed) * tickTime;
-
-                    if (Physics.Raycast(goProjectile.transform.position, direction, out var hitInfo, displacement.magnitude + CollisionRadius, playerLayerMask))
+                    var displacement = (direction * Velocity) * tickTime;
+                    if (Physics.Raycast(collisionPosition, direction, out var hitInfo, displacement.magnitude + CollisionRadius, playerLayerMask))
                     {
                         // Place self at meeting point with collider and self-destruct.
                         collisionPosition = hitInfo.point - (transform.forward * (CollisionRadius - .05f)); // Adjust slightly back.
@@ -162,7 +160,7 @@ namespace FutureShock
                 }
 
                 // Transform missile along direction vector
-                transform.position += (direction * MovementSpeed) * frameDeltaTime;
+                transform.position += (direction * Velocity) * frameDeltaTime;
                 if (IsGrenade)
                     direction += Vector3.down * (downwardCurve * frameDeltaTime);
                 lifespan += frameDeltaTime;
@@ -221,7 +219,7 @@ namespace FutureShock
             {
                 var shotResult = FutureShockAttack.ShotResult.HitOther;
                 // Move back to contact point
-                transform.position = other.ClosestPointOnBounds(transform.position - direction * (CollisionRadius * MovementSpeed * Time.deltaTime)) - direction * CollisionRadius;
+                transform.position = other.ClosestPointOnBounds(transform.position - direction * (CollisionRadius * Velocity * Time.deltaTime)) - direction * CollisionRadius;
                 if (entityBehaviour)
                     DamageTarget(other, out shotResult);
                 if (IsExplosive || shotResult != FutureShockAttack.ShotResult.HitTarget)
