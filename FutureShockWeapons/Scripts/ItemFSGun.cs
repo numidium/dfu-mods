@@ -9,8 +9,8 @@ namespace FutureShock
         public const int customTemplateIndex = 288;
         public override int InventoryTextureArchive => 233;
         public override int InventoryTextureRecord => 1;
-        public override int GetBaseDamageMin() => 1 + ExplosiveBonus;
-        public override int GetBaseDamageMax() => 2 + ExplosiveBonus;
+        public override int GetBaseDamageMin() => 1 + PlasmaBonus + ExplosiveBonus;
+        public override int GetBaseDamageMax() => 2 + PlasmaBonus + ExplosiveBonus;
         public override string ItemName => GunName;
         public override string LongName => GunName;
         public override int GroupIndex => 0;
@@ -29,6 +29,18 @@ namespace FutureShock
 
         // Assumes that explosive weapons are Orcish or above.
         private int ExplosiveBonus => NativeMaterialValue >= (int)WeaponMaterialTypes.Orcish ? 5 : 0;
+        // Plasma weapons fire much slower than lasers so they need a leg up.
+        private int PlasmaBonus {
+            get
+            {
+                if (NativeMaterialValue == (int)WeaponMaterialTypes.Adamantium)
+                    return 6;
+                else if (NativeMaterialValue == (int)WeaponMaterialTypes.Ebony)
+                    return 8;
+                else
+                    return 0;
+            }
+        }
         private string GunName
         {
             get

@@ -3,6 +3,7 @@ using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.Items;
 using DaggerfallWorkshop.Game.Serialization;
+using DaggerfallWorkshop.Utility;
 using UnityEngine;
 
 namespace FutureShock
@@ -42,6 +43,8 @@ namespace FutureShock
         public float VertProjAdjust { private get; set; }
         public float ShotSpread { private get; set; }
         public float ProjVelocity { private get; set; }
+        public Color ProjLightColor { private get; set; }
+        public Texture2D ProjectileTexture { private get; set; }
         public AudioClip ShootSound { private get; set; }
         public AudioClip EquipSound { private get; set; }
         public AudioClip ImpactSound { private get; set; }
@@ -212,9 +215,11 @@ namespace FutureShock
             };
 
             var projectile = go.AddComponent<FutureShockProjectile>();
+            projectile.transform.parent = GameObjectHelper.GetBestParent();
             projectile.Caster = GameManager.Instance.PlayerEntityBehaviour;
             projectile.SetImpactFrames(ImpactFrames, ImpactFrameSize);
             projectile.SetProjectileFrames(ProjectileFrames, ProjectileFrameSize);
+            projectile.ProjectileTexture = ProjectileTexture;
             projectile.SetSounds(TravelSound, ImpactSound, IsTravelSoundLooped);
             projectile.OriginWeapon = PairedItem;
             projectile.IsExplosive = IsExplosive;
@@ -222,11 +227,13 @@ namespace FutureShock
             projectile.HorizontalAdjust = HorizProjAdjust;
             projectile.VerticalAdjust = VertProjAdjust;
             projectile.Velocity = ProjVelocity;
+            projectile.LightColor = ProjLightColor;
         }
 
         private void CreateImpactBillboard(Vector3 point)
         {
             var go = new GameObject("ImpactBillboard");
+            go.layer = gameObject.layer;
             go.transform.position = point;
             var billboard = go.AddComponent<FSBillboard>();
             billboard.SetFrames(ImpactFrames, new Vector2(.5f, .5f));

@@ -69,7 +69,7 @@ namespace FutureShock
 
             if (oldMesh)
                 Destroy(oldMesh);
-            meshRenderer.shadowCastingMode = ShadowCastingMode.Off;
+            meshRenderer.shadowCastingMode = (DaggerfallUnity.Settings.GeneralBillboardShadows) ? ShadowCastingMode.TwoSided : ShadowCastingMode.Off;
             frames = textures;
             _isOneShot = isOneShot;
             return true;

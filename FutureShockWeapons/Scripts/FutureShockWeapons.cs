@@ -67,6 +67,13 @@ namespace FutureShock
             LASER2,
         }
 
+        enum ProjectileTexture
+        {
+            Laser,
+            Plasma,
+            Rocket
+        }
+
         enum WeaponSound
         {
             FASTGUN2,  // Machine Gun
@@ -114,6 +121,7 @@ namespace FutureShock
         private Dictionary<ImpactAnimation, Texture2D[]> impactAnimBank;
         private Dictionary<ProjectileAnimation, Texture2D[]> projectileAnimBank;
         private Dictionary<ProjectileModel, Mesh> projectileMeshBank;
+        private Texture2D[] projectileTextures = new Texture2D[3];
         private Dictionary<WeaponSound, AudioClip> weaponSoundBank;
         private DaggerfallUnityItem lastEquippedRight;
         private DaggerfallUnityItem equippedRight;
@@ -318,8 +326,8 @@ namespace FutureShock
             }
 
             // Import .3D files
-            projectileMeshBank = new Dictionary<ProjectileModel, Mesh>();
             /*
+            projectileMeshBank = new Dictionary<ProjectileModel, Mesh>();
             using (var modelReader = new BsaReader($"{gameDataPath}MDMDENMS.BSA"))
             {
                 if (modelReader == null)
@@ -356,20 +364,26 @@ namespace FutureShock
 
                     Decrypt(modelData, cipherTable, key);
                     const int vertexSize = 12;
-                    var vertexCount = modelData[0] | modelData[1] << 8 | modelData[2] << 16 | modelData[3] << 24;
-                    var vertices = new Vector3[vertexCount];
+                    //var vertexCount = modelData[0] | modelData[1] << 8 | modelData[2] << 16 | modelData[3] << 24;
+                    var vertices = new Vector3[39];
                     for (int i = 0; i < vertices.Length; i++)
                     {
-                        var dataIndex = 0x60 + i * vertexSize;
+                        //var dataIndex = 0x60 + i * vertexSize;
+                        var dataIndex = i * vertexSize;
                         // Read int32s as little-endian
                         vertices[i].x = modelData[dataIndex    ] | (modelData[dataIndex + 1] << 8) | (modelData[dataIndex + 2 ] << 16) | (modelData[dataIndex + 3 ] << 24);
                         vertices[i].y = modelData[dataIndex + 4] | (modelData[dataIndex + 5] << 8) | (modelData[dataIndex + 6 ] << 16) | (modelData[dataIndex + 7 ] << 24);
                         vertices[i].z = modelData[dataIndex + 8] | (modelData[dataIndex + 9] << 8) | (modelData[dataIndex + 10] << 16) | (modelData[dataIndex + 11] << 24);
                     }
 
-                    var triangles = new int[vertices.Length - 2];
-                    for (int i = 0; i < triangles.Length - 2; i++)
-                        triangles[i] = i; // I don't know if this is right.
+                    var triangles = new int[vertices.Length];
+                    for (int i = 0; i < triangles.Length - 2; i += 3)
+                    {
+                        // I don't know if this is right.
+                        triangles[i] = i;
+                        triangles[i + 1] = i + 2;
+                        triangles[i + 2] = i + 1;
+                    }
 
                     var mesh = new Mesh
                     {
@@ -380,13 +394,35 @@ namespace FutureShock
                     projectileMeshBank[projectileModel] = mesh;
                 }
             }
-            */
 
-            /*
             var meshTest = new GameObject("MeshTest");
             var meshFilter = meshTest.AddComponent<MeshFilter>();
             meshFilter.sharedMesh = projectileMeshBank[ProjectileModel.LASER1];
             */
+
+            // Generate textures for projectiles (paints over Daggerfall arrow mesh).
+            const int projectileTextureDim = 32;
+            projectileTextures[(int)ProjectileTexture.Laser] = new Texture2D(projectileTextureDim, projectileTextureDim);
+            var colors = new Color32[projectileTextureDim * projectileTextureDim];
+            var red = new Color32(255, 0, 0, 255);
+            for (var i = 0; i < colors.Length; i++)
+                colors[i] = red;
+            projectileTextures[(int)ProjectileTexture.Laser].SetPixels32(colors);
+            projectileTextures[(int)ProjectileTexture.Plasma] = new Texture2D(projectileTextureDim, projectileTextureDim);
+            colors = new Color32[projectileTextureDim * projectileTextureDim];
+            var aqua = new Color32(0, 255, 255, 255);
+            for (var i = 0; i < colors.Length; i++)
+                colors[i] = aqua;
+            projectileTextures[(int)ProjectileTexture.Plasma].SetPixels32(colors);
+            projectileTextures[(int)ProjectileTexture.Rocket] = new Texture2D(projectileTextureDim, projectileTextureDim);
+            colors = new Color32[projectileTextureDim * projectileTextureDim];
+            var gray = new Color32(100, 100, 100, 255);
+            for (var i = 0; i < colors.Length; i++)
+                colors[i] = gray;
+            projectileTextures[(int)ProjectileTexture.Rocket].SetPixels32(colors);
+            projectileTextures[(int)ProjectileTexture.Laser].Apply();
+            projectileTextures[(int)ProjectileTexture.Plasma].Apply();
+            projectileTextures[(int)ProjectileTexture.Rocket].Apply();
 
             var player = GameObject.FindGameObjectWithTag("Player");
             fpsGun = player.AddComponent<FutureShockGun>();
@@ -560,6 +596,7 @@ namespace FutureShock
                     fpsGun.IsGrenadeLauncher = true;
                     fpsGun.ShotSpread = .2f;
                     fpsGun.ProjVelocity = 25f;
+                    fpsGun.ProjLightColor = Color.white;
                     break;
                 case FSWeapon.RPG:
                     fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON06];
@@ -576,10 +613,12 @@ namespace FutureShock
                     fpsGun.IsTravelSoundLooped = false;
                     fpsGun.ShotConditionCost = 100;
                     fpsGun.SetProjectile();
+                    fpsGun.ProjectileTexture = projectileTextures[(int)ProjectileTexture.Rocket];
                     fpsGun.IsExplosive = true;
                     fpsGun.IsGrenadeLauncher = false;
                     fpsGun.ShotSpread = .2f;
                     fpsGun.ProjVelocity = 30f;
+                    fpsGun.ProjLightColor = Color.white;
                     break;
                 case FSWeapon.LaserRifle:
                     fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON07];
@@ -595,10 +634,12 @@ namespace FutureShock
                     fpsGun.TravelSound = null;
                     fpsGun.ShotConditionCost = 10;
                     fpsGun.SetProjectileRapid();
+                    fpsGun.ProjectileTexture = projectileTextures[(int)ProjectileTexture.Laser];
                     fpsGun.IsExplosive = false;
                     fpsGun.IsGrenadeLauncher = false;
                     fpsGun.ShotSpread = .2f;
                     fpsGun.ProjVelocity = 45f;
+                    fpsGun.ProjLightColor = Color.red;
                     break;
                 case FSWeapon.HeavyLaser:
                     fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON08];
@@ -614,10 +655,12 @@ namespace FutureShock
                     fpsGun.TravelSound = null;
                     fpsGun.ShotConditionCost = 20;
                     fpsGun.SetProjectileRapid();
+                    fpsGun.ProjectileTexture = projectileTextures[(int)ProjectileTexture.Laser];
                     fpsGun.IsExplosive = false;
                     fpsGun.IsGrenadeLauncher = false;
                     fpsGun.ShotSpread = .2f;
                     fpsGun.ProjVelocity = 45f;
+                    fpsGun.ProjLightColor = Color.red;
                     break;
                 /*
                 case FSWeapon.PlasmaPistol:
@@ -647,10 +690,12 @@ namespace FutureShock
                     fpsGun.TravelSound = null;
                     fpsGun.ShotConditionCost = 20;
                     fpsGun.SetProjectile();
+                    fpsGun.ProjectileTexture = projectileTextures[(int)ProjectileTexture.Plasma];
                     fpsGun.IsExplosive = false;
                     fpsGun.IsGrenadeLauncher = false;
                     fpsGun.ShotSpread = .2f;
                     fpsGun.ProjVelocity = 45f;
+                    fpsGun.ProjLightColor = Color.cyan;
                     break;
                 case FSWeapon.HeavyPlasma:
                     fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON11];
@@ -666,10 +711,12 @@ namespace FutureShock
                     fpsGun.TravelSound = null;
                     fpsGun.ShotConditionCost = 30;
                     fpsGun.SetProjectile();
+                    fpsGun.ProjectileTexture = projectileTextures[(int)ProjectileTexture.Plasma];
                     fpsGun.IsExplosive = false;
                     fpsGun.IsGrenadeLauncher = false;
                     fpsGun.ShotSpread = .2f;
                     fpsGun.ProjVelocity = 45f;
+                    fpsGun.ProjLightColor = Color.cyan;
                     break;
             }
         }

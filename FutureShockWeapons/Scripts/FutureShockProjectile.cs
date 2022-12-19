@@ -26,6 +26,8 @@ namespace FutureShock
         public float VerticalAdjust { private get; set; }
         public bool IsExplosive { get; set; }
         public bool IsGrenade { get; set; }
+        public Color LightColor { private get; set; }
+        public Texture2D ProjectileTexture { private get; set; }
         public DaggerfallEntityBehaviour Caster { get; set; }
         private Vector3 direction;
         private Vector3 collisionPosition;
@@ -48,8 +50,10 @@ namespace FutureShock
         private Vector2 impactSize;
         private Vector2 projectileSize;
         private int playerLayerMask;
-        private float tickTimeRemaining = 0f;
-        private bool tickRequested = false;
+        private float downwardCurve = .2f;
+        private bool isWaitTick = false;
+        private const float grenadeGravity = .05f;
+        private bool isImpactBillboardRequested = false;
 
         public void SetImpactFrames(Texture2D[] frames, Vector2 size)
         {
@@ -80,6 +84,7 @@ namespace FutureShock
             // Setup light and shadows
             myLight = GetComponent<Light>();
             myLight.enabled = EnableLight;
+            myLight.color = LightColor;
             if (!DaggerfallUnity.Settings.EnableSpellShadows) myLight.shadows = LightShadows.None;
             initialRange = myLight.range;
             initialIntensity = myLight.intensity;
@@ -91,6 +96,13 @@ namespace FutureShock
             if (!IsGrenade) // Grenades use 2D projectiles
             {
                 goProjectile = GameObjectHelper.CreateDaggerfallMeshGameObject(99800, transform, ignoreCollider: true); // TODO: Use proper models
+                var meshRenderer = goProjectile.GetComponent<MeshRenderer>();
+                if (meshRenderer)
+                {
+                    meshRenderer.sharedMaterials[0].mainTexture = ProjectileTexture;
+                    meshRenderer.sharedMaterials[1].mainTexture = ProjectileTexture;
+                }
+
                 if (!GameManager.Instance.WeaponManager.ScreenWeapon.FlipHorizontal)
                     adjust += GameManager.Instance.MainCamera.transform.right * HorizontalAdjust;
                 else
@@ -121,13 +133,6 @@ namespace FutureShock
 
         private void Update()
         {
-            const float tickTime = 1f / 30f; // 30 ticks/second
-            if (tickTimeRemaining <= 0f)
-            {
-                tickTimeRemaining = tickTime;
-                tickRequested = true;
-            }
-
             if (!missileReleased)
             {
                 direction = GameManager.Instance.MainCamera.transform.forward;
@@ -139,40 +144,30 @@ namespace FutureShock
             var frameDeltaTime = Time.deltaTime;
             if (!impactDetected)
             {
-                const float downwardCurve = .2f;
-                tickTimeRemaining -= frameDeltaTime;
-                if (tickRequested)
-                {
-                    tickRequested = false;
-                    if (IsGrenade)
-                        direction += Vector3.down * (downwardCurve * tickTime);
-                    var displacement = (direction * Velocity) * tickTime;
-                    if (Physics.Raycast(collisionPosition, direction, out var hitInfo, displacement.magnitude + CollisionRadius, playerLayerMask))
-                    {
-                        // Place self at meeting point with collider and self-destruct.
-                        collisionPosition = hitInfo.point - (transform.forward * (CollisionRadius - .05f)); // Adjust slightly back.
-                        transform.position = collisionPosition; // Match visual position with collider position.
-                        HandleCollision(hitInfo.collider);
-                        return;
-                    }
-                    else
-                        collisionPosition += displacement;
-                }
-
                 // Transform missile along direction vector
                 transform.position += (direction * Velocity) * frameDeltaTime;
                 if (IsGrenade)
                     direction += Vector3.down * (downwardCurve * frameDeltaTime);
-                lifespan += frameDeltaTime;
                 if (lifespan > LifespanInSeconds)
                     Destroy(gameObject);
             }
             else
             {
+                transform.position = collisionPosition; // Match visual position with collider position.
                 if (!impactAssigned)
                 {
                     if (impactSound)
                         PlaySound(impactSound, 0.8f);
+                    if (isImpactBillboardRequested)
+                    {
+                        var go = new GameObject("ImpactBillboard");
+                        go.transform.parent = transform;
+                        go.transform.localPosition = Vector3.zero;
+                        go.layer = gameObject.layer;
+                        var billboard = go.AddComponent<FSBillboard>();
+                        billboard.SetFrames(impactFrames, impactSize);
+                    }
+
                     impactAssigned = true;
                 }
 
@@ -204,9 +199,38 @@ namespace FutureShock
             }
         }
 
+        private void FixedUpdate()
+        {
+            if (!missileReleased || impactDetected)
+                return;
+            lifespan += Time.fixedDeltaTime;
+            var tickTime = Time.fixedDeltaTime * 2f; // Half the global physics tick rate.
+            if (!isWaitTick)
+            {
+                if (IsGrenade)
+                {
+                    direction += Vector3.down * (downwardCurve * tickTime);
+                    downwardCurve += grenadeGravity;
+                }
+
+                var displacement = (direction * Velocity) * tickTime;
+                if (Physics.Raycast(collisionPosition, direction, out var hitInfo, displacement.magnitude + CollisionRadius, playerLayerMask))
+                {
+                    // Place self at meeting point with collider and self-destruct.
+                    collisionPosition = hitInfo.point - direction * CollisionRadius;
+                    HandleCollision(hitInfo.collider);
+                    return;
+                }
+                else
+                    collisionPosition += displacement;
+            }
+
+            // Only process every other physics tick.
+            isWaitTick = !isWaitTick;
+        }
+
         private void HandleCollision(Collider other)
         {
-            // Missile collision should only happen once
             if (impactDetected)
                 return;
             // Get entity based on collision type
@@ -218,23 +242,15 @@ namespace FutureShock
             if (other != null)
             {
                 var shotResult = FutureShockAttack.ShotResult.HitOther;
-                // Move back to contact point
-                transform.position = other.ClosestPointOnBounds(transform.position - direction * (CollisionRadius * Velocity * Time.deltaTime)) - direction * CollisionRadius;
                 if (entityBehaviour)
                     DamageTarget(other, out shotResult);
-                if (IsExplosive || shotResult != FutureShockAttack.ShotResult.HitTarget)
-                {
-                    var go = new GameObject("ImpactBillboard");
-                    go.transform.position = transform.position;
-                    var billboard = go.AddComponent<FSBillboard>();
-                    billboard.SetFrames(impactFrames, impactSize);
-                }
+                isImpactBillboardRequested = IsExplosive || shotResult != FutureShockAttack.ShotResult.HitTarget;
             }
 
             Destroy(goProjectile);
             impactDetected = true;
             if (IsExplosive)
-                DoSplashDamage(transform.position);
+                DoSplashDamage(collisionPosition);
         }
 
         void DamageTarget(Collider arrowHitCollider, out FutureShockAttack.ShotResult shotResult)
