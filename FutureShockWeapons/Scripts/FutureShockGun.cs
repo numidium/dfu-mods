@@ -27,6 +27,8 @@ namespace FutureShock
         private GameObject mainCamera;
         private int playerLayerMask;
         private Rect weaponPosition;
+        private Rect rightHanded = new Rect(1, 0, 1, 1);
+        private Rect leftHanded = new Rect(1, 0, -1, 1);
         private int currentFrame;
         private float frameTimeRemaining;
         private float lastScreenWidth, lastScreenHeight;
@@ -150,7 +152,7 @@ namespace FutureShock
 
             GUI.depth = 0;
             if (Event.current.type.Equals(EventType.Repaint) && !IsHolstered)
-                DaggerfallUI.DrawTextureWithTexCoords(weaponPosition, WeaponFrames[currentFrame], new Rect(1, 0, 1 /* -1 to mirror (for left hand) */, 1));
+                DaggerfallUI.DrawTextureWithTexCoords(weaponPosition, WeaponFrames[currentFrame], DaggerfallUnity.Settings.Handedness == 1 ? leftHanded : rightHanded);
         }
 
         private void UpdateWeapon()
@@ -158,8 +160,9 @@ namespace FutureShock
             var screenRect = DaggerfallUI.Instance.CustomScreenRect ?? new Rect(0, 0, Screen.width, Screen.height);
             var weaponScaleX = (float)screenRect.width / nativeScreenWidth;
             var weaponScaleY = (float)screenRect.height / nativeScreenHeight;
+            var horizOffset = DaggerfallUnity.Settings.Handedness == 1 ? -1f - HorizontalOffset + WeaponFrames[currentFrame].width * weaponScaleX / screenRect.width : HorizontalOffset;
             weaponPosition = new Rect(
-                screenRect.x + screenRect.width * (1f + HorizontalOffset) - WeaponFrames[currentFrame].width * weaponScaleX,
+                screenRect.x + screenRect.width * (1f + horizOffset) - WeaponFrames[currentFrame].width * weaponScaleX,
                 screenRect.y + screenRect.height * (1f + VerticalOffset) - WeaponFrames[currentFrame].height * weaponScaleY,
                 WeaponFrames[currentFrame].width * weaponScaleX,
                 WeaponFrames[currentFrame].height * weaponScaleY);

@@ -126,6 +126,7 @@ namespace FutureShock
         private DaggerfallUnityItem lastEquippedRight;
         private DaggerfallUnityItem equippedRight;
         private bool ShowWeapon;
+        private GameManager gameManager;
         private const string textureFilePrefix = "TEXTURE.";
         public static FutureShockWeapons Instance { get; private set; }
         public Type SaveDataType => typeof(FutureShockWeapons);
@@ -152,6 +153,7 @@ namespace FutureShock
         {
             var settings = mod.GetSettings();
             var path = settings.GetValue<string>("Options", "FutureShock GAMEDATA path");
+            gameManager = GameManager.Instance;
             //LoadSettings(settings, new ModSettingsChange());
             if (InitMod(path))
                 Debug.Log("Future Shock Weapons initialized.");
@@ -166,35 +168,7 @@ namespace FutureShock
 
         private void Update()
         {
-            var gameManager = GameManager.Instance;
-            equippedRight = gameManager.PlayerEntity.ItemEquipTable.GetItem(EquipSlots.RightHand);
-            fpsGun.PairedItem = equippedRight;
-            if (consoleController.ui.isConsoleOpen || GameManager.IsGamePaused || DaggerfallUI.UIManager.WindowCount != 0)
-                return;
-            if (equippedRight != null && equippedRight.currentCondition <= 0)
-            {
-                fpsGun.IsFiring = false;
-                ShowWeapon = false;
-                fpsGun.IsHolstered = true;
-                return;
-            }
-
-            fpsGun.IsFiring = !fpsGun.IsHolstered && InputManager.Instance.HasAction(InputManager.Actions.SwingWeapon);
-            if (InputManager.Instance.ActionStarted(InputManager.Actions.ReadyWeapon) && IsGun(equippedRight) && !fpsGun.IsFiring)
-                ShowWeapon = !ShowWeapon;
-            if (!ShowWeapon)
-                fpsGun.IsHolstered = true;
-            else if (fpsGun.IsHolstered && gameManager.WeaponManager.EquipCountdownRightHand <= 0)
-            {
-                fpsGun.IsHolstered = false;
-                fpsGun.PlayEquipSound();
-            }
-        }
-
-        private void OnGUI()
-        {
             // When unsheathing, immediately re-sheathe weapon and use HitScanGun in place of FPSWeapon
-            var gameManager = GameManager.Instance;
             var equipChanged = false;
             if (lastEquippedRight != equippedRight)
                 equipChanged = true;
@@ -220,6 +194,33 @@ namespace FutureShock
 
             if (equipChanged)
                 lastEquippedRight = equippedRight;
+        }
+
+        // Wait for all other updates to ensure hidden weapon doesn't draw.
+        private void LateUpdate()
+        {
+            equippedRight = gameManager.PlayerEntity.ItemEquipTable.GetItem(EquipSlots.RightHand);
+            fpsGun.PairedItem = equippedRight;
+            if (consoleController.ui.isConsoleOpen || GameManager.IsGamePaused || DaggerfallUI.UIManager.WindowCount != 0)
+                return;
+            if (equippedRight != null && equippedRight.currentCondition <= 0)
+            {
+                fpsGun.IsFiring = false;
+                ShowWeapon = false;
+                fpsGun.IsHolstered = true;
+                return;
+            }
+
+            fpsGun.IsFiring = !fpsGun.IsHolstered && InputManager.Instance.HasAction(InputManager.Actions.SwingWeapon);
+            if (InputManager.Instance.ActionStarted(InputManager.Actions.ReadyWeapon) && IsGun(equippedRight) && !fpsGun.IsFiring)
+                ShowWeapon = !ShowWeapon;
+            if (!ShowWeapon)
+                fpsGun.IsHolstered = true;
+            else if (fpsGun.IsHolstered && gameManager.WeaponManager.EquipCountdownRightHand <= 0)
+            {
+                fpsGun.IsHolstered = false;
+                fpsGun.PlayEquipSound();
+            }
         }
 
         private void OnDestroy()
@@ -401,29 +402,9 @@ namespace FutureShock
             */
 
             // Generate textures for projectiles (paints over Daggerfall arrow mesh).
-            const int projectileTextureDim = 32;
-            projectileTextures[(int)ProjectileTexture.Laser] = new Texture2D(projectileTextureDim, projectileTextureDim);
-            var colors = new Color32[projectileTextureDim * projectileTextureDim];
-            var red = new Color32(255, 0, 0, 255);
-            for (var i = 0; i < colors.Length; i++)
-                colors[i] = red;
-            projectileTextures[(int)ProjectileTexture.Laser].SetPixels32(colors);
-            projectileTextures[(int)ProjectileTexture.Plasma] = new Texture2D(projectileTextureDim, projectileTextureDim);
-            colors = new Color32[projectileTextureDim * projectileTextureDim];
-            var aqua = new Color32(0, 255, 255, 255);
-            for (var i = 0; i < colors.Length; i++)
-                colors[i] = aqua;
-            projectileTextures[(int)ProjectileTexture.Plasma].SetPixels32(colors);
-            projectileTextures[(int)ProjectileTexture.Rocket] = new Texture2D(projectileTextureDim, projectileTextureDim);
-            colors = new Color32[projectileTextureDim * projectileTextureDim];
-            var gray = new Color32(100, 100, 100, 255);
-            for (var i = 0; i < colors.Length; i++)
-                colors[i] = gray;
-            projectileTextures[(int)ProjectileTexture.Rocket].SetPixels32(colors);
-            projectileTextures[(int)ProjectileTexture.Laser].Apply();
-            projectileTextures[(int)ProjectileTexture.Plasma].Apply();
-            projectileTextures[(int)ProjectileTexture.Rocket].Apply();
-
+            projectileTextures[(int)ProjectileTexture.Laser] = GetSolidColorTexture(new Color32(255, 0, 0, 255));
+            projectileTextures[(int)ProjectileTexture.Plasma] = GetSolidColorTexture(new Color32(0, 255, 255, 255));
+            projectileTextures[(int)ProjectileTexture.Rocket] = GetSolidColorTexture(new Color32(100, 100, 100, 255));
             var player = GameObject.FindGameObjectWithTag("Player");
             fpsGun = player.AddComponent<FutureShockGun>();
             DaggerfallUnity.Instance.ItemHelper.RegisterCustomItem(ItemFSGun.customTemplateIndex, ItemGroups.Weapons, typeof(ItemFSGun));
@@ -515,6 +496,18 @@ namespace FutureShock
                 default:
                     return FSWeapon.RPG;
             }
+        }
+
+        private static Texture2D GetSolidColorTexture(Color32 solidColor)
+        {
+            const int projectileTextureDim = 32;
+            var texture = new Texture2D(projectileTextureDim, projectileTextureDim);
+            var colors = new Color32[projectileTextureDim * projectileTextureDim];
+            for (var i = 0; i < colors.Length; i++)
+                colors[i] = solidColor;
+            texture.SetPixels32(colors);
+            texture.Apply();
+            return texture;
         }
         
         private void SetWeapon(FSWeapon weapon)
