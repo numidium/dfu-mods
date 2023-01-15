@@ -12,7 +12,7 @@
         "drawOrderOrEffect": 100,
         "isBluntWeapon": false,
         "isLiquid": false,
-        "isOneHanded": true,
+        "isOneHanded": false,
         "isIngredient": false,
         "worldTextureArchive": 207,
         "worldTextureRecord": 4,

@@ -15,7 +15,6 @@ namespace FutureShock
         public float Velocity { private get; set; }
         public float CollisionRadius = 0.35f;
         public float ExplosionRadius = 5.0f;
-        public bool EnableLight = true;
         public bool EnableShadows = true;
         public float LifespanInSeconds = 8f;
         public float PostImpactLifespanInSeconds = 0.6f;
@@ -83,7 +82,7 @@ namespace FutureShock
         {
             // Setup light and shadows
             myLight = GetComponent<Light>();
-            myLight.enabled = EnableLight;
+            myLight.enabled = true;
             myLight.color = LightColor;
             if (!DaggerfallUnity.Settings.EnableSpellShadows) myLight.shadows = LightShadows.None;
             initialRange = myLight.range;
@@ -93,14 +92,14 @@ namespace FutureShock
             Vector3 adjust;
             // Adjust to fit gun HUD position.
             adjust = (GameManager.Instance.MainCamera.transform.rotation * -Caster.transform.up) * VerticalAdjust;
-            if (!IsGrenade) // Grenades use 2D projectiles
+            if (!IsGrenade)
             {
                 goProjectile = GameObjectHelper.CreateDaggerfallMeshGameObject(99800, transform, ignoreCollider: true); // TODO: Use proper models
                 var meshRenderer = goProjectile.GetComponent<MeshRenderer>();
                 if (meshRenderer)
                 {
-                    meshRenderer.sharedMaterials[0].mainTexture = ProjectileTexture;
-                    meshRenderer.sharedMaterials[1].mainTexture = ProjectileTexture;
+                    meshRenderer.materials[0].mainTexture = ProjectileTexture;
+                    meshRenderer.materials[1].mainTexture = ProjectileTexture;
                 }
 
                 if (!GameManager.Instance.WeaponManager.ScreenWeapon.FlipHorizontal)
@@ -111,7 +110,7 @@ namespace FutureShock
                 goProjectile.transform.rotation = Quaternion.LookRotation(GameManager.Instance.MainCamera.transform.forward);
                 goProjectile.layer = gameObject.layer;
             }
-            else
+            else // Grenades use 2D projectiles
             {
                 if (!GameManager.Instance.WeaponManager.ScreenWeapon.FlipHorizontal)
                     adjust += GameManager.Instance.MainCamera.transform.right * HorizontalAdjust;
@@ -172,19 +171,16 @@ namespace FutureShock
                 }
 
                 // Light
-                if (EnableLight)
+                myLight.range = initialRange * PostImpactLightMultiplier;
+                if (!postImpactLightAssigned)
                 {
-                    myLight.range = initialRange * PostImpactLightMultiplier;
-                    if (!postImpactLightAssigned)
-                    {
-                        myLight.intensity = initialIntensity * PostImpactLightMultiplier;
-                        postImpactLightAssigned = true;
-                    }
-                    else
-                    {
-                        // Fade out light.
-                        myLight.intensity -= PostImpactFade * frameDeltaTime;
-                    }
+                    myLight.intensity = initialIntensity * PostImpactLightMultiplier;
+                    postImpactLightAssigned = true;
+                }
+                else
+                {
+                    // Fade out light.
+                    myLight.intensity -= PostImpactFade * frameDeltaTime;
                 }
 
                 // Wait for light.

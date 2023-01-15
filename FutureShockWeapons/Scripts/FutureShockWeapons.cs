@@ -120,7 +120,7 @@ namespace FutureShock
         private Dictionary<WeaponAnimation, Texture2D[]> weaponAnimBank;
         private Dictionary<ImpactAnimation, Texture2D[]> impactAnimBank;
         private Dictionary<ProjectileAnimation, Texture2D[]> projectileAnimBank;
-        private Dictionary<ProjectileModel, Mesh> projectileMeshBank;
+        //private Dictionary<ProjectileModel, Mesh> projectileMeshBank;
         private Texture2D[] projectileTextures = new Texture2D[3];
         private Dictionary<WeaponSound, AudioClip> weaponSoundBank;
         private DaggerfallUnityItem lastEquippedRight;
@@ -242,7 +242,7 @@ namespace FutureShock
             impactAnimBank = new Dictionary<ImpactAnimation, Texture2D[]>
             {
                 [ImpactAnimation.Bullet] = GetTextureAnimation(gameDataPath, 357, 0),
-                [ImpactAnimation.RPG] = GetTextureAnimation(gameDataPath, 358, 0),
+                [ImpactAnimation.RPG] = GetTextureAnimation(gameDataPath, 363, 0),
                 [ImpactAnimation.Laser] = GetTextureAnimation(gameDataPath, 359, 1),
                 [ImpactAnimation.Grenade] = GetTextureAnimation(gameDataPath, 360, 0),
                 [ImpactAnimation.Plasma] = GetTextureAnimation(gameDataPath, 364, 0)
@@ -302,6 +302,7 @@ namespace FutureShock
                     return false;
                 }
 
+                const int sampleRate = 11025;
                 for (ushort soundIndex = 0; soundIndex < soundReader.IndexCount; soundIndex++)
                 {
                     var fileName = soundReader.GetFileName(soundIndex);
@@ -320,7 +321,7 @@ namespace FutureShock
                     const float conversionFactor = 1.0f / 128.0f;
                     for (var i = 0; i < soundData.Length; i++)
                         samples[i] = (soundData[i] - 128) * conversionFactor;
-                    var clip = AudioClip.Create(fileName, fileLength, 1, 11025, false);
+                    var clip = AudioClip.Create(fileName, fileLength, 1, sampleRate, false);
                     clip.SetData(samples, 0);
                     weaponSoundBank[weaponSound] = clip;
                 }
@@ -404,7 +405,7 @@ namespace FutureShock
             // Generate textures for projectiles (paints over Daggerfall arrow mesh).
             projectileTextures[(int)ProjectileTexture.Laser] = GetSolidColorTexture(new Color32(255, 0, 0, 255));
             projectileTextures[(int)ProjectileTexture.Plasma] = GetSolidColorTexture(new Color32(0, 255, 255, 255));
-            projectileTextures[(int)ProjectileTexture.Rocket] = GetSolidColorTexture(new Color32(100, 100, 100, 255));
+            projectileTextures[(int)ProjectileTexture.Rocket] = GetSolidColorTexture(new Color32(255, 255, 255, 255));
             var player = GameObject.FindGameObjectWithTag("Player");
             fpsGun = player.AddComponent<FutureShockGun>();
             DaggerfallUnity.Instance.ItemHelper.RegisterCustomItem(ItemFSGun.customTemplateIndex, ItemGroups.Weapons, typeof(ItemFSGun));
@@ -412,7 +413,9 @@ namespace FutureShock
             return true;
         }
 
-        void Decrypt(byte[] data, byte[] cipher, int key)
+        // Future Shock's data is encrypted by adding a value to each byte from a cipher table.
+        // The starting index of the cipher table acts as the key.
+        private void Decrypt(byte[] data, byte[] cipher, int key)
         {
             var cipherIndex = key;
             for (var i = 0; i < data.Length; i++)
