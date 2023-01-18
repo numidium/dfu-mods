@@ -555,7 +555,7 @@ namespace FutureShock
                     fpsGun.ShootSound = weaponSoundBank[WeaponSound.FASTGUN2];
                     fpsGun.EquipSound = weaponSoundBank[WeaponSound.UZICOCK3];
                     fpsGun.TravelSound = null;
-                    fpsGun.ShotConditionCost = 2;
+                    fpsGun.ShotConditionCost = 1;
                     fpsGun.SetBurst();
                     fpsGun.ShotSpread = .1f;
                     break;
@@ -568,7 +568,7 @@ namespace FutureShock
                     fpsGun.ShootSound = weaponSoundBank[WeaponSound.SHTGUN];
                     fpsGun.EquipSound = weaponSoundBank[WeaponSound.UZICOCK3];
                     fpsGun.TravelSound = null;
-                    fpsGun.ShotConditionCost = 20;
+                    fpsGun.ShotConditionCost = 3;
                     fpsGun.SetPellets();
                     fpsGun.ShotSpread = .2f;
                     break;

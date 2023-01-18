@@ -6,6 +6,7 @@ using Wenzil.Console;
 using DaggerfallWorkshop;
 using DaggerfallConnect;
 using DaggerfallWorkshop.Game.Serialization;
+using DaggerfallWorkshop.Game.Entity;
 
 namespace MightyFoot
 {
@@ -18,7 +19,9 @@ namespace MightyFoot
         private FPSWeapon kicker;
         private GameObject mainCamera;
         private int playerLayerMask;
+        private GameManager gameManager;
         private WeaponManager weaponManager;
+        private PlayerEntity playerEntity;
         private const KeyCode defaultKickKey = KeyCode.K;
         private KeyCode kickKey = defaultKickKey;
         private const float messageCooldownTime = 5.0f;
@@ -48,13 +51,15 @@ namespace MightyFoot
         {
             bindText = settings.GetValue<string>("Options", "Keybind");
             SetKickKeyFromText(bindText);
-            isMessageEnabled = settings.GetValue<bool>("Options", "Display HUD Text");
+            isMessageEnabled = settings.GetValue<bool>("Options", "DisplayHUDText");
         }
 
         private void Start()
         {
-            weaponManager = GameManager.Instance.WeaponManager;
-            var player = GameManager.Instance.PlayerObject;
+            gameManager = GameManager.Instance;
+            weaponManager = gameManager.WeaponManager;
+            playerEntity = gameManager.PlayerEntity;
+            var player = gameManager.PlayerObject;
             kicker = player.AddComponent<FPSWeapon>();
             kicker.WeaponType = WeaponTypes.Melee;
             kicker.ShowWeapon = false;
@@ -79,9 +84,6 @@ namespace MightyFoot
             if (consoleController.ui.isConsoleOpen || GameManager.IsGamePaused || SaveLoadManager.Instance.LoadInProgress || DaggerfallUI.UIManager.WindowCount != 0)
                 return;
             // Perform forward kick on keypress and hide weapon from HUD when attack finishes.
-            var gameManager = GameManager.Instance;
-            var playerEntity = gameManager.PlayerEntity;
-            var weaponManager = gameManager.WeaponManager;
             if (InputManager.Instance.GetKey(kickKey) &&
                 !kicker.IsAttacking() &&
                 !weaponManager.ScreenWeapon.IsAttacking() &&
@@ -127,7 +129,7 @@ namespace MightyFoot
             var ray = new Ray(mainCamera.transform.position, mainCamera.transform.forward);
             if (Physics.SphereCast(ray, 0.25f, out RaycastHit hit, weapon.Reach, playerLayerMask))
             {
-                if (!GameManager.Instance.WeaponManager.WeaponEnvDamage(null, hit)
+                if (!weaponManager.WeaponEnvDamage(null, hit)
                    || Physics.Raycast(ray, out hit, weapon.Reach, playerLayerMask))
                     hitEnemy = weaponManager.WeaponDamage(null, false, false, hit.transform, hit.point, mainCamera.transform.forward);
             }
