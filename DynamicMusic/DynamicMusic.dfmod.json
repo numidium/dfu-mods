@@ -1,9 +1,12 @@
 {
     "ModTitle": "Dynamic Music",
     "ModVersion": "0.0.0",
+    "ModAuthor": "numidium3rd",
     "DFUnity_Version": "0.14.5",
-    "GUID": "2ec75d6c-7dcd-410a-b87a-274db1b5801d",
+    "ModDescription": "Adds combat music support to Daggerfall.",
+    "GUID": "ce40a69d-75b8-4563-ae76-dcd60d72389b",
     "Files": [
-        "Assets/Game/Mods/DynamicMusic/Scripts/DynamicMusic.cs"
+        "Assets/Game/Mods/DynamicMusic/Scripts/DynamicMusic.cs",
+        "Assets/Game/Mods/DynamicMusic/DynamicMusic.dfmod.json"
     ]
 }
