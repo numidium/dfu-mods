@@ -1,11 +1,10 @@
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
+using DaggerfallWorkshop.Game.Entity;
 using DaggerfallWorkshop.Game.Utility.ModSupport;
 using DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings;
-using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text;
 using UnityEngine;
 
 namespace DynamicMusic
@@ -72,7 +71,7 @@ namespace DynamicMusic
                 SongFiles.song_30  // unused sneaking (?) theme
             };
 
-            playlistIndex = (byte)UnityEngine.Random.Range(0, combatPlaylist.Count);
+            playlistIndex = (byte)Random.Range(0, combatPlaylist.Count);
             PlayerEnterExit.OnTransitionInterior += OnTransitionInterior;
             PlayerEnterExit.OnTransitionExterior += OnTransitionExterior;
             PlayerEnterExit.OnTransitionDungeonInterior += OnTransitionDungeonInterior;
@@ -94,11 +93,10 @@ namespace DynamicMusic
             }
             else if (combatMusicIsMidi && !combatSongPlayer.IsPlaying) // loop combat midi
                 combatSongPlayer.Play();
-
             // Only perform state check once per assigned interval.
             if (stateCheckDelta < stateCheckInterval)
                 return;
-            if (gameManager.AreEnemiesNearby(resting: true))
+            if (!gameManager.PlayerDeath.DeathInProgress && IsPlayerDetected())
             {
                 if (taperOff == 0 || !IsCombatMusicPlaying())
                 {
@@ -125,7 +123,7 @@ namespace DynamicMusic
                     }
 
                     combatSongPlayer.enabled = true;
-                    playlistIndex += (byte)UnityEngine.Random.Range(1, playlistCount - 1);
+                    playlistIndex += (byte)Random.Range(1, playlistCount - 1);
                     playlistIndex %= (byte)playlistCount;
                 }
 
@@ -147,6 +145,22 @@ namespace DynamicMusic
             stateCheckDelta = 0f;
         }
 
+        private bool IsPlayerDetected()
+        {
+            var entityBehaviours = FindObjectsOfType<DaggerfallEntityBehaviour>();
+            foreach (var entityBehaviour in entityBehaviours)
+            {
+                if (entityBehaviour.EntityType == EntityTypes.EnemyMonster || entityBehaviour.EntityType == EntityTypes.EnemyClass)
+                {
+                    var enemySenses = entityBehaviour.GetComponent<EnemySenses>();
+                    if (enemySenses && enemySenses.Target == gameManager.PlayerEntityBehaviour && enemySenses.DetectedTarget && enemySenses.TargetInSight)
+                        return true;
+                }
+            }
+
+            return false;
+        }
+
         private void LoadSongManager()
         {
             var go = GameObject.Find("SongPlayer");
@@ -154,6 +168,7 @@ namespace DynamicMusic
             taperOff = 0; // Don't continue tapering if we have a freshly loaded player.
             songManager.SongPlayer.enabled = true;
             songManager.enabled = true;
+            songManager.StartPlaying();
         }
 
         private bool TryLoadSong(string soundPath, string name, out AudioClip audioClip)
@@ -206,10 +221,11 @@ namespace DynamicMusic
             LoadSongManager();
         }
 
-        // Could play a sting here.
         private void OnDeath(DaggerfallWorkshop.Game.Entity.DaggerfallEntity entity)
         {
-            StopCombatMusic();
+            // Fade out on death.
+            if (IsCombatMusicPlaying())
+                fadeTime = Time.deltaTime;
         }
     }
 }
