@@ -1,7 +1,8 @@
 {
     "ModTitle": "Dynamic Music",
-    "ModVersion": "0.0.0",
+    "ModVersion": "0.0.1",
     "ModAuthor": "numidium3rd",
+    "ContactInfo": "https://forums.dfworkshop.net/ - User: numidium",
     "DFUnity_Version": "0.14.5",
     "ModDescription": "Adds combat music support to Daggerfall.",
     "GUID": "ce40a69d-75b8-4563-ae76-dcd60d72389b",

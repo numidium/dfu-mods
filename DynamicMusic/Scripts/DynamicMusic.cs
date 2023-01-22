@@ -63,11 +63,11 @@ namespace DynamicMusic
         {
             gameManager = GameManager.Instance;
             stateCheckInterval = 3f;
-            taperOffLength = 2;
+            taperOffLength = 5;
             fadeLength = 1f;
             defaultSongs = new SongFiles[]
             {
-                SongFiles.song_17, // fighters trainers
+                SongFiles.song_17, // fighter trainers
                 SongFiles.song_30  // unused sneaking (?) theme
             };
 
@@ -142,6 +142,10 @@ namespace DynamicMusic
                 fadeTime = Time.deltaTime;
             }
 
+            #if UNITY_EDITOR
+            if (taperOff > 0)
+                Debug.Log("DynamicMusic: taperOff = " + taperOff);
+            #endif
             stateCheckDelta = 0f;
         }
 
@@ -221,7 +225,7 @@ namespace DynamicMusic
             LoadSongManager();
         }
 
-        private void OnDeath(DaggerfallWorkshop.Game.Entity.DaggerfallEntity entity)
+        private void OnDeath(DaggerfallEntity entity)
         {
             // Fade out on death.
             if (IsCombatMusicPlaying())
