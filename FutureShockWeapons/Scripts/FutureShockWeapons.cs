@@ -570,7 +570,7 @@ namespace FutureShock
                     fpsGun.TravelSound = null;
                     fpsGun.ShotConditionCost = 3;
                     fpsGun.SetPellets();
-                    fpsGun.ShotSpread = .2f;
+                    fpsGun.ShotSpread = .13f;
                     break;
                 case FSWeapon.GrenadeLauncher:
                     fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON05];
@@ -590,7 +590,6 @@ namespace FutureShock
                     fpsGun.SetProjectile();
                     fpsGun.IsExplosive = true;
                     fpsGun.IsGrenadeLauncher = true;
-                    fpsGun.ShotSpread = .2f;
                     fpsGun.ProjVelocity = 25f;
                     fpsGun.ProjLightColor = Color.white;
                     break;
@@ -612,7 +611,6 @@ namespace FutureShock
                     fpsGun.ProjectileTexture = projectileTextures[(int)ProjectileTexture.Rocket];
                     fpsGun.IsExplosive = true;
                     fpsGun.IsGrenadeLauncher = false;
-                    fpsGun.ShotSpread = .2f;
                     fpsGun.ProjVelocity = 30f;
                     fpsGun.ProjLightColor = Color.white;
                     break;
@@ -633,7 +631,6 @@ namespace FutureShock
                     fpsGun.ProjectileTexture = projectileTextures[(int)ProjectileTexture.Laser];
                     fpsGun.IsExplosive = false;
                     fpsGun.IsGrenadeLauncher = false;
-                    fpsGun.ShotSpread = .2f;
                     fpsGun.ProjVelocity = 45f;
                     fpsGun.ProjLightColor = Color.red;
                     break;
@@ -654,7 +651,6 @@ namespace FutureShock
                     fpsGun.ProjectileTexture = projectileTextures[(int)ProjectileTexture.Laser];
                     fpsGun.IsExplosive = false;
                     fpsGun.IsGrenadeLauncher = false;
-                    fpsGun.ShotSpread = .2f;
                     fpsGun.ProjVelocity = 45f;
                     fpsGun.ProjLightColor = Color.red;
                     break;
@@ -669,7 +665,6 @@ namespace FutureShock
                     hitScanGun.ShotConditionCost = 20;
                     hitScanGun.IsBurstFire = false;
                     hitScanGun.IsShotgun = false;
-                    hitScanGun.ShotSpread = .2f;
                     break;
                 */
                 case FSWeapon.PlasmaRifle:
@@ -689,7 +684,6 @@ namespace FutureShock
                     fpsGun.ProjectileTexture = projectileTextures[(int)ProjectileTexture.Plasma];
                     fpsGun.IsExplosive = false;
                     fpsGun.IsGrenadeLauncher = false;
-                    fpsGun.ShotSpread = .2f;
                     fpsGun.ProjVelocity = 45f;
                     fpsGun.ProjLightColor = Color.cyan;
                     break;
@@ -710,7 +704,6 @@ namespace FutureShock
                     fpsGun.ProjectileTexture = projectileTextures[(int)ProjectileTexture.Plasma];
                     fpsGun.IsExplosive = false;
                     fpsGun.IsGrenadeLauncher = false;
-                    fpsGun.ShotSpread = .2f;
                     fpsGun.ProjVelocity = 45f;
                     fpsGun.ProjLightColor = Color.cyan;
                     break;
