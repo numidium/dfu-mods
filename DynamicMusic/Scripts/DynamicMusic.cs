@@ -1,6 +1,7 @@
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.Entity;
+using DaggerfallWorkshop.Game.Serialization;
 using DaggerfallWorkshop.Game.Utility.ModSupport;
 using DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings;
 using System.Collections.Generic;
@@ -17,11 +18,14 @@ namespace DynamicMusic
         private SongManager songManager;
         private DaggerfallSongPlayer combatSongPlayer;
         private GameManager gameManager;
-        private float stateCheckInterval;
+        private float stateChangeInterval;
         private float stateCheckDelta;
-        private float fadeLength;
-        private float fadeTime;
+        private float fadeOutLength;
+        private float fadeInLength;
+        private float fadeOutTime;
+        private float fadeInTime;
         private byte taperOffLength;
+        private byte taperFadeStart;
         private byte taperOff;
         private SongFiles[] defaultSongs;
         private List<string> combatPlaylist;
@@ -35,6 +39,7 @@ namespace DynamicMusic
             mod = initParams.Mod;
             var go = new GameObject(mod.Title);
             Instance = go.AddComponent<DynamicMusic>();
+            SaveLoadManager.OnLoad += SaveLoadManager_OnLoad;
             //mod.LoadSettingsCallback = Instance.LoadSettings;
         }
 
@@ -62,9 +67,11 @@ namespace DynamicMusic
         private void Start()
         {
             gameManager = GameManager.Instance;
-            stateCheckInterval = 3f;
+            stateChangeInterval = 3f;
             taperOffLength = 5;
-            fadeLength = 1f;
+            taperFadeStart = 1;
+            fadeOutLength = 1f;
+            fadeInLength = 3f;
             defaultSongs = new SongFiles[]
             {
                 SongFiles.song_17, // fighter trainers
@@ -81,28 +88,51 @@ namespace DynamicMusic
 
         private void Update()
         {
+            if (!songManager)
+                return;
             stateCheckDelta += Time.deltaTime;
-            if (fadeTime > 0f)
+            // Fade out combat music.
+            if (fadeOutTime > 0f)
             {
                 // Fade out combat music during taper time.
-                fadeTime += Time.deltaTime;
-                combatSongPlayer.AudioSource.volume = Mathf.Lerp(DaggerfallUnity.Settings.MusicVolume, 0f, fadeTime / fadeLength);
+                fadeOutTime += Time.deltaTime;
+                combatSongPlayer.AudioSource.volume = Mathf.Lerp(DaggerfallUnity.Settings.MusicVolume, 0f, fadeOutTime / fadeOutLength);
                 // End fade when time elapsed.
-                if (fadeTime >= fadeLength)
+                if (fadeOutTime >= fadeOutLength)
+                {
                     StopCombatMusic();
+                    // Start normal music fade-in.
+                    fadeInTime = Time.deltaTime;
+                }
             }
-            else if (combatMusicIsMidi && !combatSongPlayer.IsPlaying) // loop combat midi
-                combatSongPlayer.Play();
+            else if (combatMusicIsMidi && !combatSongPlayer.IsPlaying)
+                combatSongPlayer.Play(); // Loop combat music if MIDI.
+            // Fade in normal music.
+            var songPlayer = songManager.SongPlayer;
+            if (fadeInTime > 0f && songPlayer.AudioSource.isPlaying)
+            {
+                fadeInTime += Time.deltaTime;
+                if (songPlayer.enabled)
+                    songPlayer.enabled = false; // Stop SongPlayer from controlling its own volume.
+                songPlayer.AudioSource.volume = Mathf.Lerp(0f, DaggerfallUnity.Settings.MusicVolume, fadeInTime / fadeInLength);
+                if (fadeInTime >= fadeInLength)
+                {
+                    fadeInTime = 0f; // End fade when time elapsed.
+                    songPlayer.enabled = true; // Resume updates in SongPlayer.
+                }
+            }
+
             // Only perform state check once per assigned interval.
-            if (stateCheckDelta < stateCheckInterval)
+            if (stateCheckDelta < stateChangeInterval)
                 return;
             if (!gameManager.PlayerDeath.DeathInProgress && IsPlayerDetected())
             {
+                // Switch to combat music if not tapering or already playing.
                 if (taperOff == 0 || !IsCombatMusicPlaying())
                 {
                     songManager.StopPlaying();
                     songManager.enabled = false;
-                    songManager.SongPlayer.enabled = false;
+                    songPlayer.enabled = false;
                     combatSongPlayer.AudioSource.volume = DaggerfallUnity.Settings.MusicVolume;
                     combatSongPlayer.AudioSource.loop = true;
                     int playlistCount;
@@ -122,24 +152,23 @@ namespace DynamicMusic
                         combatMusicIsMidi = combatSongPlayer.AudioSource.clip == null;
                     }
 
-                    combatSongPlayer.enabled = true;
                     playlistIndex += (byte)Random.Range(1, playlistCount - 1);
                     playlistIndex %= (byte)playlistCount;
                 }
 
                 taperOff = taperOffLength;
             }
+            else if (taperOff <= taperFadeStart && combatSongPlayer.AudioSource.isPlaying || (combatMusicIsMidi && combatSongPlayer.IsPlaying))
+            {
+                // Begin fading after taper ends.
+                fadeOutTime = Time.deltaTime;
+            }
             else if (taperOff > 0 && --taperOff == 0)
             {
-                // Re-enable vanilla music system.
+                // Re-enable vanilla music system on taper end.
                 songManager.SongPlayer.enabled = true;
                 songManager.enabled = true;
                 songManager.StartPlaying();
-            }
-            else if (taperOff <= (byte)fadeLength && combatSongPlayer.AudioSource.isPlaying || (combatMusicIsMidi && combatSongPlayer.IsPlaying))
-            {
-                // Begin fade.
-                fadeTime = Time.deltaTime;
             }
 
             #if UNITY_EDITOR
@@ -172,7 +201,8 @@ namespace DynamicMusic
             taperOff = 0; // Don't continue tapering if we have a freshly loaded player.
             songManager.SongPlayer.enabled = true;
             songManager.enabled = true;
-            songManager.StartPlaying();
+            if (!songManager.SongPlayer.IsPlaying)
+                songManager.StartPlaying();
         }
 
         private bool TryLoadSong(string soundPath, string name, out AudioClip audioClip)
@@ -191,7 +221,7 @@ namespace DynamicMusic
 
         private void StopCombatMusic()
         {
-            fadeTime = 0f;
+            fadeOutTime = 0f;
             combatSongPlayer.AudioSource.loop = false;
             combatSongPlayer.Stop(); // stop midi in case it's playing
             combatMusicIsMidi = false;
@@ -225,11 +255,16 @@ namespace DynamicMusic
             LoadSongManager();
         }
 
+        private static void SaveLoadManager_OnLoad(SaveData_v1 saveData)
+        {
+            Instance.LoadSongManager();
+        }
+
         private void OnDeath(DaggerfallEntity entity)
         {
             // Fade out on death.
             if (IsCombatMusicPlaying())
-                fadeTime = Time.deltaTime;
+                fadeOutTime = Time.deltaTime;
         }
     }
 }
