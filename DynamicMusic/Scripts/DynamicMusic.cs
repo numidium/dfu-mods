@@ -71,7 +71,7 @@ namespace DynamicMusic
             taperOffLength = 5;
             taperFadeStart = 1;
             fadeOutLength = 1f;
-            fadeInLength = 3f;
+            fadeInLength = 2f;
             defaultSongs = new SongFiles[]
             {
                 SongFiles.song_17, // fighter trainers
@@ -99,11 +99,7 @@ namespace DynamicMusic
                 combatSongPlayer.AudioSource.volume = Mathf.Lerp(DaggerfallUnity.Settings.MusicVolume, 0f, fadeOutTime / fadeOutLength);
                 // End fade when time elapsed.
                 if (fadeOutTime >= fadeOutLength)
-                {
                     StopCombatMusic();
-                    // Start normal music fade-in.
-                    fadeInTime = Time.deltaTime;
-                }
             }
             else if (combatMusicIsMidi && !combatSongPlayer.IsPlaying)
                 combatSongPlayer.Play(); // Loop combat music if MIDI.
@@ -158,17 +154,15 @@ namespace DynamicMusic
 
                 taperOff = taperOffLength;
             }
-            else if (taperOff <= taperFadeStart && combatSongPlayer.AudioSource.isPlaying || (combatMusicIsMidi && combatSongPlayer.IsPlaying))
-            {
-                // Begin fading after taper ends.
-                fadeOutTime = Time.deltaTime;
-            }
+            else if (taperOff <= taperFadeStart && (combatSongPlayer.AudioSource.isPlaying || (combatMusicIsMidi && combatSongPlayer.IsPlaying)))
+                fadeOutTime = Time.deltaTime; // Begin fading after taper ends.
             else if (taperOff > 0 && --taperOff == 0)
             {
                 // Re-enable vanilla music system on taper end.
                 songManager.SongPlayer.enabled = true;
                 songManager.enabled = true;
                 songManager.StartPlaying();
+                fadeInTime = Time.deltaTime; // Start normal music fade-in.
             }
 
             #if UNITY_EDITOR
