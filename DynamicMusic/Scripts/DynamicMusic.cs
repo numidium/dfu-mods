@@ -1,3 +1,5 @@
+using DaggerfallConnect;
+using DaggerfallConnect.Arena2;
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.Entity;
@@ -32,6 +34,44 @@ namespace DynamicMusic
         private byte playlistIndex;
         private string musicPath;
         private bool combatMusicIsMidi;
+        private MusicPlaylist customPlaylist = MusicPlaylist.None;
+
+        private enum MusicPlaylist
+        {
+            DungeonInterior,
+            Sunny,
+            Cloudy,
+            Overcast,
+            Rain,
+            Snow,
+            Temple,
+            Tavern,
+            Night,
+            Shop,
+            MagesGuild,
+            Interior,
+            Palace,
+            Castle,
+            Court,
+            //Sneaking,
+            None
+        }
+
+        private enum MusicEnvironment
+        {
+            Castle,
+            City,
+            DungeonExterior,
+            DungeonInterior,
+            Graveyard,
+            MagesGuild,
+            Interior,
+            Palace,
+            Shop,
+            Tavern,
+            Temple,
+            Wilderness
+        }
 
         [Invoke(StateManager.StateTypes.Start, 0)]
         public static void Init(InitParams initParams)
@@ -192,11 +232,19 @@ namespace DynamicMusic
         {
             var go = GameObject.Find("SongPlayer");
             songManager = go.GetComponent<SongManager>();
-            taperOff = 0; // Don't continue tapering if we have a freshly loaded player.
+            var localPlayerGPS = songManager.LocalPlayerGPS;
+            var playlist = GetMusicPlaylist(localPlayerGPS, localPlayerGPS.GetComponent<PlayerEnterExit>(), localPlayerGPS.GetComponent<PlayerWeather>());
+            // TODO: Create the following routine:
+            /*
+             * 1. Look for custom non-combat playlist (loaded from directory) corresponding to location.
+             * 2. If it doesn't exist then use song manager.
+             * 3. If it does then disable song manager and play songs in shuffled order.
+             */
             songManager.SongPlayer.enabled = true;
             songManager.enabled = true;
             if (!songManager.SongPlayer.IsPlaying)
                 songManager.StartPlaying();
+            taperOff = 0; // Don't continue tapering if we have a freshly loaded player.
         }
 
         private bool TryLoadSong(string soundPath, string name, out AudioClip audioClip)
@@ -226,6 +274,145 @@ namespace DynamicMusic
         {
             return (combatMusicIsMidi && combatSongPlayer.IsPlaying) ||
                 (!combatMusicIsMidi && combatSongPlayer.AudioSource.isPlaying);
+        }
+
+        private MusicPlaylist GetMusicPlaylist(PlayerGPS localPlayerGPS, PlayerEnterExit playerEnterExit, PlayerWeather playerWeather)
+        {
+            // Note: Code was adapted from SongManager.cs. Credit goes to Interkarma for the original implementation.
+            var dfUnity = DaggerfallUnity.Instance;
+            if (!playerEnterExit || !localPlayerGPS || !dfUnity)
+                return MusicPlaylist.None;
+            if (gameManager.PlayerEntity.Arrested)
+                return MusicPlaylist.Court;
+            var musicEnvironment = MusicEnvironment.Wilderness;
+            // Exteriors
+            if (!playerEnterExit.IsPlayerInside)
+            {
+                if (localPlayerGPS.IsPlayerInLocationRect)
+                {
+                    switch (localPlayerGPS.CurrentLocationType)
+                    {
+                        case DFRegion.LocationTypes.DungeonKeep:
+                        case DFRegion.LocationTypes.DungeonLabyrinth:
+                        case DFRegion.LocationTypes.DungeonRuin:
+                        case DFRegion.LocationTypes.Coven:
+                        case DFRegion.LocationTypes.HomePoor:
+                            musicEnvironment = MusicEnvironment.DungeonExterior;
+                            break;
+                        case DFRegion.LocationTypes.Graveyard:
+                            musicEnvironment = MusicEnvironment.Graveyard;
+                            break;
+                        case DFRegion.LocationTypes.HomeFarms:
+                        case DFRegion.LocationTypes.HomeWealthy:
+                        case DFRegion.LocationTypes.Tavern:
+                        case DFRegion.LocationTypes.TownCity:
+                        case DFRegion.LocationTypes.TownHamlet:
+                        case DFRegion.LocationTypes.TownVillage:
+                        case DFRegion.LocationTypes.ReligionTemple:
+                            musicEnvironment = MusicEnvironment.City;
+                            break;
+                        default:
+                            musicEnvironment = MusicEnvironment.Wilderness;
+                            break;
+                    }
+                }
+                else
+                    musicEnvironment = MusicEnvironment.Wilderness;
+            }
+            // Dungeons
+            else if (playerEnterExit.IsPlayerInsideDungeon)
+            {
+                if (playerEnterExit.IsPlayerInsideDungeonCastle)
+                    musicEnvironment = MusicEnvironment.Castle;
+                else
+                    musicEnvironment = MusicEnvironment.DungeonInterior;
+            }
+            // Interiors
+            else if (playerEnterExit.IsPlayerInside)
+            {
+                switch (playerEnterExit.BuildingType)
+                {
+                    case DFLocation.BuildingTypes.Alchemist:
+                    case DFLocation.BuildingTypes.Armorer:
+                    case DFLocation.BuildingTypes.Bank:
+                    case DFLocation.BuildingTypes.Bookseller:
+                    case DFLocation.BuildingTypes.ClothingStore:
+                    case DFLocation.BuildingTypes.FurnitureStore:
+                    case DFLocation.BuildingTypes.GemStore:
+                    case DFLocation.BuildingTypes.GeneralStore:
+                    case DFLocation.BuildingTypes.Library:
+                    case DFLocation.BuildingTypes.PawnShop:
+                    case DFLocation.BuildingTypes.WeaponSmith:
+                        musicEnvironment = MusicEnvironment.Shop;
+                        break;
+                    case DFLocation.BuildingTypes.Tavern:
+                        musicEnvironment = MusicEnvironment.Tavern;
+                        break;
+                    case DFLocation.BuildingTypes.GuildHall:
+                        if (playerEnterExit.FactionID == (int)FactionFile.FactionIDs.The_Mages_Guild)
+                            musicEnvironment = MusicEnvironment.MagesGuild;
+                        else
+                            musicEnvironment = MusicEnvironment.Interior;
+                        break;
+                    case DFLocation.BuildingTypes.Palace:
+                        musicEnvironment = MusicEnvironment.Palace;
+                        break;
+                    case DFLocation.BuildingTypes.Temple:
+                        musicEnvironment = MusicEnvironment.Temple;
+                        break;
+                    default:
+                        musicEnvironment = MusicEnvironment.Interior;
+                        break;
+                }
+            }
+
+            if (musicEnvironment == MusicEnvironment.City || musicEnvironment == MusicEnvironment.Wilderness)
+            {
+                if (dfUnity.WorldTime.Now.IsNight)
+                    return MusicPlaylist.Night;
+                else
+                    switch (playerWeather.WeatherType)
+                    {
+                        case DaggerfallWorkshop.Game.Weather.WeatherType.Cloudy:
+                            return MusicPlaylist.Cloudy;
+                        case DaggerfallWorkshop.Game.Weather.WeatherType.Overcast:
+                        case DaggerfallWorkshop.Game.Weather.WeatherType.Fog:
+                            return MusicPlaylist.Overcast;
+                        case DaggerfallWorkshop.Game.Weather.WeatherType.Rain:
+                        case DaggerfallWorkshop.Game.Weather.WeatherType.Thunder:
+                            return MusicPlaylist.Rain;
+                        case DaggerfallWorkshop.Game.Weather.WeatherType.Snow:
+                            return MusicPlaylist.Snow;
+                        default:
+                            return MusicPlaylist.Sunny;
+                    }
+            }
+            else
+                switch (musicEnvironment)
+                {
+                    case MusicEnvironment.Castle:
+                        return MusicPlaylist.Castle;
+                    case MusicEnvironment.DungeonExterior:
+                        return MusicPlaylist.Night;
+                    case MusicEnvironment.DungeonInterior:
+                        return MusicPlaylist.DungeonInterior;
+                    case MusicEnvironment.Graveyard:
+                        return MusicPlaylist.Night;
+                    case MusicEnvironment.MagesGuild:
+                        return MusicPlaylist.MagesGuild;
+                    case MusicEnvironment.Interior:
+                        return MusicPlaylist.Interior;
+                    case MusicEnvironment.Palace:
+                        return MusicPlaylist.Palace;
+                    case MusicEnvironment.Shop:
+                        return MusicPlaylist.Shop;
+                    case MusicEnvironment.Tavern:
+                        return MusicPlaylist.Tavern;
+                    case MusicEnvironment.Temple:
+                        return MusicPlaylist.Temple;
+                    default:
+                        return MusicPlaylist.None;
+                }
         }
 
         // Load new location's song player when player moves into it.
