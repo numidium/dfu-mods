@@ -15,27 +15,6 @@ namespace DynamicMusic
     [RequireComponent(typeof(DaggerfallSongPlayer))]
     public sealed class DynamicMusic : MonoBehaviour
     {
-        public static DynamicMusic Instance { get; private set; }
-        private static Mod mod;
-        private SongManager songManager;
-        private DaggerfallSongPlayer combatSongPlayer;
-        private GameManager gameManager;
-        private float stateChangeInterval;
-        private float stateCheckDelta;
-        private float fadeOutLength;
-        private float fadeInLength;
-        private float fadeOutTime;
-        private float fadeInTime;
-        private byte taperOffLength;
-        private byte taperFadeStart;
-        private byte taperOff;
-        private SongFiles[] defaultSongs;
-        private List<string> combatPlaylist;
-        private byte playlistIndex;
-        private string musicPath;
-        private bool combatMusicIsMidi;
-        private MusicPlaylist customPlaylist = MusicPlaylist.None;
-
         private enum MusicPlaylist
         {
             DungeonInterior,
@@ -54,6 +33,7 @@ namespace DynamicMusic
             Castle,
             Court,
             //Sneaking,
+            Combat,
             None
         }
 
@@ -73,6 +53,32 @@ namespace DynamicMusic
             Wilderness
         }
 
+        public static DynamicMusic Instance { get; private set; }
+        private static Mod mod;
+        private SongManager songManager;
+        private DaggerfallSongPlayer combatSongPlayer;
+        private GameManager gameManager;
+        private float stateChangeInterval;
+        private float stateCheckDelta;
+        private float fadeOutLength;
+        private float fadeInLength;
+        private float fadeOutTime;
+        private float fadeInTime;
+        private byte taperOffLength;
+        private byte taperFadeStart;
+        private byte taperOff;
+        private SongFiles[] defaultCombatSongs;
+        private List<string> combatPlaylist;
+        private List<string>[] customPlaylists;
+        private byte combatPlaylistIndex;
+        private string combatMusicPath;
+        private bool combatMusicIsMidi;
+        private byte normalPlaylistIndex;
+        private MusicPlaylist currentCustomPlaylist = MusicPlaylist.None;
+        private const string soundDirectory = "Sound";
+        private const string directoryPrefix = "DynMusic_";
+        private const string fileSearchPattern = "*.ogg";
+
         [Invoke(StateManager.StateTypes.Start, 0)]
         public static void Init(InitParams initParams)
         {
@@ -87,12 +93,22 @@ namespace DynamicMusic
         {
             //var settings = mod.GetSettings();
             //LoadSettings(settings, new ModSettingsChange());
+            var soundPath = Path.Combine(Application.streamingAssetsPath, soundDirectory);
+            customPlaylists = new List<string>[(int)MusicPlaylist.None];
+            for (var i = 0; i < customPlaylists.Length; i++)
+            {
+                var musicPath = Path.Combine(soundPath, $"{directoryPrefix}{(MusicPlaylist)i}");
+                if (!Directory.Exists(musicPath))
+                    continue;
+                var files = Directory.GetFiles(musicPath, fileSearchPattern);
+                customPlaylists[i] = new List<string>();
+                foreach (var fileName in files)
+                    customPlaylists[i].Add(fileName);
+            }
+
             combatSongPlayer = GetComponent<DaggerfallSongPlayer>();
-            musicPath = Path.Combine(Application.streamingAssetsPath, "Sound", "DynMusic_Combat");
-            var fileNames = Directory.GetFiles(musicPath, "*.ogg");
-            combatPlaylist = new List<string>(fileNames.Length);
-            foreach (var fileName in fileNames)
-                combatPlaylist.Add(fileName);
+            combatMusicPath = Path.Combine(soundPath, $"{directoryPrefix}{MusicPlaylist.Combat}");
+            combatPlaylist = customPlaylists[(int)MusicPlaylist.Combat];
             Debug.Log("Dynamic Music initialized.");
             mod.IsReady = true;
         }
@@ -112,13 +128,13 @@ namespace DynamicMusic
             taperFadeStart = 1;
             fadeOutLength = 1f;
             fadeInLength = 2f;
-            defaultSongs = new SongFiles[]
+            defaultCombatSongs = new SongFiles[]
             {
                 SongFiles.song_17, // fighter trainers
                 SongFiles.song_30  // unused sneaking (?) theme
             };
 
-            playlistIndex = (byte)Random.Range(0, combatPlaylist.Count);
+            combatPlaylistIndex = (byte)Random.Range(0, combatPlaylist.Count);
             PlayerEnterExit.OnTransitionInterior += OnTransitionInterior;
             PlayerEnterExit.OnTransitionExterior += OnTransitionExterior;
             PlayerEnterExit.OnTransitionDungeonInterior += OnTransitionDungeonInterior;
@@ -143,8 +159,19 @@ namespace DynamicMusic
             }
             else if (combatMusicIsMidi && !combatSongPlayer.IsPlaying)
                 combatSongPlayer.Play(); // Loop combat music if MIDI.
-            // Fade in normal music.
             var songPlayer = songManager.SongPlayer;
+            // Current song in custom playlist is finished, play another.
+            if (currentCustomPlaylist != MusicPlaylist.None && !songPlayer.AudioSource.isPlaying && fadeOutTime == 0f)
+            {
+                var playlist = customPlaylists[(int)currentCustomPlaylist];
+                var index = (byte)Random.Range(0, playlist.Count - 1);
+                var path = Path.Combine(Application.streamingAssetsPath, soundDirectory);
+                TryLoadSong(path, playlist[index], out var song);
+                songManager.SongPlayer.AudioSource.clip = song;
+                songManager.SongPlayer.AudioSource.Play();
+            }
+
+            // Fade in normal music.
             if (fadeInTime > 0f && songPlayer.AudioSource.isPlaying)
             {
                 fadeInTime += Time.deltaTime;
@@ -154,7 +181,8 @@ namespace DynamicMusic
                 if (fadeInTime >= fadeInLength)
                 {
                     fadeInTime = 0f; // End fade when time elapsed.
-                    songPlayer.enabled = true; // Resume updates in SongPlayer.
+                    // Resume updates in SongPlayer if custom playlist not loaded.
+                    songPlayer.enabled = currentCustomPlaylist == MusicPlaylist.None || customPlaylists[(int)currentCustomPlaylist] == null;
                 }
             }
 
@@ -172,7 +200,7 @@ namespace DynamicMusic
                     combatSongPlayer.AudioSource.volume = DaggerfallUnity.Settings.MusicVolume;
                     combatSongPlayer.AudioSource.loop = true;
                     int playlistCount;
-                    if (combatPlaylist.Count > 0 && TryLoadSong(musicPath, combatPlaylist[playlistIndex], out var song))
+                    if (combatPlaylist != null && TryLoadSong(combatMusicPath, combatPlaylist[combatPlaylistIndex], out var song))
                     {
                         combatSongPlayer.AudioSource.clip = song;
                         combatSongPlayer.AudioSource.Play();
@@ -181,15 +209,15 @@ namespace DynamicMusic
                     }
                     else
                     {
-                        var songFile = defaultSongs[playlistIndex % defaultSongs.Length];
+                        var songFile = defaultCombatSongs[combatPlaylistIndex % defaultCombatSongs.Length];
                         combatSongPlayer.Play(songFile);
                         combatSongPlayer.Song = songFile;
-                        playlistCount = defaultSongs.Length;
+                        playlistCount = defaultCombatSongs.Length;
                         combatMusicIsMidi = combatSongPlayer.AudioSource.clip == null;
                     }
 
-                    playlistIndex += (byte)Random.Range(1, playlistCount - 1);
-                    playlistIndex %= (byte)playlistCount;
+                    combatPlaylistIndex += (byte)Random.Range(1, playlistCount - 1);
+                    combatPlaylistIndex %= (byte)playlistCount;
                 }
 
                 taperOff = taperOffLength;
@@ -198,10 +226,22 @@ namespace DynamicMusic
                 fadeOutTime = Time.deltaTime; // Begin fading after taper ends.
             else if (taperOff > 0 && --taperOff == 0)
             {
-                // Re-enable vanilla music system on taper end.
-                songManager.SongPlayer.enabled = true;
-                songManager.enabled = true;
-                songManager.StartPlaying();
+                List<string> playlist = currentCustomPlaylist == MusicPlaylist.None ? null : customPlaylists[(int)currentCustomPlaylist];
+                var index = playlist == null ? 0 : (byte)Random.Range(0, playlist.Count - 1);
+                var path = Path.Combine(Application.streamingAssetsPath, soundDirectory);
+                if (currentCustomPlaylist != MusicPlaylist.None && playlist != null && TryLoadSong(path, playlist[index], out var song))
+                {
+                    songManager.SongPlayer.AudioSource.clip = song;
+                    songManager.SongPlayer.AudioSource.Play();
+                }
+                else
+                {
+                    // Re-enable vanilla music system on taper end.
+                    songManager.SongPlayer.enabled = true;
+                    songManager.enabled = true;
+                    songManager.StartPlaying();
+                }
+
                 fadeInTime = Time.deltaTime; // Start normal music fade-in.
             }
 
@@ -234,16 +274,21 @@ namespace DynamicMusic
             songManager = go.GetComponent<SongManager>();
             var localPlayerGPS = songManager.LocalPlayerGPS;
             var playlist = GetMusicPlaylist(localPlayerGPS, localPlayerGPS.GetComponent<PlayerEnterExit>(), localPlayerGPS.GetComponent<PlayerWeather>());
-            // TODO: Create the following routine:
-            /*
-             * 1. Look for custom non-combat playlist (loaded from directory) corresponding to location.
-             * 2. If it doesn't exist then use song manager.
-             * 3. If it does then disable song manager and play songs in shuffled order.
-             */
-            songManager.SongPlayer.enabled = true;
-            songManager.enabled = true;
-            if (!songManager.SongPlayer.IsPlaying)
-                songManager.StartPlaying();
+            currentCustomPlaylist = customPlaylists[(int)playlist] != null ? playlist : MusicPlaylist.None;
+            if (currentCustomPlaylist == MusicPlaylist.None || customPlaylists[(int)currentCustomPlaylist] == null)
+            {
+                songManager.SongPlayer.enabled = true;
+                songManager.enabled = true;
+                if (!songManager.SongPlayer.IsPlaying)
+                    songManager.StartPlaying();
+            }
+            else
+            {
+                songManager.SongPlayer.enabled = false;
+                songManager.SongPlayer.AudioSource.loop = false;
+                songManager.enabled = false;
+            }
+
             taperOff = 0; // Don't continue tapering if we have a freshly loaded player.
         }
 
