@@ -54,6 +54,20 @@ namespace DynamicMusic
             Wilderness
         }
 
+        private enum State
+        {
+            Normal,
+            FadingOut,
+            FadingIn,
+            Combat
+        }
+
+        private enum MusicType
+        {
+            Normal,
+            Combat
+        }
+
         public static DynamicMusic Instance { get; private set; }
         private static Mod mod;
         private SongManager songManager;
@@ -63,15 +77,14 @@ namespace DynamicMusic
         private DaggerfallSongPlayer combatSongPlayer;
         private GameManager gameManager;
         private PlayerEntity playerEntity;
-        private float stateChangeInterval;
-        private float stateCheckDelta;
+        private float detectionCheckInterval;
+        private float detectionCheckDelta;
         private float fadeOutLength;
         private float fadeInLength;
         private float fadeOutTime;
         private float fadeInTime;
-        private byte taperOffLength;
-        private byte taperFadeStart;
-        private byte taperOff;
+        private byte combatTaperLength;
+        private byte combatTaper;
         private SongFiles[] defaultCombatSongs;
         private List<string> combatPlaylist;
         private List<string>[] customPlaylists;
@@ -81,7 +94,10 @@ namespace DynamicMusic
         private float previousTimeSinceStartup;
         private float deltaTime;
         private bool arrestedSet;
-        private MusicPlaylist currentCustomPlaylist = MusicPlaylist.None;
+        private MusicPlaylist currentPlaylist = MusicPlaylist.None;
+        bool normalSongQueued;
+        private State currentState;
+        private MusicType currentMusicType;
         private const string soundDirectory = "Sound";
         private const string directoryPrefix = "DynMusic_";
         private const string fileSearchPattern = "*.ogg";
@@ -138,11 +154,12 @@ namespace DynamicMusic
         {
             gameManager = GameManager.Instance;
             playerEntity = gameManager.PlayerEntity;
-            stateChangeInterval = 3f;
-            taperOffLength = 5;
-            taperFadeStart = 1;
-            fadeOutLength = 1f;
-            fadeInLength = 2f;
+            detectionCheckInterval = 3f;
+            combatTaperLength = 5;
+            fadeOutLength = 2f;
+            fadeInLength = 3f;
+            currentState = State.Normal;
+            currentMusicType = MusicType.Normal;
             defaultCombatSongs = new SongFiles[]
             {
                 SongFiles.song_17, // fighter trainers
@@ -167,98 +184,145 @@ namespace DynamicMusic
             previousTimeSinceStartup = realTimeSinceStartup;
             if (deltaTime < 0f)
                 deltaTime = 0f;
-            stateCheckDelta += deltaTime;
-            // Fade out combat music.
-            if (fadeOutTime > 0f)
-            {
-                // Fade out combat music during taper time.
-                fadeOutTime += deltaTime;
-                combatSongPlayer.AudioSource.volume = Mathf.Lerp(DaggerfallUnity.Settings.MusicVolume, 0f, fadeOutTime / fadeOutLength);
-                // End fade when time elapsed.
-                if (fadeOutTime >= fadeOutLength)
-                    StopCombatMusic();
-            }
-            else
-            {
-                combatSongPlayer.AudioSource.volume = DaggerfallUnity.Settings.MusicVolume;
-                if (combatMusicIsMidi && !combatSongPlayer.IsPlaying)
-                    combatSongPlayer.Play(); // Loop combat music if MIDI.
-            }
-
-            if (!IsCombatMusicPlaying())
-                UpdateSongManager();
-            // Fade in normal music.
             var songPlayer = songManager.SongPlayer;
-            if (fadeInTime > 0f && songPlayer.AudioSource.isPlaying && !IsCombatMusicPlaying())
+            var previousPlaylist = currentPlaylist;
+            currentPlaylist = GetMusicPlaylist(localPlayerGPS, playerEnterExit, playerWeather);
+            switch (currentState)
             {
-                fadeInTime += deltaTime;
-                if (songPlayer.enabled)
-                    songPlayer.enabled = false; // Stop SongPlayer from controlling its own volume.
-                songPlayer.AudioSource.volume = Mathf.Lerp(0f, DaggerfallUnity.Settings.MusicVolume, fadeInTime / fadeInLength);
-                if (fadeInTime >= fadeInLength)
-                {
-                    fadeInTime = 0f; // End fade when time elapsed.
-                    // Resume updates in SongPlayer if custom playlist not loaded.
-                    songPlayer.enabled = currentCustomPlaylist == MusicPlaylist.None || customPlaylists[(int)currentCustomPlaylist] == null;
-                }
+                case State.Normal:
+                    if (currentPlaylist != previousPlaylist && previousPlaylist != MusicPlaylist.None)
+                    {
+                        currentState = State.FadingOut;
+                        break;
+                    }
+
+                    // Need to control volume here if using a custom playlist i.e. not using SongManager.
+                    if (currentPlaylist != MusicPlaylist.None)
+                        songPlayer.AudioSource.volume = DaggerfallUnity.Settings.MusicVolume;
+                    break;
+                case State.FadingOut:
+                    if (currentMusicType == MusicType.Normal)
+                    {
+                        fadeOutTime += deltaTime;
+                        if (songPlayer.enabled)
+                            songPlayer.enabled = false; // Stop SongPlayer from controlling its own volume.
+                        songPlayer.AudioSource.volume = Mathf.Lerp(DaggerfallUnity.Settings.MusicVolume, 0f, fadeOutTime / fadeOutLength);
+                        if (fadeOutTime >= fadeOutLength)
+                        {
+                            // End fade when time elapsed.
+                            fadeOutTime = 0f;
+                            // Resume updates in SongPlayer if custom playlist not loaded.
+                            songPlayer.enabled = currentPlaylist == MusicPlaylist.None || customPlaylists[(int)currentPlaylist] == null;
+                            currentState = State.FadingIn;
+                        }
+                    }
+                    else if (currentMusicType == MusicType.Combat)
+                    {
+                        fadeOutTime += deltaTime;
+                        combatSongPlayer.AudioSource.volume = Mathf.Lerp(DaggerfallUnity.Settings.MusicVolume, 0f, fadeOutTime / fadeOutLength);
+                        // End fade when time elapsed.
+                        if (fadeOutTime >= fadeOutLength)
+                        {
+                            StopCombatMusic();
+                            fadeOutTime = 0f;
+                            currentMusicType = MusicType.Normal;
+                            currentState = State.FadingIn;
+                        }
+                    }
+
+                    break;
+                case State.FadingIn:
+                    var currentCustomPlaylist = customPlaylists[(int)currentPlaylist] != null ? currentPlaylist : MusicPlaylist.None;
+                    // Plays random tracks continuously as long as custom tracks are available for the current context.
+                    if (currentCustomPlaylist != MusicPlaylist.None && !songManager.SongPlayer.AudioSource.isPlaying)
+                    {
+                        songManager.SongPlayer.AudioSource.loop = false;
+                        songManager.enabled = false;
+                        var playlist = customPlaylists[(int)currentCustomPlaylist];
+                        var audioSource = songManager.SongPlayer.AudioSource;
+                        var index = (byte)Random.Range(0, playlist.Count - 1);
+                        var path = Path.Combine(Application.streamingAssetsPath, soundDirectory);
+                        if (TryLoadSong(path, playlist[index], out var song))
+                        {
+                            audioSource.clip = song;
+                            audioSource.Play();
+                        }
+                    }
+                    // Re-enable song manager if no custom songs are found.
+                    else if (currentCustomPlaylist == MusicPlaylist.None && !songManager.enabled)
+                    {
+                        songPlayer.enabled = true;
+                        songManager.enabled = true;
+                        songManager.SongPlayer.AudioSource.loop = true;
+                        songManager.StartPlaying();
+                    }
+
+                    fadeInTime += deltaTime;
+                    if (songPlayer.enabled)
+                        songPlayer.enabled = false; // Stop SongPlayer from controlling its own volume.
+                    songPlayer.AudioSource.volume = Mathf.Lerp(0f, DaggerfallUnity.Settings.MusicVolume, fadeInTime / fadeInLength);
+                    // End fade when time elapsed.
+                    if (fadeInTime >= fadeInLength)
+                    {
+                        fadeInTime = 0f;
+                        currentState = State.Normal;
+                    }
+
+                    break;
+                case State.Combat:
+                    // Handle volume/looping.
+                    combatSongPlayer.AudioSource.volume = DaggerfallUnity.Settings.MusicVolume;
+                    if (combatMusicIsMidi && !combatSongPlayer.IsPlaying)
+                        combatSongPlayer.Play(); // Loop combat music if MIDI.
+                    // Start combat music if not playing.
+                    if (combatTaper == 0 || !IsCombatMusicPlaying())
+                    {
+                        songManager.StopPlaying();
+                        songManager.enabled = false;
+                        songManager.SongPlayer.enabled = false;
+                        combatSongPlayer.AudioSource.loop = true;
+                        int playlistCount;
+                        if (combatPlaylist != null && TryLoadSong(combatMusicPath, combatPlaylist[combatPlaylistIndex], out var song))
+                        {
+                            combatSongPlayer.AudioSource.clip = song;
+                            combatSongPlayer.AudioSource.Play();
+                            playlistCount = combatPlaylist.Count;
+                            combatMusicIsMidi = false;
+                        }
+                        else
+                        {
+                            var songFile = defaultCombatSongs[combatPlaylistIndex % defaultCombatSongs.Length];
+                            combatSongPlayer.Play(songFile);
+                            combatSongPlayer.Song = songFile;
+                            playlistCount = defaultCombatSongs.Length;
+                            combatMusicIsMidi = combatSongPlayer.AudioSource.clip == null;
+                        }
+
+                        combatPlaylistIndex += (byte)Random.Range(1, playlistCount - 1);
+                        combatPlaylistIndex %= (byte)playlistCount;
+                    }
+
+                    break;
             }
-            else if(currentCustomPlaylist != MusicPlaylist.None && fadeInTime == 0f)
-                songManager.SongPlayer.AudioSource.volume = DaggerfallUnity.Settings.MusicVolume;
-            // Stop current music if arrested.
-            if (playerEntity.Arrested && !arrestedSet)
-            {
-                taperOff = 0;
-                if (IsCombatMusicPlaying())
-                    fadeOutTime = deltaTime;
-                fadeInTime = deltaTime;
-                arrestedSet = true;
-            }
-            else if (!playerEntity.Arrested && arrestedSet)
-                arrestedSet = false;
-            // Only perform state check once per assigned interval.
-            if (stateCheckDelta < stateChangeInterval)
+
+            // Check if player is in combat at every interval.
+            detectionCheckDelta += Time.deltaTime;
+            if (detectionCheckDelta < detectionCheckInterval)
                 return;
-            if (!gameManager.PlayerDeath.DeathInProgress && !playerEntity.Arrested && IsPlayerDetected())
+            if (currentState == State.Normal || currentState == State.Combat)
             {
-                // Switch to combat music if not tapering or already playing.
-                if (taperOff == 0 || !IsCombatMusicPlaying())
+                if (!gameManager.PlayerDeath.DeathInProgress && !playerEntity.Arrested && IsPlayerDetected())
                 {
-                    songManager.StopPlaying();
-                    songManager.enabled = false;
-                    songPlayer.enabled = false;
-                    combatSongPlayer.AudioSource.loop = true;
-                    int playlistCount;
-                    if (combatPlaylist != null && TryLoadSong(combatMusicPath, combatPlaylist[combatPlaylistIndex], out var song))
-                    {
-                        combatSongPlayer.AudioSource.clip = song;
-                        combatSongPlayer.AudioSource.Play();
-                        playlistCount = combatPlaylist.Count;
-                        combatMusicIsMidi = false;
-                    }
-                    else
-                    {
-                        var songFile = defaultCombatSongs[combatPlaylistIndex % defaultCombatSongs.Length];
-                        combatSongPlayer.Play(songFile);
-                        combatSongPlayer.Song = songFile;
-                        playlistCount = defaultCombatSongs.Length;
-                        combatMusicIsMidi = combatSongPlayer.AudioSource.clip == null;
-                    }
-
-                    combatPlaylistIndex += (byte)Random.Range(1, playlistCount - 1);
-                    combatPlaylistIndex %= (byte)playlistCount;
+                    // Start combat music
+                    currentState = State.Combat;
+                    combatTaper = combatTaperLength;
+                    currentMusicType = MusicType.Combat;
                 }
-
-                taperOff = taperOffLength;
+                else if (combatTaper > 0 && --combatTaper == 0)
+                    currentState = State.FadingOut;
             }
-            else if (taperOff <= taperFadeStart && (combatSongPlayer.AudioSource.isPlaying || (combatMusicIsMidi && combatSongPlayer.IsPlaying)))
-                fadeOutTime = deltaTime; // Begin fading after taper ends.
-            else if (taperOff > 0 && --taperOff == 0)
-                fadeInTime = deltaTime; // Start normal music fade-in.
-            #if UNITY_EDITOR
-            if (taperOff > 0)
-                Debug.Log("DynamicMusic: taperOff = " + taperOff);
-            #endif
-            stateCheckDelta = 0f;
+
+            detectionCheckDelta = 0f;
         }
 
         private bool IsPlayerDetected()
@@ -284,20 +348,20 @@ namespace DynamicMusic
             localPlayerGPS = songManager.LocalPlayerGPS;
             playerEnterExit = localPlayerGPS.GetComponent<PlayerEnterExit>();
             playerWeather = localPlayerGPS.GetComponent<PlayerWeather>();
-            taperOff = 0; // Don't continue tapering if we have a freshly loaded player.
+            combatTaper = 0; // Don't continue tapering if we have a freshly loaded player.
         }
 
         private void UpdateSongManager()
         {
-            var previousPlaylist = currentCustomPlaylist;
+            var previousPlaylist = this.currentPlaylist;
             var currentPlaylist = playerEntity.Arrested ? MusicPlaylist.Court : GetMusicPlaylist(localPlayerGPS, playerEnterExit, playerWeather);
-            currentCustomPlaylist = customPlaylists[(int)currentPlaylist] != null ? currentPlaylist : MusicPlaylist.None;
+            this.currentPlaylist = customPlaylists[(int)currentPlaylist] != null ? currentPlaylist : MusicPlaylist.None;
             // Plays random tracks continuously as long as custom tracks are available for the current context.
-            if (currentCustomPlaylist != MusicPlaylist.None && (currentCustomPlaylist != previousPlaylist || (!songManager.SongPlayer.AudioSource.isPlaying && fadeOutTime == 0f)))
+            if (this.currentPlaylist != MusicPlaylist.None && (this.currentPlaylist != previousPlaylist || (!songManager.SongPlayer.AudioSource.isPlaying && fadeOutTime == 0f)))
             {
                 songManager.SongPlayer.AudioSource.loop = false;
                 songManager.enabled = false;
-                var playlist = customPlaylists[(int)currentCustomPlaylist];
+                var playlist = customPlaylists[(int)this.currentPlaylist];
                 var audioSource = songManager.SongPlayer.AudioSource;
                 var index = (byte)Random.Range(0, playlist.Count - 1);
                 var path = Path.Combine(Application.streamingAssetsPath, soundDirectory);
@@ -308,7 +372,7 @@ namespace DynamicMusic
                 }
             }
             // Re-enable song manager if no custom songs are found.
-            else if (currentCustomPlaylist == MusicPlaylist.None && !songManager.enabled)
+            else if (this.currentPlaylist == MusicPlaylist.None && !songManager.enabled)
             {
                 songManager.SongPlayer.enabled = true;
                 songManager.enabled = true;
@@ -349,11 +413,11 @@ namespace DynamicMusic
         private MusicPlaylist GetMusicPlaylist(PlayerGPS localPlayerGPS, PlayerEnterExit playerEnterExit, PlayerWeather playerWeather)
         {
             // Note: Code was adapted from SongManager.cs. Credit goes to Interkarma for the original implementation.
+            if (playerEntity.Arrested)
+                return MusicPlaylist.Court;
             var dfUnity = DaggerfallUnity.Instance;
             if (!playerEnterExit || !localPlayerGPS || !dfUnity)
                 return MusicPlaylist.None;
-            if (playerEntity.Arrested)
-                return MusicPlaylist.Court;
             var musicEnvironment = MusicEnvironment.Wilderness;
             // Exteriors
             if (!playerEnterExit.IsPlayerInside)
