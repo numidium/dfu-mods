@@ -9,6 +9,7 @@ using UnityEngine;
 namespace FutureShock
 {
     [RequireComponent(typeof(AudioSource))]
+    [RequireComponent(typeof(Light))]
     public sealed class FutureShockGun : MonoBehaviour
     {
         private enum FiringType
@@ -23,6 +24,8 @@ namespace FutureShock
         private const float nativeScreenHeight = 200f;
         private const float frameTime = 0.0625f;
         private const float wepRange = 35f;
+        private const float muzzleFlashIntensity = 1.1f;
+        private const float postFlashFade = 3.0f;
         private FiringType firingType;
         private GameObject mainCamera;
         private int playerLayerMask;
@@ -33,6 +36,7 @@ namespace FutureShock
         private float frameTimeRemaining;
         private float lastScreenWidth, lastScreenHeight;
         private AudioSource audioSource;
+        private Light muzzleFlash;
         public DaggerfallUnityItem PairedItem { private get; set; }
         public Texture2D[] WeaponFrames { private get; set; }
         public Texture2D[] ImpactFrames { private get; set; }
@@ -84,6 +88,8 @@ namespace FutureShock
         private void Awake()
         {
             audioSource = GetComponent<AudioSource>();
+            muzzleFlash = GetComponent<Light>();
+            muzzleFlash.color = Color.white;
         }
 
         private void Start()
@@ -106,11 +112,21 @@ namespace FutureShock
                     if (firingType == FiringType.Burst || currentFrame == 1)
                     {
                         if (firingType == FiringType.Pellets)
+                        {
                             FireMultipleRays();
+                            StartMuzzleFlash();
+                        }
                         else if (firingType == FiringType.Projectile || firingType == FiringType.ProjectileRapid)
+                        {
                             FireProjectile();
+                        }
                         else
+                        {
                             FireSingleRay();
+                            if (currentFrame % 2 != 0)
+                                StartMuzzleFlash();
+                        }
+
                         PairedItem.LowerCondition(ShotConditionCost);
                         isSoundRequested = currentFrame == 1;
                     }
@@ -133,6 +149,10 @@ namespace FutureShock
             }
             else
                 frameTimeRemaining -= Time.deltaTime;
+            if (muzzleFlash.intensity > 0f)
+                muzzleFlash.intensity -= postFlashFade * Time.deltaTime;
+            else
+                muzzleFlash.enabled = false;
         }
 
         private void OnGUI()
@@ -240,6 +260,12 @@ namespace FutureShock
             go.transform.position = point;
             var billboard = go.AddComponent<FSBillboard>();
             billboard.SetFrames(ImpactFrames, new Vector2(.5f, .5f));
+        }
+
+        private void StartMuzzleFlash()
+        {
+            muzzleFlash.enabled = true;
+            muzzleFlash.intensity = muzzleFlashIntensity;
         }
     }
 }

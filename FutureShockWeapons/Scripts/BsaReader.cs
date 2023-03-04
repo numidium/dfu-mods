@@ -48,8 +48,7 @@ namespace FutureShock
         public void Dispose()
         {
             var reader = bsaFile.GetReader();
-            if (reader != null)
-                reader.Close();
+            reader?.Close();
         }
 
         public string GetFileName(ushort index) => IndexLookup[index].Item1;
