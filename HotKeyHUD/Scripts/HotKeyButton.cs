@@ -130,7 +130,7 @@ namespace HotKeyHUD
             {
                 var image = DaggerfallUnity.Instance.ItemHelper.GetInventoryImage(item);
                 Icon.BackgroundTexture = image.texture;
-                Icon.Size = new Vector2(image.width, image.height);
+                Icon.Size = new Vector2(image.width == 0 ? image.texture.width : image.width, image.height == 0 ? image.texture.height : image.height);
                 StackLabel.Enabled = item.IsStackable() || IsBow(item);
                 // I'm assuming there aren't any stackables with condition worth tracking.
                 ConditionBar.Enabled = !StackLabel.Enabled || IsBow(item);

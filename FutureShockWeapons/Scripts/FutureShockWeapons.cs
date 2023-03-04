@@ -232,7 +232,15 @@ namespace FutureShock
 
         public bool InitMod(string gameDataPath)
         {
-            var shockPalette = new DFPalette($"{gameDataPath}SHOCK.COL");
+            const string paletteExt = ".COL";
+            const string shockPaletteName = "SHOCK" + paletteExt;
+            const string dagPaletteName = "ART_PAL" + paletteExt;
+            var shockPalettePath = $"{gameDataPath}{shockPaletteName}";
+            var dagPalettePath = $"{gameDataPath}{dagPaletteName}";
+            // Create copy of Future Shock palette file with file name that TextureFile class uses.
+            if (!File.Exists($"{gameDataPath}{dagPaletteName}") && File.Exists(shockPalettePath))
+                File.Copy(shockPalettePath, $"{gameDataPath}{dagPaletteName}");
+            var shockPalette = new DFPalette(shockPalettePath);
             // Import HUD animations
             weaponAnimBank = new Dictionary<WeaponAnimation, Texture2D[]>();
             // Check for and/or load loose CFA files. Normally these will not exist until first run.
@@ -260,11 +268,13 @@ namespace FutureShock
                 [ProjectileAnimation.Grenade] = GetTextureAnimation(gameDataPath, 512, 2)
             };
 
-            using (var textureReader = new BsaReader($"{gameDataPath}MDMDIMGS.BSA"))
+            const string bsaExt = ".BSA";
+            const string imgsFile = "MDMDIMGS" + bsaExt;
+            using (var textureReader = new BsaReader($"{gameDataPath}{imgsFile}"))
             {
                 if (textureReader.Reader == null)
                 {
-                    Debug.Log("Could not load MDMDIMGS.BSA from specified path.");
+                    Debug.Log(GetFileLoadError(imgsFile));
                     return false;
                 }
 
@@ -294,11 +304,24 @@ namespace FutureShock
             // Table ripped from Future Shock's memory during runtime
             byte[] cipherTable = { 0xDD, 0x83, 0x65, 0x57, 0xEA, 0x78, 0x08, 0x48, 0xB8, 0x01, 0x38, 0x94, 0x08, 0xDD, 0x3F, 0xC2, 0xBE, 0xAB, 0x76, 0xC6, 0x14 };
             weaponSoundBank = new Dictionary<WeaponSound, AudioClip>();
-            using (var soundReader = new BsaReader($"{gameDataPath}MDMDSFXS.BSA"))
+            // Look for custom sounds.
+            const string directoryPrefix = "FSWeapons_";
+            const string soundDirectory = "Sound";
+            var soundPath = Path.Combine(Application.streamingAssetsPath, soundDirectory);
+            var fsSoundPath = Path.Combine(soundPath, $"{directoryPrefix}{soundDirectory}");
+            if (!Directory.Exists(fsSoundPath))
+                Directory.CreateDirectory(fsSoundPath);
+            const string customSoundExtension = ".ogg";
+            for (var i = 0; i <= (int)WeaponSound.EXPLO3; i++) // must iterate to last value of enum
+                if (TryLoadSound(fsSoundPath, $"{(WeaponSound)i}{customSoundExtension}", out var audioClip))
+                    weaponSoundBank[(WeaponSound)i] = audioClip;
+            // Load sounds from archive.
+            const string sfxFile = "MDMDSFXS" + bsaExt;
+            using (var soundReader = new BsaReader($"{gameDataPath}{sfxFile}"))
             {
                 if (soundReader.Reader == null)
                 {
-                    Debug.Log("Could not load MDMDSFXS.BSA from specified path.");
+                    Debug.Log(GetFileLoadError(sfxFile));
                     return false;
                 }
 
@@ -315,6 +338,9 @@ namespace FutureShock
                     }
 
                     var soundData = soundReader.Reader.ReadBytes(fileLength);
+                    // Custom file already loaded.
+                    if (weaponSoundBank.ContainsKey(weaponSound))
+                        continue;
                     Decrypt(soundData, cipherTable, 0);
                     var samples = new float[soundData.Length];
                     // Convert each sample byte to float in range -1 to 1.
@@ -431,6 +457,20 @@ namespace FutureShock
             SetWeapon(GetGunFromMaterial(equippedRight.NativeMaterialValue));
         }
 
+        private bool TryLoadSound(string soundPath, string name, out AudioClip audioClip)
+        {
+            string path = Path.Combine(soundPath, name);
+            if (File.Exists(path))
+            {
+                var www = new WWW("file://" + path); // the "non-deprecated" class gives me compiler errors so it can suck it
+                audioClip = www.GetAudioClip(true, true);
+                return audioClip != null;
+            }
+
+            audioClip = null;
+            return false;
+        }
+
         private static Texture2D[] GetTextureAnimFromCfaFile(string path, DFPalette palette)
         {
             var cfaFile = new CfaFile() { Palette = palette };
@@ -512,6 +552,8 @@ namespace FutureShock
             texture.Apply();
             return texture;
         }
+
+        private static string GetFileLoadError(string fileName) => $"Could not load {fileName} from specified path.";
         
         private void SetWeapon(FSWeapon weapon)
         {
