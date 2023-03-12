@@ -8,7 +8,6 @@ using UnityEngine;
 namespace FutureShock
 {
     // Credits: Interkarma and Allofich for their work on DaggerfallMissile.cs, which this class is based on.
-    [RequireComponent(typeof(Light))]
     [RequireComponent(typeof(AudioSource))]
     public sealed class FutureShockProjectile : MonoBehaviour
     {
@@ -30,13 +29,13 @@ namespace FutureShock
         public DaggerfallEntityBehaviour Caster { get; set; }
         private Vector3 direction;
         private Vector3 collisionPosition;
+        private GameObject lightGo;
         private Light myLight;
         private AudioSource audioSource;
         private AudioClip impactSound;
         private AudioClip travelSound;
         private bool travelSoundIsLooped;
         private float lifespan = 0f;
-        private float postImpactLifespan = 0f;
         private bool missileReleased = false;
         private bool impactDetected = false;
         private bool impactAssigned = false;
@@ -81,7 +80,9 @@ namespace FutureShock
         private void Start()
         {
             // Setup light and shadows
-            myLight = GetComponent<Light>();
+            lightGo = new GameObject("ProjectileLight");
+            lightGo.transform.parent = transform;
+            myLight = lightGo.AddComponent<Light>();
             myLight.enabled = true;
             myLight.color = LightColor;
             if (!DaggerfallUnity.Settings.EnableSpellShadows) myLight.shadows = LightShadows.None;
@@ -159,12 +160,14 @@ namespace FutureShock
                         PlaySound(impactSound, 0.8f);
                     if (isImpactBillboardRequested)
                     {
-                        var go = new GameObject("ImpactBillboard");
-                        go.transform.parent = transform;
-                        go.transform.localPosition = Vector3.zero;
-                        go.layer = gameObject.layer;
-                        var billboard = go.AddComponent<FSBillboard>();
+                        var billboardGo = new GameObject("ImpactBillboard");
+                        billboardGo.transform.parent = transform;
+                        billboardGo.transform.localPosition = Vector3.zero;
+                        billboardGo.layer = gameObject.layer;
+                        var billboard = billboardGo.AddComponent<FSBillboard>();
                         billboard.SetFrames(impactFrames, impactSize);
+                        // Place light behind billboard.
+                        lightGo.transform.localPosition = -direction;
                     }
 
                     impactAssigned = true;
@@ -184,8 +187,7 @@ namespace FutureShock
                 }
 
                 // Wait for light.
-                postImpactLifespan += frameDeltaTime;
-                if (postImpactLifespan > PostImpactLifespanInSeconds)
+                if (myLight.intensity <= 0f)
                 {
                     myLight.enabled = false;
                     // Wait for audio clip.

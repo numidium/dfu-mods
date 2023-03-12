@@ -49,6 +49,7 @@ namespace FutureShock
         public float VertProjAdjust { private get; set; }
         public float ShotSpread { private get; set; }
         public float ProjVelocity { private get; set; }
+        public float ProjPostImpactFade { private get; set; }
         public Color ProjLightColor { private get; set; }
         public Texture2D ProjectileTexture { private get; set; }
         public AudioClip ShootSound { private get; set; }
@@ -90,6 +91,7 @@ namespace FutureShock
             audioSource = GetComponent<AudioSource>();
             muzzleFlash = GetComponent<Light>();
             muzzleFlash.color = Color.white;
+            muzzleFlash.enabled = false;
         }
 
         private void Start()
@@ -102,6 +104,15 @@ namespace FutureShock
 
         private void Update()
         {
+            // Fade out muzzle flash.
+            if (muzzleFlash.enabled)
+            {
+                muzzleFlash.intensity -= postFlashFade * Time.deltaTime;
+                if (muzzleFlash.intensity <= 0f)
+                    muzzleFlash.enabled = false;
+            }
+
+            // Update firing animation.
             if (frameTimeRemaining <= 0f)
             {
                 if (IsFiring || currentFrame != 0) // Keep firing until animation is finished.
@@ -149,10 +160,6 @@ namespace FutureShock
             }
             else
                 frameTimeRemaining -= Time.deltaTime;
-            if (muzzleFlash.intensity > 0f)
-                muzzleFlash.intensity -= postFlashFade * Time.deltaTime;
-            else
-                muzzleFlash.enabled = false;
         }
 
         private void OnGUI()
@@ -251,6 +258,8 @@ namespace FutureShock
             projectile.VerticalAdjust = VertProjAdjust;
             projectile.Velocity = ProjVelocity;
             projectile.LightColor = ProjLightColor;
+            if (ProjPostImpactFade > 0f)
+                projectile.PostImpactFade = ProjPostImpactFade;
         }
 
         private void CreateImpactBillboard(Vector3 point)

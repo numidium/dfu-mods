@@ -454,6 +454,8 @@ namespace FutureShock
         private void SaveLoadManager_OnLoad(SaveData_v1 saveData)
         {
             lastEquippedRight = equippedRight = GameManager.Instance.PlayerEntity.ItemEquipTable.GetItem(EquipSlots.RightHand);
+            if (lastEquippedRight == null)
+                return;
             SetWeapon(GetGunFromMaterial(equippedRight.NativeMaterialValue));
         }
 
@@ -634,6 +636,7 @@ namespace FutureShock
                     fpsGun.IsGrenadeLauncher = true;
                     fpsGun.ProjVelocity = 25f;
                     fpsGun.ProjLightColor = Color.white;
+                    fpsGun.ProjPostImpactFade = 2f;
                     break;
                 case FSWeapon.RPG:
                     fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON06];
@@ -655,6 +658,7 @@ namespace FutureShock
                     fpsGun.IsGrenadeLauncher = false;
                     fpsGun.ProjVelocity = 30f;
                     fpsGun.ProjLightColor = Color.white;
+                    fpsGun.ProjPostImpactFade = 1.3f;
                     break;
                 case FSWeapon.LaserRifle:
                     fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON07];
