@@ -450,6 +450,41 @@ namespace DynamicMusic
         public SongFiles[] CourtSongs = _courtSongs;
         public SongFiles[] SneakingSongs = _sneakingSongs;
         #endregion Playlists
+        private sealed class Playlist
+        {
+            private readonly List<string> tracks;
+            private int index = 0;
+            private void ShuffleTracks()
+            {
+                var endTrack = tracks[tracks.Count - 1];
+                // Fisher-Yates shuffle
+                for (var i = tracks.Count - 1; i > 0; i--)
+                {
+                    var randIndex = UnityEngine.Random.Range(0, i + 1);
+                    (tracks[randIndex], tracks[i]) = (tracks[i], tracks[randIndex]);
+                }
+
+                // Ensure that 0 doesn't swap with n-1. Otherwise there will be a repeat on re-shuffle.
+                if (tracks[0] == endTrack)
+                    (tracks[0], tracks[tracks.Count - 1]) = (tracks[tracks.Count - 1], tracks[0]);
+            }
+
+            public Playlist(List<string> trackList)
+            {
+                tracks = trackList;
+                ShuffleTracks();
+            }
+
+            public string GetNextTrack()
+            {
+                index = (index + 1) % tracks.Count;
+                if (index == 0)
+                    ShuffleTracks();
+                return tracks[index];
+            }
+
+            public int TrackCount => tracks.Count;
+        }
 
         public static DynamicMusic Instance { get; private set; }
         private static Mod mod;
@@ -468,8 +503,8 @@ namespace DynamicMusic
         private byte combatTaperLength;
         private byte combatTaper;
         private SongFiles[] defaultCombatSongs;
-        private List<string> combatPlaylist;
-        private List<string>[] customPlaylists;
+        private Playlist combatPlaylist;
+        private Playlist[] customPlaylists;
         private byte combatPlaylistIndex;
         private string combatMusicPath;
         private bool combatMusicIsMidi;
@@ -482,7 +517,7 @@ namespace DynamicMusic
         private State lastState;
         private MusicType currentMusicType;
         private const string soundDirectory = "Sound";
-        private const string directoryPrefix = "DynMusic_";
+        private const string baseDirectory = "DynMusic";
         private const string fileSearchPattern = "*.ogg";
 
         [Invoke(StateManager.StateTypes.Start, 0)]
@@ -502,10 +537,10 @@ namespace DynamicMusic
             //var settings = mod.GetSettings();
             //LoadSettings(settings, new ModSettingsChange());
             var soundPath = Path.Combine(Application.streamingAssetsPath, soundDirectory);
-            customPlaylists = new List<string>[(int)MusicPlaylist.None];
+            customPlaylists = new Playlist[(int)MusicPlaylist.None];
             for (var i = 0; i < customPlaylists.Length; i++)
             {
-                var musicPath = Path.Combine(soundPath, $"{directoryPrefix}{(MusicPlaylist)i}");
+                var musicPath = Path.Combine(soundPath, baseDirectory, $"{(MusicPlaylist)i}");
                 if (!Directory.Exists(musicPath))
                 {
                     Directory.CreateDirectory(musicPath);
@@ -515,13 +550,14 @@ namespace DynamicMusic
                 var files = Directory.GetFiles(musicPath, fileSearchPattern);
                 if (files.Length == 0)
                     continue;
-                customPlaylists[i] = new List<string>();
+                var trackList = new List<string>();
                 foreach (var fileName in files)
-                    customPlaylists[i].Add(fileName);
+                    trackList.Add(fileName);
+                customPlaylists[i] = new Playlist(trackList);
             }
 
             dynamicSongPlayer = GetComponent<DynamicSongPlayer>();
-            combatMusicPath = Path.Combine(soundPath, $"{directoryPrefix}{MusicPlaylist.Combat}");
+            combatMusicPath = Path.Combine(soundPath, baseDirectory, $"{MusicPlaylist.Combat}");
             combatPlaylist = customPlaylists[(int)MusicPlaylist.Combat];
             previousTimeSinceStartup = Time.realtimeSinceStartup;
             gameLoaded = false;
@@ -544,7 +580,7 @@ namespace DynamicMusic
             playerEnterExit = localPlayerGPS.GetComponent<PlayerEnterExit>();
             playerWeather = localPlayerGPS.GetComponent<PlayerWeather>();
             detectionCheckInterval = 3f;
-            combatTaperLength = 5;
+            combatTaperLength = 4;
             fadeOutLength = 2f;
             fadeInLength = 3f;
             currentState = State.Normal;
@@ -577,7 +613,7 @@ namespace DynamicMusic
                 SneakingSongs = _sneakingSongsFM;
             }
 
-            combatPlaylistIndex = (byte)UnityEngine.Random.Range(0, combatPlaylist.Count);
+            combatPlaylistIndex = (byte)UnityEngine.Random.Range(0, combatPlaylist == null ? defaultCombatSongs.Length : combatPlaylist.TrackCount);
             PlayerEnterExit.OnTransitionInterior += OnTransitionInterior;
             PlayerEnterExit.OnTransitionExterior += OnTransitionExterior;
             PlayerEnterExit.OnTransitionDungeonInterior += OnTransitionDungeonInterior;
@@ -620,9 +656,8 @@ namespace DynamicMusic
                         dynamicSongPlayer.AudioSource.loop = false;
                         var playlist = customPlaylists[(int)currentCustomPlaylist];
                         var audioSource = dynamicSongPlayer.AudioSource;
-                        var index = (byte)UnityEngine.Random.Range(0, playlist.Count - 1);
                         var path = Path.Combine(Application.streamingAssetsPath, soundDirectory);
-                        if (TryLoadSong(path, playlist[index], out var song))
+                        if (TryLoadSong(path, playlist.GetNextTrack(), out var song))
                         {
                             audioSource.clip = song;
                             audioSource.Play();
@@ -674,26 +709,28 @@ namespace DynamicMusic
                         if (lastState != State.Combat)
                         {
                             var songFile = defaultCombatSongs[combatPlaylistIndex % defaultCombatSongs.Length];
-                            int playlistCount;
-                            if (combatPlaylist != null && TryLoadSong(combatMusicPath, combatPlaylist[combatPlaylistIndex], out var song))
+                            if (combatPlaylist != null && TryLoadSong(combatMusicPath, combatPlaylist.GetNextTrack(), out var song))
                             {
                                 dynamicSongPlayer.AudioSource.clip = song;
                                 dynamicSongPlayer.AudioSource.Play();
-                                playlistCount = combatPlaylist.Count;
                                 combatMusicIsMidi = false;
                             }
                             else
                             {
                                 dynamicSongPlayer.Play(songFile);
-                                playlistCount = defaultCombatSongs.Length;
                                 combatMusicIsMidi = dynamicSongPlayer.AudioSource.clip == null;
                             }
 
+                            var playlistCount = defaultCombatSongs.Length;
                             dynamicSongPlayer.Song = songFile;
                             combatPlaylistIndex += (byte)UnityEngine.Random.Range(1, playlistCount - 1);
                             combatPlaylistIndex %= (byte)playlistCount;
                             lastState = State.Combat;
                         }
+
+                        // Fade out on arrest.
+                        if (playerEntity.Arrested)
+                            currentState = State.FadingOut;
                     }
 
                     break;
@@ -779,14 +816,6 @@ namespace DynamicMusic
             combatMusicIsMidi = false;
             dynamicSongPlayer.AudioSource.Stop();
         }
-
-        /*
-        private bool IsCombatMusicPlaying()
-        {
-            return (combatMusicIsMidi && dynamicSongPlayer.IsPlaying) ||
-                (!combatMusicIsMidi && dynamicSongPlayer.AudioSource.isPlaying);
-        }
-        */
 
         private MusicPlaylist GetMusicPlaylist(PlayerGPS localPlayerGPS, PlayerEnterExit playerEnterExit, PlayerWeather playerWeather)
         {
