@@ -11,22 +11,10 @@ namespace FutureShock
     [RequireComponent(typeof(AudioSource))]
     public sealed class FutureShockProjectile : MonoBehaviour
     {
-        public float Velocity { private get; set; }
-        public float CollisionRadius = 0.35f;
-        public float ExplosionRadius = 5.0f;
-        public bool EnableShadows = true;
-        public float LifespanInSeconds = 8f;
-        public float PostImpactLifespanInSeconds = 0.6f;
-        public float PostImpactLightMultiplier = 1.6f;
-        public float PostImpactFade = 4f;
-        public DaggerfallUnityItem OriginWeapon { private get; set; }
-        public float HorizontalAdjust { private get; set; }
-        public float VerticalAdjust { private get; set; }
-        public bool IsExplosive { get; set; }
-        public bool IsGrenade { get; set; }
-        public Color LightColor { private get; set; }
-        public Texture2D ProjectileTexture { private get; set; }
-        public DaggerfallEntityBehaviour Caster { get; set; }
+        private readonly float collisionRadius = 0.35f;
+        private readonly float explosionRadius = 5.0f;
+        private readonly float lifespanInSeconds = 8f;
+        private readonly float postImpactLightMultiplier = 1.6f;
         private Vector3 direction;
         private Vector3 collisionPosition;
         private GameObject lightGo;
@@ -52,6 +40,16 @@ namespace FutureShock
         private bool isWaitTick = false;
         private const float grenadeGravity = .05f;
         private bool isImpactBillboardRequested = false;
+        public float Velocity { private get; set; }
+        public float PostImpactFade { get; set; }
+        public DaggerfallUnityItem OriginWeapon { private get; set; }
+        public float HorizontalAdjust { private get; set; }
+        public float VerticalAdjust { private get; set; }
+        public bool IsExplosive { get; set; }
+        public bool IsGrenade { get; set; }
+        public Color LightColor { private get; set; }
+        public Texture2D ProjectileTexture { private get; set; }
+        public DaggerfallEntityBehaviour Caster { get; set; }
 
         public void SetImpactFrames(Texture2D[] frames, Vector2 size)
         {
@@ -148,7 +146,7 @@ namespace FutureShock
                 transform.position += (direction * Velocity) * frameDeltaTime;
                 if (IsGrenade)
                     direction += Vector3.down * (downwardCurve * frameDeltaTime);
-                if (lifespan > LifespanInSeconds)
+                if (lifespan > lifespanInSeconds)
                     Destroy(gameObject);
             }
             else
@@ -174,10 +172,10 @@ namespace FutureShock
                 }
 
                 // Light
-                myLight.range = initialRange * PostImpactLightMultiplier;
+                myLight.range = initialRange * postImpactLightMultiplier;
                 if (!postImpactLightAssigned)
                 {
-                    myLight.intensity = initialIntensity * PostImpactLightMultiplier;
+                    myLight.intensity = initialIntensity * postImpactLightMultiplier;
                     postImpactLightAssigned = true;
                 }
                 else
@@ -212,10 +210,10 @@ namespace FutureShock
                 }
 
                 var displacement = (direction * Velocity) * tickTime;
-                if (Physics.Raycast(collisionPosition, direction, out var hitInfo, displacement.magnitude + CollisionRadius, playerLayerMask))
+                if (Physics.Raycast(collisionPosition, direction, out var hitInfo, displacement.magnitude + collisionRadius, playerLayerMask))
                 {
                     // Place self at meeting point with collider and self-destruct.
-                    collisionPosition = hitInfo.point - direction * CollisionRadius;
+                    collisionPosition = hitInfo.point - direction * collisionRadius;
                     HandleCollision(hitInfo.collider);
                     return;
                 }
@@ -251,7 +249,7 @@ namespace FutureShock
                 DoSplashDamage(collisionPosition);
         }
 
-        void DamageTarget(Collider arrowHitCollider, out FutureShockAttack.ShotResult shotResult)
+        private void DamageTarget(Collider arrowHitCollider, out FutureShockAttack.ShotResult shotResult)
         {
             shotResult = FutureShockAttack.ShotResult.HitOther;
             // Assumes caster is player for now.
@@ -260,15 +258,15 @@ namespace FutureShock
                 shotResult = FutureShockAttack.DealDamage(OriginWeapon, hitTransform, hitTransform.position, goProjectile.transform.forward);
         }
 
-        void DoSplashDamage(Vector3 position)
+        private void DoSplashDamage(Vector3 position)
         {
             transform.position = position;
-            var overlaps = Physics.OverlapSphere(position, ExplosionRadius);
+            var overlaps = Physics.OverlapSphere(position, explosionRadius);
             foreach (var overlap in overlaps)
             {
                 var direction = (overlap.transform.position - position).normalized;
                 var ray = new Ray(position, direction);
-                if (Physics.Raycast(ray, out RaycastHit hit, ExplosionRadius, playerLayerMask))
+                if (Physics.Raycast(ray, out RaycastHit hit, explosionRadius, playerLayerMask))
                     FutureShockAttack.DealDamage(OriginWeapon, hit.transform, hit.point, ray.direction, true);
             }
         }

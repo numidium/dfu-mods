@@ -16,7 +16,7 @@ namespace FutureShock
 {
     public sealed class FutureShockWeapons : MonoBehaviour
     {
-        enum WeaponAnimation
+        private enum WeaponAnimation
         {
             WEAPON01,     // Uzi
             WEAPON02,     // M16
@@ -47,7 +47,7 @@ namespace FutureShock
             */
         }
 
-        enum ImpactAnimation
+        private enum ImpactAnimation
         {
             Bullet,
             Laser,
@@ -56,25 +56,25 @@ namespace FutureShock
             Plasma
         }
 
-        enum ProjectileAnimation
+        private enum ProjectileAnimation
         {
             Grenade
         }
 
-        enum ProjectileModel
+        private enum ProjectileModel
         {
             LASER1,
             LASER2,
         }
 
-        enum ProjectileTexture
+        private enum ProjectileTexture
         {
             Laser,
             Plasma,
             Rocket
         }
 
-        enum WeaponSound
+        private enum WeaponSound
         {
             FASTGUN2,  // Machine Gun
             GRNLAUN2,  // Grenade Launcher
@@ -99,7 +99,7 @@ namespace FutureShock
             //EXPLO4,  // Big explosion, for when big robots die I think.
         }
 
-        enum FSWeapon
+        private enum FSWeapon
         {
             Uzi,
             M16,

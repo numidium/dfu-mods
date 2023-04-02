@@ -25,7 +25,6 @@ namespace HotKeyHUD
             mod = initParams.Mod;
             var go = new GameObject(mod.Title);
             Instance = go.AddComponent<HotKeyHUD>();
-            mod.SaveDataInterface = Instance;
             mod.LoadSettingsCallback = Instance.LoadSettings;
         }
 
@@ -45,6 +44,7 @@ namespace HotKeyHUD
 
         private void Awake()
         {
+            mod.SaveDataInterface = Instance;
             // Load settings that require a restart.
             var settings = mod.GetSettings();
             HotKeyUtil.OverrideMenus = settings.GetValue<bool>("Options", "Override Menus");
