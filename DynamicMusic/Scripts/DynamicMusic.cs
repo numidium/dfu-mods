@@ -450,6 +450,7 @@ namespace DynamicMusic
         public SongFiles[] CourtSongs = _courtSongs;
         public SongFiles[] SneakingSongs = _sneakingSongs;
         #endregion Playlists
+
         private sealed class Playlist
         {
             private readonly List<string> tracks;
@@ -483,7 +484,9 @@ namespace DynamicMusic
                 return tracks[index];
             }
 
+
             public int TrackCount => tracks.Count;
+            public string CurrentTrack => tracks[index];
         }
 
         public static DynamicMusic Instance { get; private set; }
@@ -505,6 +508,7 @@ namespace DynamicMusic
         private SongFiles[] defaultCombatSongs;
         private Playlist combatPlaylist;
         private Playlist[] customPlaylists;
+        private string currentCustomTrack;
         private byte combatPlaylistIndex;
         private string combatMusicPath;
         private bool combatMusicIsMidi;
@@ -574,6 +578,14 @@ namespace DynamicMusic
 
         private void Start()
         {
+            // Remove vanilla song players from memory.
+            var unityObjects = Resources.FindObjectsOfTypeAll(typeof(GameObject));
+            foreach (var unityObject in unityObjects)
+            {
+                if (unityObject.name == "SongPlayer")
+                    Destroy(unityObject);
+            }
+
             gameManager = GameManager.Instance;
             playerEntity = gameManager.PlayerEntity;
             localPlayerGPS = gameManager.PlayerGPS;
@@ -651,7 +663,9 @@ namespace DynamicMusic
                     dynamicSongPlayer.AudioSource.volume = DaggerfallUnity.Settings.MusicVolume;
                     var currentCustomPlaylist = customPlaylists[(int)currentPlaylist] != null ? currentPlaylist : MusicPlaylist.None;
                     // Plays random tracks continuously as long as custom tracks are available for the current context.
-                    if (currentCustomPlaylist != MusicPlaylist.None && !dynamicSongPlayer.AudioSource.isPlaying)
+                    if (currentCustomPlaylist != MusicPlaylist.None &&
+                        (currentCustomTrack != customPlaylists[(int)currentPlaylist].CurrentTrack || // Changed to a different custom track.
+                            !dynamicSongPlayer.AudioSource.isPlaying))                               // Current custom track reached its end.
                     {
                         dynamicSongPlayer.AudioSource.loop = false;
                         var playlist = customPlaylists[(int)currentCustomPlaylist];
@@ -659,6 +673,7 @@ namespace DynamicMusic
                         var path = Path.Combine(Application.streamingAssetsPath, soundDirectory);
                         if (TryLoadSong(path, playlist.GetNextTrack(), out var song))
                         {
+                            currentCustomTrack = playlist.CurrentTrack;
                             audioSource.clip = song;
                             audioSource.Play();
                         }
@@ -668,6 +683,7 @@ namespace DynamicMusic
                     {
                         dynamicSongPlayer.Play(song);
                         dynamicSongPlayer.AudioSource.loop = true;
+                        currentCustomTrack = string.Empty; // Should not be a custom track set if one is not playing.
                     }
 
                     break;
@@ -779,16 +795,6 @@ namespace DynamicMusic
             {
                 currentState = State.FadingOut;
                 combatTaper = 0;
-            }
-
-            var songPlayerGo = GameObject.Find("SongPlayer");
-            if (songPlayerGo)
-            {
-                var songManager = songPlayerGo.GetComponent<SongManager>();
-                songManager.SongPlayer.Stop();
-                songManager.SongPlayer.enabled = false;
-                songManager.enabled = false;
-                Destroy(songPlayerGo);
             }
 
             //currentPlaylist = MusicPlaylist.None; // Clear previous playlist.
