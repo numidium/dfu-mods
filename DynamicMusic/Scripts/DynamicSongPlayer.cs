@@ -20,7 +20,7 @@ namespace DynamicMusic
         const int polyphony = 100;
 
         [NonSerialized, HideInInspector]
-        public bool IsPlaying = false;
+        public bool SequencerIsPlaying = false;
         [NonSerialized, HideInInspector]
         public int CurrentTime = 0;
         [NonSerialized, HideInInspector]
@@ -63,40 +63,17 @@ namespace DynamicMusic
                 // Update status
                 if (midiSequencer != null)
                 {
-                    IsPlaying = midiSequencer.IsPlaying;
+                    SequencerIsPlaying = midiSequencer.IsPlaying;
                     CurrentTime = midiSequencer.CurrentTime;
                     EndTime = midiSequencer.EndTime;
+                    Gain = (AudioSource.volume * 5f);
                 }
             }
             else
             {
-                // Start playing
-                if (isLoading && AudioSource.clip.loadState == AudioDataLoadState.Loaded)
-                {
-                    isLoading = false;
-                    AudioSource.Play();
-                }
-
                 // Update status
-                IsPlaying = AudioSource.isPlaying || isLoading;
                 CurrentTime = AudioSource.timeSamples;
                 EndTime = AudioSource.clip.samples;
-            }
-        }
-
-        void LateUpdate()
-        {
-            if (!isImported)
-            {
-                if (AudioSource.playOnAwake && (midiSequencer != null && !midiSequencer.IsPlaying) && !awakeComplete)
-                {
-                    Play();
-                    awakeComplete = true;
-                }
-                if (AudioSource.loop && !midiSequencer.IsPlaying)
-                {
-                    Play();
-                }
             }
         }
 
@@ -152,9 +129,10 @@ namespace DynamicMusic
             if (midiSequencer.LoadMidi(midiFile))
             {
                 midiSequencer.Play();
+                Song = song;
                 currentMidiName = filename;
                 playEnabled = true;
-                IsPlaying = true;
+                SequencerIsPlaying = true;
             }
         }
 

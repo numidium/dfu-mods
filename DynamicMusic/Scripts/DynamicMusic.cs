@@ -15,7 +15,6 @@ using UnityEngine;
 
 namespace DynamicMusic
 {
-    [RequireComponent(typeof(DynamicSongPlayer))]
     public sealed class DynamicMusic : MonoBehaviour
     {
         #region Playlists
@@ -466,7 +465,7 @@ namespace DynamicMusic
                 }
 
                 // Ensure that 0 doesn't swap with n-1. Otherwise there will be a repeat on re-shuffle.
-                if (tracks[0] == endTrack)
+                if (tracks[0] == endTrack && tracks.Count > 2)
                     (tracks[0], tracks[tracks.Count - 1]) = (tracks[tracks.Count - 1], tracks[0]);
             }
 
@@ -484,9 +483,18 @@ namespace DynamicMusic
                 return tracks[index];
             }
 
+            /*
+            public void Advance()
+            {
+                index = (index + 1) % tracks.Count;
+                if (index == 0)
+                    ShuffleTracks();
+            }
+            */
 
             public int TrackCount => tracks.Count;
             public string CurrentTrack => tracks[index];
+            //public string NextTrack => tracks[(index + 1) % tracks.Count];
         }
 
         public static DynamicMusic Instance { get; private set; }
@@ -500,9 +508,9 @@ namespace DynamicMusic
         private float detectionCheckInterval;
         private float detectionCheckDelta;
         private float fadeOutLength;
-        private float fadeInLength;
+        //private float fadeInLength;
         private float fadeOutTime;
-        private float fadeInTime;
+        //private float fadeInTime;
         private byte combatTaperLength;
         private byte combatTaper;
         private SongFiles[] defaultCombatSongs;
@@ -515,7 +523,7 @@ namespace DynamicMusic
         private float previousTimeSinceStartup;
         private float deltaTime;
         private bool gameLoaded;
-        private MusicPlaylist currentPlaylist = MusicPlaylist.None;
+        private MusicPlaylist currentPlaylist;
         private bool normalSongQueued;
         private State currentState;
         private State lastState;
@@ -530,6 +538,7 @@ namespace DynamicMusic
             mod = initParams.Mod;
             var go = new GameObject(mod.Title);
             Instance = go.AddComponent<DynamicMusic>();
+            Instance.dynamicSongPlayer = go.AddComponent<DynamicSongPlayer>();
             DontDestroyOnLoad(go);
             SaveLoadManager.OnLoad += SaveLoadManager_OnLoad;
             StartGameBehaviour.OnStartGame += StartGameBehaviour_OnStartGame;
@@ -560,11 +569,12 @@ namespace DynamicMusic
                 customPlaylists[i] = new Playlist(trackList);
             }
 
-            dynamicSongPlayer = GetComponent<DynamicSongPlayer>();
             combatMusicPath = Path.Combine(soundPath, baseDirectory, $"{MusicPlaylist.Combat}");
             combatPlaylist = customPlaylists[(int)MusicPlaylist.Combat];
+            combatMusicIsMidi = combatPlaylist == null;
             previousTimeSinceStartup = Time.realtimeSinceStartup;
             gameLoaded = false;
+            currentPlaylist = MusicPlaylist.None;
             Debug.Log("Dynamic Music initialized.");
             mod.IsReady = true;
         }
@@ -592,9 +602,9 @@ namespace DynamicMusic
             playerEnterExit = localPlayerGPS.GetComponent<PlayerEnterExit>();
             playerWeather = localPlayerGPS.GetComponent<PlayerWeather>();
             detectionCheckInterval = 3f;
-            combatTaperLength = 4;
+            combatTaperLength = 2;
             fadeOutLength = 2f;
-            fadeInLength = 3f;
+            //fadeInLength = 3f;
             currentState = State.Normal;
             lastState = currentState;
             currentMusicType = MusicType.Normal;
@@ -655,7 +665,7 @@ namespace DynamicMusic
 
                     if (currentPlaylist == MusicPlaylist.None)
                     {
-                        if (dynamicSongPlayer.IsPlaying)
+                        if (dynamicSongPlayer.AudioSource.isPlaying)
                             dynamicSongPlayer.Stop();
                         break;
                     }
@@ -674,17 +684,27 @@ namespace DynamicMusic
                         if (TryLoadSong(path, playlist.GetNextTrack(), out var song))
                         {
                             currentCustomTrack = playlist.CurrentTrack;
+                            dynamicSongPlayer.Song = SongFiles.song_none;
                             audioSource.clip = song;
-                            audioSource.Play();
                         }
                     }
                     // Loop the music as usual if no custom soundtracks are found.
-                    else if (currentCustomPlaylist == MusicPlaylist.None && GetSong(currentPlaylist, out var song) && song != dynamicSongPlayer.Song /*&& !songManager.enabled*/)
+                    else if (currentCustomPlaylist == MusicPlaylist.None && GetSong(currentPlaylist, out var song) && (song != dynamicSongPlayer.Song || (!dynamicSongPlayer.AudioSource.isPlaying && !dynamicSongPlayer.SequencerIsPlaying)))
                     {
                         dynamicSongPlayer.Play(song);
                         dynamicSongPlayer.AudioSource.loop = true;
                         currentCustomTrack = string.Empty; // Should not be a custom track set if one is not playing.
                     }
+
+                    // Play clip when it is ready.
+                    if (!dynamicSongPlayer.AudioSource.loop && dynamicSongPlayer.AudioSource.clip && dynamicSongPlayer.AudioSource.clip.loadState == AudioDataLoadState.Loaded && !dynamicSongPlayer.AudioSource.isPlaying)
+                    {
+                        dynamicSongPlayer.Stop();
+                        dynamicSongPlayer.AudioSource.Play();
+                    }
+                    // Loop MIDI sequencer.
+                    else if (dynamicSongPlayer.AudioSource.loop && dynamicSongPlayer.AudioSource.clip == null && !dynamicSongPlayer.SequencerIsPlaying)
+                        dynamicSongPlayer.Play();
 
                     break;
                 case State.FadingOut:
@@ -718,24 +738,17 @@ namespace DynamicMusic
                     {
                         // Handle volume/looping.
                         dynamicSongPlayer.AudioSource.volume = DaggerfallUnity.Settings.MusicVolume;
-                        if (combatMusicIsMidi && !dynamicSongPlayer.IsPlaying)
+                        if (combatMusicIsMidi && !dynamicSongPlayer.SequencerIsPlaying)
                             dynamicSongPlayer.Play(); // Loop combat music if MIDI.
                                                       // Start combat music if not playing.
                         dynamicSongPlayer.AudioSource.loop = true;
                         if (lastState != State.Combat)
                         {
                             var songFile = defaultCombatSongs[combatPlaylistIndex % defaultCombatSongs.Length];
-                            if (combatPlaylist != null && TryLoadSong(combatMusicPath, combatPlaylist.GetNextTrack(), out var song))
-                            {
+                            if (!combatMusicIsMidi && TryLoadSong(combatMusicPath, combatPlaylist.GetNextTrack(), out var song))
                                 dynamicSongPlayer.AudioSource.clip = song;
-                                dynamicSongPlayer.AudioSource.Play();
-                                combatMusicIsMidi = false;
-                            }
-                            else
-                            {
+                            else if (combatMusicIsMidi)
                                 dynamicSongPlayer.Play(songFile);
-                                combatMusicIsMidi = dynamicSongPlayer.AudioSource.clip == null;
-                            }
 
                             var playlistCount = defaultCombatSongs.Length;
                             dynamicSongPlayer.Song = songFile;
@@ -744,9 +757,18 @@ namespace DynamicMusic
                             lastState = State.Combat;
                         }
 
+                        if (dynamicSongPlayer.AudioSource.clip.loadState == AudioDataLoadState.Loaded && !dynamicSongPlayer.AudioSource.isPlaying)
+                        {
+                            dynamicSongPlayer.Stop();
+                            dynamicSongPlayer.AudioSource.Play();
+                        }
+
                         // Fade out on arrest.
                         if (playerEntity.Arrested)
+                        {
                             currentState = State.FadingOut;
+                            combatTaper = 0;
+                        }
                     }
 
                     break;
@@ -816,7 +838,6 @@ namespace DynamicMusic
 
         private void StopCombatMusic()
         {
-            fadeOutTime = 0f;
             dynamicSongPlayer.AudioSource.loop = false;
             dynamicSongPlayer.Stop(); // stop midi in case it's playing
             combatMusicIsMidi = false;
@@ -1119,6 +1140,8 @@ namespace DynamicMusic
         private void OnDeath(DaggerfallEntity entity)
         {
             // Fade out on death.
+            if (currentState == State.Combat)
+                combatTaper = 0;
             currentState = State.FadingOut;
             currentPlaylist = MusicPlaylist.None;
             gameLoaded = false;
