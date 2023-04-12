@@ -20,7 +20,7 @@ namespace DynamicMusic
         const int polyphony = 100;
 
         [NonSerialized, HideInInspector]
-        public bool SequencerIsPlaying = false;
+        public bool IsSequencerPlaying = false;
         [NonSerialized, HideInInspector]
         public int CurrentTime = 0;
         [NonSerialized, HideInInspector]
@@ -34,7 +34,8 @@ namespace DynamicMusic
         public SongFiles Song = SongFiles.song_none;
         public AudioSource AudioSource { get; private set; }
         public bool IsImported { get; set; }
-        public bool IsPlaying => AudioSource.isPlaying || (AudioSource.clip && AudioSource.clip.loadState == AudioDataLoadState.Loading) || (midiSequencer != null && midiSequencer.IsPlaying);
+        public bool IsAudioSourcePlaying => AudioSource.isPlaying || (AudioSource.clip && AudioSource.clip.loadState == AudioDataLoadState.Loading);
+        public bool IsPlaying => IsAudioSourcePlaying || (midiSequencer != null && midiSequencer.IsPlaying);
         public bool IsStoppedClip => AudioSource.clip && AudioSource.clip.loadState == AudioDataLoadState.Loaded && !AudioSource.isPlaying;
 
         Synthesizer midiSynthesizer = null;
@@ -65,7 +66,7 @@ namespace DynamicMusic
                 // Update status
                 if (midiSequencer != null)
                 {
-                    SequencerIsPlaying = midiSequencer.IsPlaying;
+                    IsSequencerPlaying = midiSequencer.IsPlaying;
                     CurrentTime = midiSequencer.CurrentTime;
                     EndTime = midiSequencer.EndTime;
                     Gain = (AudioSource.volume * 5f);
@@ -134,7 +135,7 @@ namespace DynamicMusic
                 Song = song;
                 currentMidiName = filename;
                 playEnabled = true;
-                SequencerIsPlaying = true;
+                IsSequencerPlaying = true;
             }
         }
 

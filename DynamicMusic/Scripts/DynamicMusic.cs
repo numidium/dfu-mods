@@ -666,6 +666,7 @@ namespace DynamicMusic
                         break;
                     }
 
+                    // Stop music if no playlist found.
                     if (currentPlaylist == MusicPlaylist.None)
                     {
                         if (dynamicSongPlayer.AudioSource.isPlaying)
@@ -675,8 +676,9 @@ namespace DynamicMusic
 
                     dynamicSongPlayer.AudioSource.volume = DaggerfallUnity.Settings.MusicVolume;
                     var currentCustomPlaylist = customPlaylists[(int)currentPlaylist] != null ? currentPlaylist : MusicPlaylist.None;
+                    var isUsingCustomPlaylist = currentCustomPlaylist != MusicPlaylist.None;
                     // Plays random tracks continuously as long as custom tracks are available for the current context.
-                    if (currentCustomPlaylist != MusicPlaylist.None &&
+                    if (isUsingCustomPlaylist &&
                         (currentCustomTrack != customPlaylists[(int)currentPlaylist].CurrentTrack || customTrackQueued)) // Changed to a different custom track.
                     {
                         dynamicSongPlayer.AudioSource.loop = false;
@@ -694,23 +696,26 @@ namespace DynamicMusic
                     // Loop the music as usual if no custom soundtracks are found.
                     else if (currentCustomPlaylist == MusicPlaylist.None && GetSong(currentPlaylist, out var song) && (song != dynamicSongPlayer.Song || !dynamicSongPlayer.IsPlaying))
                     {
-                        dynamicSongPlayer.Play(song);
+                        dynamicSongPlayer.Play(song); // Imported tracks start loading here.
                         dynamicSongPlayer.AudioSource.loop = true;
                         currentCustomTrack = string.Empty; // Should not be a custom track set if one is not playing.
                     }
 
-                    // Play clip when it is ready.
-                    if ((currentCustomPlaylist != MusicPlaylist.None || dynamicSongPlayer.IsImported) && dynamicSongPlayer.AudioSource.clip && !dynamicSongPlayer.IsPlaying)
+                    // Wait until clip is ready to play from audio source.
+                    if (dynamicSongPlayer.IsImported || isUsingCustomPlaylist)
                     {
-                        dynamicSongPlayer.StopSequencer();
-                        dynamicSongPlayer.AudioSource.Play();
+                        if (!dynamicSongPlayer.IsAudioSourcePlaying)
+                        {
+                            dynamicSongPlayer.StopSequencer();
+                            dynamicSongPlayer.AudioSource.Play();
+                        }
                     }
-                    // Loop MIDI sequencer.
-                    else if (dynamicSongPlayer.AudioSource.loop && dynamicSongPlayer.AudioSource.clip == null && !dynamicSongPlayer.SequencerIsPlaying)
+                    // Loop if using MIDI sequencer.
+                    else if (dynamicSongPlayer.AudioSource.loop && dynamicSongPlayer.AudioSource.clip == null && !dynamicSongPlayer.IsSequencerPlaying)
                         dynamicSongPlayer.Play();
 
                     // Queue next custom track when at the end of the current one.
-                    if (currentCustomPlaylist != MusicPlaylist.None && dynamicSongPlayer.IsStoppedClip)
+                    if (isUsingCustomPlaylist && dynamicSongPlayer.IsStoppedClip)
                         customTrackQueued = true;
 
                     break;
@@ -747,7 +752,7 @@ namespace DynamicMusic
                     {
                         // Handle volume/looping.
                         dynamicSongPlayer.AudioSource.volume = DaggerfallUnity.Settings.MusicVolume;
-                        if (combatMusicIsMidi && !dynamicSongPlayer.SequencerIsPlaying)
+                        if (combatMusicIsMidi && !dynamicSongPlayer.IsSequencerPlaying)
                             dynamicSongPlayer.Play(); // Loop combat music if MIDI.
                                                       // Start combat music if not playing.
                         dynamicSongPlayer.AudioSource.loop = true;
