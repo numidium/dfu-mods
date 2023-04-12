@@ -33,6 +33,9 @@ namespace DynamicMusic
         public string SongFolder = "Songs/";
         public SongFiles Song = SongFiles.song_none;
         public AudioSource AudioSource { get; private set; }
+        public bool IsImported { get; set; }
+        public bool IsPlaying => AudioSource.isPlaying || (AudioSource.clip && AudioSource.clip.loadState == AudioDataLoadState.Loading) || (midiSequencer != null && midiSequencer.IsPlaying);
+        public bool IsStoppedClip => AudioSource.clip && AudioSource.clip.loadState == AudioDataLoadState.Loaded && !AudioSource.isPlaying;
 
         Synthesizer midiSynthesizer = null;
         MidiFileSequencer midiSequencer = null;
@@ -44,7 +47,6 @@ namespace DynamicMusic
         bool playEnabled = false;
         bool awakeComplete = false;
         float oldGain;
-        bool isImported;
         bool isLoading;
 
         void Start()
@@ -58,7 +60,7 @@ namespace DynamicMusic
 
         void Update()
         {
-            if (!isImported)
+            if (!IsImported)
             {
                 // Update status
                 if (midiSequencer != null)
@@ -110,7 +112,7 @@ namespace DynamicMusic
 
             // Import custom song
             AudioClip clip;
-            if (isImported = SoundReplacement.TryImportSong(song, out clip))
+            if (IsImported = SoundReplacement.TryImportSong(song, out clip))
             {
                 Song = song;
                 AudioSource.clip = clip;
@@ -145,14 +147,19 @@ namespace DynamicMusic
                 return;
 
             // Reset audiosource clip
-            if (isImported)
+            if (IsImported)
             {
-                isImported = false;
+                IsImported = false;
                 AudioSource.Stop();
                 AudioSource.clip = null;
                 AudioSource.Play();
             }
 
+            StopSequencer();
+        }
+
+        public void StopSequencer()
+        {
             // Stop if playing a song
             if (midiSequencer.IsPlaying)
             {
@@ -292,7 +299,7 @@ namespace DynamicMusic
                 return "Synthesizer not ready.";
 
             string final;
-            if (isImported)
+            if (IsImported)
             {
                 if (isLoading)
                     final = string.Format("Loading song '{0}'", Song);

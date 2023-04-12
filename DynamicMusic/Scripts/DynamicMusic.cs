@@ -456,6 +456,8 @@ namespace DynamicMusic
             private int index = 0;
             private void ShuffleTracks()
             {
+                if (tracks.Count < 3)
+                    return;
                 var endTrack = tracks[tracks.Count - 1];
                 // Fisher-Yates shuffle
                 for (var i = tracks.Count - 1; i > 0; i--)
@@ -465,7 +467,7 @@ namespace DynamicMusic
                 }
 
                 // Ensure that 0 doesn't swap with n-1. Otherwise there will be a repeat on re-shuffle.
-                if (tracks[0] == endTrack && tracks.Count > 2)
+                if (tracks[0] == endTrack)
                     (tracks[0], tracks[tracks.Count - 1]) = (tracks[tracks.Count - 1], tracks[0]);
             }
 
@@ -517,6 +519,7 @@ namespace DynamicMusic
         private Playlist combatPlaylist;
         private Playlist[] customPlaylists;
         private string currentCustomTrack;
+        private bool customTrackQueued;
         private byte combatPlaylistIndex;
         private string combatMusicPath;
         private bool combatMusicIsMidi;
@@ -674,8 +677,7 @@ namespace DynamicMusic
                     var currentCustomPlaylist = customPlaylists[(int)currentPlaylist] != null ? currentPlaylist : MusicPlaylist.None;
                     // Plays random tracks continuously as long as custom tracks are available for the current context.
                     if (currentCustomPlaylist != MusicPlaylist.None &&
-                        (currentCustomTrack != customPlaylists[(int)currentPlaylist].CurrentTrack || // Changed to a different custom track.
-                            !dynamicSongPlayer.AudioSource.isPlaying))                               // Current custom track reached its end.
+                        (currentCustomTrack != customPlaylists[(int)currentPlaylist].CurrentTrack || customTrackQueued)) // Changed to a different custom track.
                     {
                         dynamicSongPlayer.AudioSource.loop = false;
                         var playlist = customPlaylists[(int)currentCustomPlaylist];
@@ -686,10 +688,11 @@ namespace DynamicMusic
                             currentCustomTrack = playlist.CurrentTrack;
                             dynamicSongPlayer.Song = SongFiles.song_none;
                             audioSource.clip = song;
+                            customTrackQueued = false;
                         }
                     }
                     // Loop the music as usual if no custom soundtracks are found.
-                    else if (currentCustomPlaylist == MusicPlaylist.None && GetSong(currentPlaylist, out var song) && (song != dynamicSongPlayer.Song || (!dynamicSongPlayer.AudioSource.isPlaying && !dynamicSongPlayer.SequencerIsPlaying)))
+                    else if (currentCustomPlaylist == MusicPlaylist.None && GetSong(currentPlaylist, out var song) && (song != dynamicSongPlayer.Song || !dynamicSongPlayer.IsPlaying))
                     {
                         dynamicSongPlayer.Play(song);
                         dynamicSongPlayer.AudioSource.loop = true;
@@ -697,14 +700,18 @@ namespace DynamicMusic
                     }
 
                     // Play clip when it is ready.
-                    if (!dynamicSongPlayer.AudioSource.loop && dynamicSongPlayer.AudioSource.clip && dynamicSongPlayer.AudioSource.clip.loadState == AudioDataLoadState.Loaded && !dynamicSongPlayer.AudioSource.isPlaying)
+                    if ((currentCustomPlaylist != MusicPlaylist.None || dynamicSongPlayer.IsImported) && dynamicSongPlayer.AudioSource.clip && !dynamicSongPlayer.IsPlaying)
                     {
-                        dynamicSongPlayer.Stop();
+                        dynamicSongPlayer.StopSequencer();
                         dynamicSongPlayer.AudioSource.Play();
                     }
                     // Loop MIDI sequencer.
                     else if (dynamicSongPlayer.AudioSource.loop && dynamicSongPlayer.AudioSource.clip == null && !dynamicSongPlayer.SequencerIsPlaying)
                         dynamicSongPlayer.Play();
+
+                    // Queue next custom track when at the end of the current one.
+                    if (currentCustomPlaylist != MusicPlaylist.None && dynamicSongPlayer.IsStoppedClip)
+                        customTrackQueued = true;
 
                     break;
                 case State.FadingOut:
@@ -730,6 +737,8 @@ namespace DynamicMusic
                             fadeOutTime = 0f;
                             currentMusicType = MusicType.Normal;
                             currentState = State.Normal;
+                            if (customPlaylists[(int)currentPlaylist] != null)
+                                customTrackQueued = true;
                         }
                     }
 
@@ -759,7 +768,7 @@ namespace DynamicMusic
 
                         if (dynamicSongPlayer.AudioSource.clip.loadState == AudioDataLoadState.Loaded && !dynamicSongPlayer.AudioSource.isPlaying)
                         {
-                            dynamicSongPlayer.Stop();
+                            dynamicSongPlayer.StopSequencer();
                             dynamicSongPlayer.AudioSource.Play();
                         }
 
@@ -839,7 +848,7 @@ namespace DynamicMusic
         private void StopCombatMusic()
         {
             dynamicSongPlayer.AudioSource.loop = false;
-            dynamicSongPlayer.Stop(); // stop midi in case it's playing
+            dynamicSongPlayer.StopSequencer(); // stop midi in case it's playing
             combatMusicIsMidi = false;
             dynamicSongPlayer.AudioSource.Stop();
         }
