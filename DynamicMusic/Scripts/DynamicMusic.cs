@@ -485,18 +485,8 @@ namespace DynamicMusic
                 return tracks[index];
             }
 
-            /*
-            public void Advance()
-            {
-                index = (index + 1) % tracks.Count;
-                if (index == 0)
-                    ShuffleTracks();
-            }
-            */
-
             public int TrackCount => tracks.Count;
             public string CurrentTrack => tracks[index];
-            //public string NextTrack => tracks[(index + 1) % tracks.Count];
         }
 
         public static DynamicMusic Instance { get; private set; }
@@ -552,7 +542,7 @@ namespace DynamicMusic
             //var settings = mod.GetSettings();
             //LoadSettings(settings, new ModSettingsChange());
             var soundPath = Path.Combine(Application.streamingAssetsPath, soundDirectory);
-            customPlaylists = new Playlist[(int)MusicPlaylist.None];
+            customPlaylists = new Playlist[(int)MusicPlaylist.None + 1];
             for (var i = 0; i < customPlaylists.Length; i++)
             {
                 var musicPath = Path.Combine(soundPath, baseDirectory, $"{(MusicPlaylist)i}");
@@ -667,7 +657,7 @@ namespace DynamicMusic
                     // Stop music if no playlist found.
                     if (currentPlaylist == MusicPlaylist.None)
                     {
-                        if (dynamicSongPlayer.AudioSource.isPlaying)
+                        if (dynamicSongPlayer.IsPlaying)
                             dynamicSongPlayer.Stop();
                         break;
                     }
@@ -800,8 +790,6 @@ namespace DynamicMusic
                 currentState = State.FadingOut;
                 combatTaper = 0;
             }
-
-            //currentPlaylist = MusicPlaylist.None; // Clear previous playlist.
         }
 
         private MusicPlaylist GetMusicPlaylist(PlayerGPS localPlayerGPS, PlayerEnterExit playerEnterExit, PlayerWeather playerWeather)

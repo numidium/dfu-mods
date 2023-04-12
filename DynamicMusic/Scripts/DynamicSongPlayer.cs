@@ -133,6 +133,7 @@ namespace DynamicMusic
                 AudioSource.Play();
             }
 
+            Song = SongFiles.song_none;
             StopSequencer();
         }
 

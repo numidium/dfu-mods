@@ -258,8 +258,7 @@ namespace FutureShock
             projectile.VerticalAdjust = VertProjAdjust;
             projectile.Velocity = ProjVelocity;
             projectile.LightColor = ProjLightColor;
-            if (ProjPostImpactFade > 0f)
-                projectile.PostImpactFade = ProjPostImpactFade;
+            projectile.PostImpactFade = ProjPostImpactFade;
         }
 
         private void CreateImpactBillboard(Vector3 point)

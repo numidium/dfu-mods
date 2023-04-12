@@ -679,6 +679,7 @@ namespace FutureShock
                     fpsGun.IsGrenadeLauncher = false;
                     fpsGun.ProjVelocity = 45f;
                     fpsGun.ProjLightColor = Color.red;
+                    fpsGun.ProjPostImpactFade = 2f;
                     break;
                 case FSWeapon.HeavyLaser:
                     fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON08];
@@ -699,6 +700,7 @@ namespace FutureShock
                     fpsGun.IsGrenadeLauncher = false;
                     fpsGun.ProjVelocity = 45f;
                     fpsGun.ProjLightColor = Color.red;
+                    fpsGun.ProjPostImpactFade = 2f;
                     break;
                 /*
                 case FSWeapon.PlasmaPistol:
@@ -732,6 +734,7 @@ namespace FutureShock
                     fpsGun.IsGrenadeLauncher = false;
                     fpsGun.ProjVelocity = 45f;
                     fpsGun.ProjLightColor = Color.cyan;
+                    fpsGun.ProjPostImpactFade = 1.7f;
                     break;
                 case FSWeapon.HeavyPlasma:
                     fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON11];
@@ -752,6 +755,7 @@ namespace FutureShock
                     fpsGun.IsGrenadeLauncher = false;
                     fpsGun.ProjVelocity = 45f;
                     fpsGun.ProjLightColor = Color.cyan;
+                    fpsGun.ProjPostImpactFade = 1.7f;
                     break;
             }
         }
