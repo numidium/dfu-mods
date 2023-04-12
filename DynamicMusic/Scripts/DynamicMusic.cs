@@ -521,7 +521,6 @@ namespace DynamicMusic
         private string currentCustomTrack;
         private bool customTrackQueued;
         private byte combatPlaylistIndex;
-        private string combatMusicPath;
         private bool combatMusicIsMidi;
         private float previousTimeSinceStartup;
         private float deltaTime;
@@ -572,7 +571,6 @@ namespace DynamicMusic
                 customPlaylists[i] = new Playlist(trackList);
             }
 
-            combatMusicPath = Path.Combine(soundPath, baseDirectory, $"{MusicPlaylist.Combat}");
             combatPlaylist = customPlaylists[(int)MusicPlaylist.Combat];
             combatMusicIsMidi = combatPlaylist == null;
             previousTimeSinceStartup = Time.realtimeSinceStartup;
@@ -681,38 +679,18 @@ namespace DynamicMusic
                     if (isUsingCustomPlaylist &&
                         (currentCustomTrack != customPlaylists[(int)currentPlaylist].CurrentTrack || customTrackQueued)) // Changed to a different custom track.
                     {
-                        dynamicSongPlayer.AudioSource.loop = false;
                         var playlist = customPlaylists[(int)currentCustomPlaylist];
-                        var audioSource = dynamicSongPlayer.AudioSource;
-                        var path = Path.Combine(Application.streamingAssetsPath, soundDirectory);
-                        if (TryLoadSong(path, playlist.GetNextTrack(), out var song))
-                        {
-                            currentCustomTrack = playlist.CurrentTrack;
-                            dynamicSongPlayer.Song = SongFiles.song_none;
-                            audioSource.clip = song;
-                            customTrackQueued = false;
-                        }
+                        dynamicSongPlayer.Play(playlist.GetNextTrack());
+                        currentCustomTrack = playlist.CurrentTrack;
+                        dynamicSongPlayer.Song = SongFiles.song_none;
+                        customTrackQueued = false;
                     }
                     // Loop the music as usual if no custom soundtracks are found.
                     else if (currentCustomPlaylist == MusicPlaylist.None && GetSong(currentPlaylist, out var song) && (song != dynamicSongPlayer.Song || !dynamicSongPlayer.IsPlaying))
                     {
                         dynamicSongPlayer.Play(song); // Imported tracks start loading here.
-                        dynamicSongPlayer.AudioSource.loop = true;
                         currentCustomTrack = string.Empty; // Should not be a custom track set if one is not playing.
                     }
-
-                    // Wait until clip is ready to play from audio source.
-                    if (dynamicSongPlayer.IsImported || isUsingCustomPlaylist)
-                    {
-                        if (!dynamicSongPlayer.IsAudioSourcePlaying)
-                        {
-                            dynamicSongPlayer.StopSequencer();
-                            dynamicSongPlayer.AudioSource.Play();
-                        }
-                    }
-                    // Loop if using MIDI sequencer.
-                    else if (dynamicSongPlayer.AudioSource.loop && dynamicSongPlayer.AudioSource.clip == null && !dynamicSongPlayer.IsSequencerPlaying)
-                        dynamicSongPlayer.Play();
 
                     // Queue next custom track when at the end of the current one.
                     if (isUsingCustomPlaylist && dynamicSongPlayer.IsStoppedClip)
@@ -738,7 +716,7 @@ namespace DynamicMusic
                         // End fade when time elapsed.
                         if (fadeOutTime >= fadeOutLength)
                         {
-                            StopCombatMusic();
+                            combatMusicIsMidi = false;
                             fadeOutTime = 0f;
                             currentMusicType = MusicType.Normal;
                             currentState = State.Normal;
@@ -752,15 +730,11 @@ namespace DynamicMusic
                     {
                         // Handle volume/looping.
                         dynamicSongPlayer.AudioSource.volume = DaggerfallUnity.Settings.MusicVolume;
-                        if (combatMusicIsMidi && !dynamicSongPlayer.IsSequencerPlaying)
-                            dynamicSongPlayer.Play(); // Loop combat music if MIDI.
-                                                      // Start combat music if not playing.
-                        dynamicSongPlayer.AudioSource.loop = true;
                         if (lastState != State.Combat)
                         {
                             var songFile = defaultCombatSongs[combatPlaylistIndex % defaultCombatSongs.Length];
-                            if (!combatMusicIsMidi && TryLoadSong(combatMusicPath, combatPlaylist.GetNextTrack(), out var song))
-                                dynamicSongPlayer.AudioSource.clip = song;
+                            if (!combatMusicIsMidi)
+                                dynamicSongPlayer.Play(combatPlaylist.GetNextTrack());
                             else if (combatMusicIsMidi)
                                 dynamicSongPlayer.Play(songFile);
 
@@ -769,12 +743,6 @@ namespace DynamicMusic
                             combatPlaylistIndex += (byte)UnityEngine.Random.Range(1, playlistCount - 1);
                             combatPlaylistIndex %= (byte)playlistCount;
                             lastState = State.Combat;
-                        }
-
-                        if (dynamicSongPlayer.AudioSource.clip.loadState == AudioDataLoadState.Loaded && !dynamicSongPlayer.AudioSource.isPlaying)
-                        {
-                            dynamicSongPlayer.StopSequencer();
-                            dynamicSongPlayer.AudioSource.Play();
                         }
 
                         // Fade out on arrest.
@@ -834,28 +802,6 @@ namespace DynamicMusic
             }
 
             //currentPlaylist = MusicPlaylist.None; // Clear previous playlist.
-        }
-
-        private bool TryLoadSong(string soundPath, string name, out AudioClip audioClip)
-        {
-            string path = Path.Combine(soundPath, name);
-            if (File.Exists(path))
-            {
-                var www = new WWW("file://" + path); // the "non-deprecated" class gives me compiler errors so it can suck it
-                audioClip = www.GetAudioClip(true, true);
-                return audioClip != null;
-            }
-
-            audioClip = null;
-            return false;
-        }
-
-        private void StopCombatMusic()
-        {
-            dynamicSongPlayer.AudioSource.loop = false;
-            dynamicSongPlayer.StopSequencer(); // stop midi in case it's playing
-            combatMusicIsMidi = false;
-            dynamicSongPlayer.AudioSource.Stop();
         }
 
         private MusicPlaylist GetMusicPlaylist(PlayerGPS localPlayerGPS, PlayerEnterExit playerEnterExit, PlayerWeather playerWeather)

@@ -21,10 +21,6 @@ namespace DynamicMusic
 
         [NonSerialized, HideInInspector]
         public bool IsSequencerPlaying = false;
-        [NonSerialized, HideInInspector]
-        public int CurrentTime = 0;
-        [NonSerialized, HideInInspector]
-        public int EndTime = 0;
 
         public bool ShowDebugString = false;
 
@@ -36,19 +32,16 @@ namespace DynamicMusic
         public bool IsImported { get; set; }
         public bool IsAudioSourcePlaying => AudioSource.isPlaying || (AudioSource.clip && AudioSource.clip.loadState == AudioDataLoadState.Loading);
         public bool IsPlaying => IsAudioSourcePlaying || (midiSequencer != null && midiSequencer.IsPlaying);
-        public bool IsStoppedClip => AudioSource.clip && AudioSource.clip.loadState == AudioDataLoadState.Loaded && !AudioSource.isPlaying;
-
+        public bool IsStoppedClip => clipStarted && AudioSource.clip && AudioSource.clip.loadState == AudioDataLoadState.Loaded && !AudioSource.isPlaying;
         Synthesizer midiSynthesizer = null;
         MidiFileSequencer midiSequencer = null;
-        string currentMidiName;
         float[] sampleBuffer = new float[0];
         int channels = 0;
         int bufferLength = 0;
         int numBuffers = 0;
         bool playEnabled = false;
-        bool awakeComplete = false;
         float oldGain;
-        bool isLoading;
+        bool clipStarted;
 
         void Start()
         {
@@ -61,34 +54,26 @@ namespace DynamicMusic
 
         void Update()
         {
+            // MIDI
             if (!IsImported)
             {
-                // Update status
                 if (midiSequencer != null)
                 {
                     IsSequencerPlaying = midiSequencer.IsPlaying;
-                    CurrentTime = midiSequencer.CurrentTime;
-                    EndTime = midiSequencer.EndTime;
                     Gain = (AudioSource.volume * 5f);
+                    if (Song != SongFiles.song_none && !midiSequencer.IsPlaying)
+                        PlaySequencer(Song);
                 }
             }
+            // Non-MIDI
             else
             {
-                // Update status
-                CurrentTime = AudioSource.timeSamples;
-                EndTime = AudioSource.clip.samples;
-            }
-        }
-
-        void OnGUI()
-        {
-            if (Event.current.type.Equals(EventType.Repaint) && ShowDebugString)
-            {
-                GUIStyle style = new GUIStyle();
-                style.normal.textColor = Color.black;
-                string text = GetDebugString();
-                GUI.Label(new Rect(10, 50, 800, 24), text, style);
-                GUI.Label(new Rect(8, 48, 800, 24), text);
+                if (!IsAudioSourcePlaying)
+                {
+                    StopSequencer();
+                    AudioSource.Play();
+                    clipStarted = true;
+                }
             }
         }
 
@@ -107,35 +92,28 @@ namespace DynamicMusic
         {
             if (!InitSynth())
                 return;
-
             // Stop if playing another song
             Stop();
-
             // Import custom song
-            AudioClip clip;
-            if (IsImported = SoundReplacement.TryImportSong(song, out clip))
+            if (IsImported = SoundReplacement.TryImportSong(song, out var clip))
             {
                 Song = song;
                 AudioSource.clip = clip;
-                isLoading = true;
-                return;
+                clipStarted = false;
             }
+            else
+                PlaySequencer(song);
+            AudioSource.loop = true;
+        }
 
-            // Load song data
-            string filename = EnumToFilename(song);
-            byte[] songData = LoadSong(filename);
-            if (songData == null)
-                return;
-
-            // Create song
-            MidiFile midiFile = new MidiFile(new MyMemoryFile(songData, filename));
-            if (midiSequencer.LoadMidi(midiFile))
+        public void Play(string track)
+        {
+            Stop();
+            if (IsImported = TryLoadSong(track, out var song))
             {
-                midiSequencer.Play();
-                Song = song;
-                currentMidiName = filename;
-                playEnabled = true;
-                IsSequencerPlaying = true;
+                AudioSource.clip = song;
+                AudioSource.loop = false;
+                clipStarted = false;
             }
         }
 
@@ -146,7 +124,6 @@ namespace DynamicMusic
         {
             if (!InitSynth())
                 return;
-
             // Reset audiosource clip
             if (IsImported)
             {
@@ -273,6 +250,25 @@ namespace DynamicMusic
             return null;
         }
 
+        private void PlaySequencer(SongFiles song)
+        {
+            // Load song data
+            string filename = EnumToFilename(song);
+            byte[] songData = LoadSong(filename);
+            if (songData == null)
+                return;
+
+            // Create song
+            MidiFile midiFile = new MidiFile(new MyMemoryFile(songData, filename));
+            if (midiSequencer.LoadMidi(midiFile))
+            {
+                midiSequencer.Play();
+                Song = song;
+                playEnabled = true;
+                IsSequencerPlaying = true;
+            }
+        }
+
         private byte[] LoadSong(string filename)
         {
             // Get custom midi song
@@ -292,29 +288,6 @@ namespace DynamicMusic
             return null;
         }
 
-        private string GetDebugString()
-        {
-            if (midiSequencer == null)
-                return "Sequencer not ready.";
-            if (midiSynthesizer == null)
-                return "Synthesizer not ready.";
-
-            string final;
-            if (IsImported)
-            {
-                if (isLoading)
-                    final = string.Format("Loading song '{0}'", Song);
-                else
-                    final = string.Format("Playing song '{0}' at position {1}/{2}", Song, AudioSource.timeSamples, AudioSource.clip.samples);
-            }
-            else if (midiSequencer.IsPlaying)
-                final = string.Format("Playing song '{0}' at position {1}/{2}", currentMidiName, midiSequencer.CurrentTime, midiSequencer.EndTime);
-            else
-                final = string.Format("Song '{0}' ready. Not playing.", currentMidiName);
-
-            return final;
-        }
-
         private void DaggerfallVidPlayerWindow_OnVideoStart()
         {
             // Mute music while video is playing
@@ -326,6 +299,19 @@ namespace DynamicMusic
         {
             // Restore music to previous level
             Gain = oldGain;
+        }
+
+        private bool TryLoadSong(string path, out AudioClip audioClip)
+        {
+            if (File.Exists(path))
+            {
+                var www = new WWW("file://" + path); // the "non-deprecated" class gives me compiler errors so it can suck it
+                audioClip = www.GetAudioClip(true, true);
+                return audioClip != null;
+            }
+
+            audioClip = null;
+            return false;
         }
 
         #endregion
