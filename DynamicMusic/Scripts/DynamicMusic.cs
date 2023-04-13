@@ -706,7 +706,6 @@ namespace DynamicMusic
                         // End fade when time elapsed.
                         if (fadeOutTime >= fadeOutLength)
                         {
-                            combatMusicIsMidi = false;
                             fadeOutTime = 0f;
                             currentMusicType = MusicType.Normal;
                             currentState = State.Normal;
