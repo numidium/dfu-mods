@@ -516,7 +516,6 @@ namespace DynamicMusic
         private float deltaTime;
         private bool gameLoaded;
         private MusicPlaylist currentPlaylist;
-        private bool normalSongQueued;
         private State currentState;
         private State lastState;
         private MusicType currentMusicType;
@@ -676,15 +675,21 @@ namespace DynamicMusic
                         customTrackQueued = false;
                     }
                     // Loop the music as usual if no custom soundtracks are found.
-                    else if (currentCustomPlaylist == MusicPlaylist.None && GetSong(currentPlaylist, out var song) && (song != dynamicSongPlayer.Song || !dynamicSongPlayer.IsPlaying))
+                    else if (currentCustomPlaylist == MusicPlaylist.None)
                     {
-                        dynamicSongPlayer.Play(song); // Imported tracks start loading here.
+                        // Imported tracks start loading here.
+                        if (previousPlaylist == currentPlaylist && !dynamicSongPlayer.IsPlaying)
+                            dynamicSongPlayer.Play();
+                        else if (previousPlaylist != currentPlaylist || lastState != State.Normal)
+                            dynamicSongPlayer.Play(GetSong(currentPlaylist));
+
                         currentCustomTrack = string.Empty; // Should not be a custom track set if one is not playing.
                     }
 
                     // Queue next custom track when at the end of the current one.
                     if (isUsingCustomPlaylist && dynamicSongPlayer.IsStoppedClip)
                         customTrackQueued = true;
+                    lastState = State.Normal;
 
                     break;
                 case State.FadingOut:
@@ -714,6 +719,8 @@ namespace DynamicMusic
                         }
                     }
 
+                    lastState = State.FadingOut;
+
                     break;
                 case State.Combat:
                     {
@@ -741,6 +748,8 @@ namespace DynamicMusic
                             combatTaper = 0;
                         }
                     }
+
+                    lastState = State.Combat;
 
                     break;
             }
@@ -932,7 +941,7 @@ namespace DynamicMusic
         }
 
         // Adapted from SongManager.cs. Credit to Interkarma.
-        private static bool GetSong(MusicPlaylist musicPlaylist, out SongFiles song)
+        private static SongFiles GetSong(MusicPlaylist musicPlaylist)
         { 
             var index = 0;
             // Map playlist enum to SongManager playlist.
@@ -963,6 +972,9 @@ namespace DynamicMusic
                 case MusicPlaylist.Tavern:
                     currentPlaylist = Instance.TavernSongs;
                     break;
+                case MusicPlaylist.Shop:
+                    currentPlaylist = Instance.ShopSongs;
+                    break;
                 case MusicPlaylist.DungeonInterior:
                     currentPlaylist = Instance.DungeonInteriorSongs;
                     break;
@@ -988,8 +1000,7 @@ namespace DynamicMusic
 
             if (currentPlaylist == null)
             {
-                song = SongFiles.song_none;
-                return false;
+                return SongFiles.song_none;
             }
 
             // General MIDI song selection
@@ -1045,8 +1056,7 @@ namespace DynamicMusic
                 }
             }
 
-            song = currentPlaylist[index];
-            return true;
+            return currentPlaylist[index];
         }
 
         // Load new location's song player when player moves into it.
