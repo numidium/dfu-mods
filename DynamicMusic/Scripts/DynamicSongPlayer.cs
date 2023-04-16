@@ -1,4 +1,5 @@
-// Adapted from SongPlayer.cs. Credit to Interkarma for original file.
+// Adapted from SongPlayer.cs.
+// Original Author: Interkarma.
 using UnityEngine;
 using System;
 using System.IO;
@@ -150,13 +151,11 @@ namespace DynamicMusic
             }
         }
 
-        #region Private Methods
-
         private bool InitSynth()
         {
             if (AudioSource == null)
             {
-                DaggerfallUnity.LogMessage("DaggerfallSongPlayer: Could not find AudioSource component.");
+                DaggerfallUnity.LogMessage("DynamicSongPlayer: Could not find AudioSource component.");
                 return false;
             }
 
@@ -205,7 +204,7 @@ namespace DynamicMusic
             // Check init
             if (midiSynthesizer == null || midiSequencer == null)
             {
-                DaggerfallUnity.LogMessage("DaggerfallSongPlayer: Failed to init synth.");
+                DaggerfallUnity.LogMessage("DynamicSongPlayer: Failed to init synth.");
                 return false;
             }
 
@@ -246,7 +245,7 @@ namespace DynamicMusic
                 return asset.bytes;
             }
 
-            DaggerfallUnity.LogMessage(string.Format("DaggerfallSongPlayer: Bank file '{0}' not found.", defaultSoundFontFilename));
+            DaggerfallUnity.LogMessage(string.Format("DynamicSongPlayer: Bank file '{0}' not found.", defaultSoundFontFilename));
 
             return null;
         }
@@ -273,8 +272,7 @@ namespace DynamicMusic
         private byte[] LoadSong(string filename)
         {
             // Get custom midi song
-            byte[] songBytes;
-            if (SoundReplacement.TryImportMidiSong(filename, out songBytes))
+            if (SoundReplacement.TryImportMidiSong(filename, out byte[] songBytes))
                 return songBytes;
 
             // Get Daggerfal song
@@ -284,7 +282,7 @@ namespace DynamicMusic
                 return asset.bytes;
             }
 
-            DaggerfallUnity.LogMessage(string.Format("DaggerfallSongPlayer: Song file '{0}' not found.", filename));
+            DaggerfallUnity.LogMessage(string.Format("DynamicSongPlayer: Song file '{0}' not found.", filename));
 
             return null;
         }
@@ -314,10 +312,6 @@ namespace DynamicMusic
             audioClip = null;
             return false;
         }
-
-        #endregion
-
-        #region Audio Filter
 
         // Called when audio filter needs more sound data
         void OnAudioFilterRead(float[] data, int channels)
@@ -357,10 +351,6 @@ namespace DynamicMusic
             }
         }
 
-        #endregion
-
-        #region Interface Implementation
-
         public class MyMemoryFile : DaggerfallWorkshop.AudioSynthesis.IResource
         {
             private byte[] file;
@@ -378,90 +368,5 @@ namespace DynamicMusic
             public Stream OpenResourceForRead() { return new MemoryStream(file); }
             public Stream OpenResourceForWrite() { return null; }
         }
-
-        #endregion
-
-        #region Static Song Arrays
-
-        /// <summary>
-        /// Just the GM songs.
-        /// </summary>
-        public static SongFiles[] Songs_GM = new SongFiles[]
-        {
-            SongFiles.song_02,
-            SongFiles.song_03,
-            SongFiles.song_04,
-            SongFiles.song_05,
-            SongFiles.song_06,
-            SongFiles.song_07,
-            SongFiles.song_08,
-            SongFiles.song_09,
-            SongFiles.song_10,
-            SongFiles.song_11,
-            SongFiles.song_12,
-            SongFiles.song_13,
-            SongFiles.song_15,
-            SongFiles.song_16,
-            SongFiles.song_17,
-            SongFiles.song_18,
-            SongFiles.song_20,
-            SongFiles.song_21,
-            SongFiles.song_22,
-            SongFiles.song_23,
-            SongFiles.song_25,
-            SongFiles.song_28,
-            SongFiles.song_29,
-            SongFiles.song_30,
-            SongFiles.song_d1,
-            SongFiles.song_d10,
-            SongFiles.song_d2,
-            SongFiles.song_d3,
-            SongFiles.song_d4,
-            SongFiles.song_d5,
-            SongFiles.song_d6,
-            SongFiles.song_d7,
-            SongFiles.song_d8,
-            SongFiles.song_d9,
-            SongFiles.song_dungeon,
-            SongFiles.song_dungeon5,
-            SongFiles.song_dungeon6,
-            SongFiles.song_dungeon7,
-            SongFiles.song_dungeon8,
-            SongFiles.song_dungeon9,
-            SongFiles.song_folk1,
-            SongFiles.song_folk2,
-            SongFiles.song_folk3,
-            SongFiles.song_gbad,
-            SongFiles.song_gcurse,
-            SongFiles.song_gday___d,
-            SongFiles.song_gdngn10,
-            SongFiles.song_gdngn11,
-            SongFiles.song_gdungn4,
-            SongFiles.song_gdungn9,
-            SongFiles.song_geerie,
-            SongFiles.song_ggood,
-            SongFiles.song_gmage_3,
-            SongFiles.song_gneut,
-            SongFiles.song_gpalac,
-            SongFiles.song_gruins,
-            SongFiles.song_gshop,
-            SongFiles.song_gsneak2,
-            SongFiles.song_gsnow__b,
-            SongFiles.song_gsunny2,
-            SongFiles.song_magic_2,
-            SongFiles.song_overcast,
-            SongFiles.song_overlong,
-            SongFiles.song_oversnow,
-            SongFiles.song_raining,
-            SongFiles.song_sneaking,
-            SongFiles.song_sneakng2,
-            SongFiles.song_snowing,
-            SongFiles.song_square_2,
-            SongFiles.song_sunnyday,
-            SongFiles.song_swimming,
-            SongFiles.song_tavern,
-        };
-
-        #endregion
     }
 }
