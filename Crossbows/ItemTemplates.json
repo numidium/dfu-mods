@@ -1,0 +1,22 @@
+[
+    {
+        "index": 289,
+        "name": "Crossbow",
+        "baseWeight": 4,
+        "hitPoints": 600,
+        "capacityOrTarget": 0,
+        "basePrice": 200,
+        "enchantmentPoints": 500,
+        "rarity": 2,
+        "variants": 0,
+        "drawOrderOrEffect": 100,
+        "isBluntWeapon": false,
+        "isLiquid": false,
+        "isOneHanded": false,
+        "isIngredient": false,
+        "worldTextureArchive": 207,
+        "worldTextureRecord": 4,
+        "playerTextureArchive": 1802,
+        "playerTextureRecord": 1
+    }
+]

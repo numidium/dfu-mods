@@ -28,6 +28,7 @@ namespace FutureShock
         private const float postFlashFade = 3.0f;
         private FiringType firingType;
         private GameObject mainCamera;
+        private GameManager gameManager;
         private int playerLayerMask;
         private Rect weaponPosition;
         private Rect rightHanded = new Rect(1, 0, 1, 1);
@@ -99,6 +100,7 @@ namespace FutureShock
             IsHolstered = true;
             ResetAnimation();
             mainCamera = GameObject.FindGameObjectWithTag("MainCamera");
+            gameManager = GameManager.Instance;
             playerLayerMask = ~(1 << LayerMask.NameToLayer("Player"));
         }
 
@@ -164,7 +166,7 @@ namespace FutureShock
 
         private void OnGUI()
         {
-            if (IsHolstered || GameManager.IsGamePaused || SaveLoadManager.Instance.LoadInProgress)
+            if (IsHolstered || GameManager.IsGamePaused || SaveLoadManager.Instance.LoadInProgress || gameManager.PlayerSpellCasting.IsPlayingAnim)
                 return;
             // Update weapon when resolution changes
             var screenRect = DaggerfallUI.Instance.CustomScreenRect ?? new Rect(0, 0, Screen.width, Screen.height);
