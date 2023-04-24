@@ -19,7 +19,6 @@
         "Assets/Game/Mods/Crossbows/Textures/CROSSBOW_3_Steel.png",
         "Assets/Game/Mods/Crossbows/Textures/1803_1-0_Steel.png",
         "Assets/Game/Mods/Crossbows/ItemTemplates.json",
-        "Assets/Game/Mods/Crossbows/ArrowMissile.prefab",
         "Assets/Game/Mods/Crossbows/Sound/crossbow_ready_lo.ogg",
         "Assets/Game/Mods/Crossbows/Sound/crossbow_fire_lo.ogg",
         "Assets/Game/Mods/Crossbows/Sound/crossbow_ready.ogg",
@@ -27,6 +26,8 @@
         "Assets/Game/Mods/Crossbows/Sound/crossbow_equip_lo.ogg",
         "Assets/Game/Mods/Crossbows/Sound/crossbow_fire.ogg",
         "Assets/Game/Mods/Crossbows/Sound/crossbow_load.ogg",
-        "Assets/Game/Mods/Crossbows/Sound/crossbow_load_lo.ogg"
+        "Assets/Game/Mods/Crossbows/Sound/crossbow_load_lo.ogg",
+        "Assets/Game/Mods/Crossbows/Textures/1802_1-0_Steel.xml",
+        "Assets/Game/Mods/Crossbows/Crossbows.dfmod.json"
     ]
 }

@@ -14,10 +14,8 @@ namespace Crossbows
     {
         public const int customTemplateIndex = 289;
         private const string itemName = "Crossbow";
-        // Vanilla weapon textures (placeholder)
-        public override int InventoryTextureArchive => GameManager.Instance.PlayerEntity.Gender == DaggerfallWorkshop.Game.Entity.Genders.Female ? 234 : 233;
-        // Long Bow (placeholder)
-        public override int InventoryTextureRecord => 11;
+        public override int InventoryTextureArchive => GameManager.Instance.PlayerEntity.Gender == DaggerfallWorkshop.Game.Entity.Genders.Female ? 1803 : 1802;
+        public override int InventoryTextureRecord => 1;
         // +10 from longbows to compensate for slower reload.
         public override int GetBaseDamageMin() => 14;
         public override int GetBaseDamageMax() => 28;

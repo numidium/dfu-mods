@@ -1,10 +1,13 @@
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.Entity;
+using DaggerfallWorkshop.Game.Formulas;
 using DaggerfallWorkshop.Game.Items;
 using DaggerfallWorkshop.Game.MagicAndEffects;
 using DaggerfallWorkshop.Game.Serialization;
+using DaggerfallWorkshop.Utility;
 using System;
+using UnityEditor.Localization.Plugins.XLIFF.V12;
 using UnityEngine;
 
 namespace Crossbows
@@ -25,6 +28,7 @@ namespace Crossbows
         private AudioSource audioSource;
         private PlayerEntity playerEntity;
         private GameManager gameManager;
+        private float cooldownRemaining;
         public DaggerfallUnityItem PairedItem { private get; set; }
         public Texture2D[] WeaponFrames { private get; set; }
         public int LaunchFrame { private get; set; }
@@ -38,7 +42,9 @@ namespace Crossbows
         public int ShotConditionCost { private get; set; }
         public bool IsHolstered { get; set; }
         public bool IsFiring { get; set; }
-        public DaggerfallMissile ArrowMissilePrefab { private get; set; }
+        public float CooldownTimeMultiplier { private get; set; }
+        public void PlayEquipSound() => PlaySound(EquipSound);
+        public void PlayLoadSound() => PlaySound(LoadSound);
 
         private void Start()
         {
@@ -50,10 +56,17 @@ namespace Crossbows
 
         private void Update()
         {
+            if (cooldownRemaining > 0f)
+            {
+                cooldownRemaining -= Time.deltaTime;
+                if (cooldownRemaining <= 0f && !IsHolstered)
+                    PlaySound(ReadySound);
+            }
+
             // Update firing animation.
             if (frameTimeRemaining <= 0f)
             {
-                if (IsFiring || currentFrame != 0) // Keep playing animation until finished.
+                if ((IsFiring && cooldownRemaining <= 0f) || currentFrame != 0) // Keep playing animation until finished.
                 {
                     currentFrame = (currentFrame + 1) % WeaponFrames.Length;
                     frameTimeRemaining = frameTime;
@@ -61,11 +74,14 @@ namespace Crossbows
                     {
                         ShootMissile();
                         PairedItem.LowerCondition(ShotConditionCost);
-                        PlayShootSound();
+                        PlaySound(ShootSound);
+                    }
+                    else if (currentFrame == WeaponFrames.Length - 1 && playerEntity.Items.GetItem(ItemGroups.Weapons, (int)Weapons.Arrow, allowQuestItem: false) != null)
+                    {
+                        cooldownRemaining = CooldownTimeMultiplier * FormulaHelper.GetBowCooldownTime(playerEntity); // Can't fire again until cooldown ends.
+                        PlaySound(LoadSound);
                     }
                 }
-                else
-                    return;
             }
             else
                 frameTimeRemaining -= Time.deltaTime;
@@ -87,7 +103,7 @@ namespace Crossbows
             }
 
             GUI.depth = 0;
-            if (Event.current.type.Equals(EventType.Repaint) && !IsHolstered /* seems like we shouldn't need this IsHolstered check here */)
+            if ((cooldownRemaining <= 0f || currentFrame != 0) && Event.current.type.Equals(EventType.Repaint))
                 DaggerfallUI.DrawTextureWithTexCoords(weaponPosition, WeaponFrames[currentFrame], DaggerfallUnity.Settings.Handedness == 1 ? leftHanded : rightHanded);
         }
 
@@ -107,9 +123,16 @@ namespace Crossbows
 
         private void ShootMissile()
         {
-            var missile = Instantiate(ArrowMissilePrefab);
+            var go = new GameObject("Crossbow Arrow")
+            {
+                layer = LayerMask.NameToLayer("Player")
+            };
+
+            go.transform.parent = GameObjectHelper.GetBestParent();
+            var missile = go.AddComponent<DaggerfallMissile>();
             if (missile)
             {
+                SetMissile(missile); // Set up the way the prefab usually does.
                 // Undo adjustment so arrow is centered.
                 var cameraTransform = GameManager.Instance.MainCamera.transform;
                 if (!GameManager.Instance.WeaponManager.ScreenWeapon.FlipHorizontal)
@@ -137,9 +160,23 @@ namespace Crossbows
             audioSource.Play();
         }
 
-        private void PlayShootSound() => PlaySound(ShootSound);
-        public void PlayEquipSound() => PlaySound(EquipSound);
-        public void PlayLoadSound() => PlaySound(LoadSound);
-        public void PlayReadySound() => PlaySound(ReadySound);
+        private void SetMissile(DaggerfallMissile missile)
+        {
+            missile.IsArrow = true;
+            missile.ImpactSound = SoundClips.ArrowHit;
+            var audioSource = missile.GetComponent<AudioSource>();
+            audioSource.volume = DaggerfallUnity.Settings.SoundVolume;
+            var sphereCollider = missile.GetComponent<SphereCollider>();
+            sphereCollider.radius = .4f;
+            var light = missile.GetComponent<Light>();
+            light.intensity = 0f;
+            var rigidBody = missile.GetComponent<Rigidbody>();
+            rigidBody.isKinematic = true;
+            rigidBody.mass = 1f;
+            rigidBody.angularDrag = .05f;
+            var meshCollider = missile.GetComponent<MeshCollider>();
+            meshCollider.convex = true;
+            meshCollider.cookingOptions = MeshColliderCookingOptions.UseFastMidphase | MeshColliderCookingOptions.WeldColocatedVertices | MeshColliderCookingOptions.EnableMeshCleaning | MeshColliderCookingOptions.CookForFasterSimulation;
+        }
     }
 }

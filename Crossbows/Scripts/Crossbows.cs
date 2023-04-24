@@ -7,9 +7,9 @@ using DaggerfallWorkshop.Utility.AssetInjection;
 using DaggerfallWorkshop.Game.Items;
 using Wenzil.Console;
 using System.IO;
-using DaggerfallWorkshop.Game.Questing;
 using DaggerfallWorkshop.Game.Entity;
 using DaggerfallWorkshop.Game.Serialization;
+using DaggerfallWorkshop.Utility;
 
 namespace Crossbows
 {
@@ -38,9 +38,6 @@ namespace Crossbows
 
         private void Start()
         {
-            // Load prefab(s).
-            povWeapon.ArrowMissilePrefab = mod.GetAsset<DaggerfallMissile>("ArrowMissile");
-
             // Load POV textures.
             const int animationFrames = 6;
             var povTextures = new Texture2D[animationFrames];
@@ -82,6 +79,7 @@ namespace Crossbows
             povWeapon.ShootSound = shootSound;
             povWeapon.IsHolstered = false;
             povWeapon.ShotConditionCost = 3;
+            povWeapon.CooldownTimeMultiplier = 3f;
             SaveLoadManager.OnLoad += SaveLoadManager_OnLoad;
             Debug.Log($"{mod.Title} initialized.");
             mod.IsReady = true;
