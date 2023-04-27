@@ -657,7 +657,11 @@ namespace DynamicMusic
                     if (currentPlaylist == MusicPlaylist.None)
                     {
                         if (dynamicSongPlayer.IsPlaying)
+                        {
+                            currentCustomTrack = string.Empty;
                             dynamicSongPlayer.Stop();
+                        }
+
                         break;
                     }
 
