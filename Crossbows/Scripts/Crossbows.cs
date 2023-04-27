@@ -79,7 +79,7 @@ namespace Crossbows
             povWeapon.ShootSound = shootSound;
             povWeapon.IsHolstered = false;
             povWeapon.ShotConditionCost = 3;
-            povWeapon.CooldownTimeMultiplier = 3f;
+            povWeapon.CooldownTimeMultiplier = 2.5f;
             SaveLoadManager.OnLoad += SaveLoadManager_OnLoad;
             Debug.Log($"{mod.Title} initialized.");
             mod.IsReady = true;
@@ -132,7 +132,7 @@ namespace Crossbows
                 return;
             }
 
-            povWeapon.IsFiring = !povWeapon.IsHolstered && InputManager.Instance.HasAction(InputManager.Actions.SwingWeapon);
+            povWeapon.IsFiring = !povWeapon.IsHolstered && InputManager.Instance.HasAction(InputManager.Actions.SwingWeapon) && !playerEntity.IsParalyzed;
             if (InputManager.Instance.ActionStarted(InputManager.Actions.ReadyWeapon) && IsCustomPovWeapon(equippedRight) && !povWeapon.IsFiring)
                 ShowWeapon = !ShowWeapon;
             if (!ShowWeapon)

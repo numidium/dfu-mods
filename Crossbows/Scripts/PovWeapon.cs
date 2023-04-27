@@ -6,8 +6,6 @@ using DaggerfallWorkshop.Game.Items;
 using DaggerfallWorkshop.Game.MagicAndEffects;
 using DaggerfallWorkshop.Game.Serialization;
 using DaggerfallWorkshop.Utility;
-using System;
-using UnityEditor.Localization.Plugins.XLIFF.V12;
 using UnityEngine;
 
 namespace Crossbows
@@ -56,6 +54,7 @@ namespace Crossbows
 
         private void Update()
         {
+            const int reloadFatigueLoss = 11;
             if (cooldownRemaining > 0f)
             {
                 cooldownRemaining -= Time.deltaTime;
@@ -79,6 +78,7 @@ namespace Crossbows
                     else if (currentFrame == WeaponFrames.Length - 1 && playerEntity.Items.GetItem(ItemGroups.Weapons, (int)Weapons.Arrow, allowQuestItem: false) != null)
                     {
                         cooldownRemaining = CooldownTimeMultiplier * FormulaHelper.GetBowCooldownTime(playerEntity); // Can't fire again until cooldown ends.
+                        playerEntity.DecreaseFatigue(reloadFatigueLoss);
                         PlaySound(LoadSound);
                     }
                 }
@@ -129,16 +129,11 @@ namespace Crossbows
             };
 
             go.transform.parent = GameObjectHelper.GetBestParent();
-            var missile = go.AddComponent<DaggerfallMissile>();
+            var missile = go.AddComponent<CustomMissile>();
             if (missile)
             {
                 SetMissile(missile); // Set up the way the prefab usually does.
                 // Undo adjustment so arrow is centered.
-                var cameraTransform = GameManager.Instance.MainCamera.transform;
-                if (!GameManager.Instance.WeaponManager.ScreenWeapon.FlipHorizontal)
-                    missile.CustomAimPosition = cameraTransform.position - cameraTransform.right * 0.15f;
-                else
-                    missile.CustomAimPosition = cameraTransform.position + cameraTransform.right * 0.15f;
                 var gameManager = GameManager.Instance;
                 // Remove arrow
                 var playerItems = playerEntity.Items;
@@ -160,8 +155,9 @@ namespace Crossbows
             audioSource.Play();
         }
 
-        private void SetMissile(DaggerfallMissile missile)
+        private void SetMissile(CustomMissile missile)
         {
+            missile.OriginWeapon = PairedItem;
             missile.IsArrow = true;
             missile.ImpactSound = SoundClips.ArrowHit;
             var audioSource = missile.GetComponent<AudioSource>();

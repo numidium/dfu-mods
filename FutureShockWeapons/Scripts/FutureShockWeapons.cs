@@ -2,6 +2,7 @@ using DaggerfallConnect;
 using DaggerfallConnect.Arena2;
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
+using DaggerfallWorkshop.Game.Entity;
 using DaggerfallWorkshop.Game.Items;
 using DaggerfallWorkshop.Game.Serialization;
 using DaggerfallWorkshop.Game.Utility.ModSupport;
@@ -211,7 +212,7 @@ namespace FutureShock
                 return;
             }
 
-            fpsGun.IsFiring = !fpsGun.IsHolstered && InputManager.Instance.HasAction(InputManager.Actions.SwingWeapon);
+            fpsGun.IsFiring = !fpsGun.IsHolstered && InputManager.Instance.HasAction(InputManager.Actions.SwingWeapon) && !gameManager.PlayerEntity.IsParalyzed;
             if (InputManager.Instance.ActionStarted(InputManager.Actions.ReadyWeapon) && IsGun(equippedRight) && !fpsGun.IsFiring)
                 ShowWeapon = !ShowWeapon;
             if (!ShowWeapon)
