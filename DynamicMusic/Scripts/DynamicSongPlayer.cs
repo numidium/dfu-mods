@@ -34,15 +34,15 @@ namespace DynamicMusic
         public bool IsAudioSourcePlaying => AudioSource.isPlaying || (AudioSource.clip && AudioSource.clip.loadState == AudioDataLoadState.Loading);
         public bool IsPlaying => IsAudioSourcePlaying || (midiSequencer != null && midiSequencer.IsPlaying);
         public bool IsStoppedClip => clipStarted && AudioSource.clip && AudioSource.clip.loadState == AudioDataLoadState.Loaded && !AudioSource.isPlaying;
-        Synthesizer midiSynthesizer = null;
-        MidiFileSequencer midiSequencer = null;
-        float[] sampleBuffer = new float[0];
-        int channels = 0;
-        int bufferLength = 0;
-        int numBuffers = 0;
-        bool playEnabled = false;
-        float oldGain;
-        bool clipStarted;
+        private Synthesizer midiSynthesizer = null;
+        private MidiFileSequencer midiSequencer = null;
+        private float[] sampleBuffer = new float[0];
+        private int channels = 0;
+        private int bufferLength = 0;
+        private int numBuffers = 0;
+        private bool playEnabled = false;
+        private float oldGain;
+        private bool clipStarted;
 
         void Start()
         {
@@ -72,7 +72,8 @@ namespace DynamicMusic
                 if (!IsAudioSourcePlaying)
                 {
                     StopSequencer();
-                    AudioSource.Play();
+                    if (AudioSource.clip)
+                        AudioSource.Play();
                     clipStarted = true;
                 }
             }
@@ -86,9 +87,6 @@ namespace DynamicMusic
             Play(Song);
         }
 
-        /// <summary>
-        /// Play current song.
-        /// </summary>
         public void Play(SongFiles song)
         {
             if (!InitSynth())
@@ -118,9 +116,6 @@ namespace DynamicMusic
             }
         }
 
-        /// <summary>
-        /// Stop playing song.
-        /// </summary>
         public void Stop()
         {
             if (!InitSynth())
@@ -131,7 +126,6 @@ namespace DynamicMusic
                 IsImported = false;
                 AudioSource.Stop();
                 AudioSource.clip = null;
-                AudioSource.Play();
             }
 
             Song = SongFiles.song_none;
@@ -155,7 +149,7 @@ namespace DynamicMusic
         {
             if (AudioSource == null)
             {
-                DaggerfallUnity.LogMessage("DynamicSongPlayer: Could not find AudioSource component.");
+                LogErrorMessage("Could not find AudioSource component.");
                 return false;
             }
 
@@ -204,7 +198,7 @@ namespace DynamicMusic
             // Check init
             if (midiSynthesizer == null || midiSequencer == null)
             {
-                DaggerfallUnity.LogMessage("DynamicSongPlayer: Failed to init synth.");
+                LogErrorMessage("Failed to init synth.");
                 return false;
             }
 
@@ -213,7 +207,7 @@ namespace DynamicMusic
 
         private string EnumToFilename(SongFiles song)
         {
-            string enumName = song.ToString();
+            var enumName = song.ToString();
             return enumName.Remove(0, "song_".Length) + ".mid";
         }
 
@@ -224,12 +218,12 @@ namespace DynamicMusic
                 return null;
 
             // Check file exists
-            string path = Path.Combine(Application.streamingAssetsPath, sourceFolderName);
-            string filePath = Path.Combine(path, filename);
+            var path = Path.Combine(Application.streamingAssetsPath, sourceFolderName);
+            var filePath = Path.Combine(path, filename);
             if (!File.Exists(filePath))
             {
                 // Fallback to default sound font
-                Debug.LogFormat("Could not find file '{0}', falling back to default soundfont {1}.", filePath, defaultSoundFontFilename);
+                LogErrorMessage($"Could not find file '{filePath}', falling back to default soundfont {defaultSoundFontFilename}.");
                 return null;
             }
 
@@ -239,13 +233,13 @@ namespace DynamicMusic
 
         private byte[] LoadDefaultSoundFont()
         {
-            TextAsset asset = Resources.Load<TextAsset>(defaultSoundFontFilename);
+            var asset = Resources.Load<TextAsset>(defaultSoundFontFilename);
             if (asset != null)
             {
                 return asset.bytes;
             }
 
-            DaggerfallUnity.LogMessage(string.Format("DynamicSongPlayer: Bank file '{0}' not found.", defaultSoundFontFilename));
+            LogErrorMessage($"Bank file '{defaultSoundFontFilename}' not found.");
 
             return null;
         }
@@ -253,13 +247,13 @@ namespace DynamicMusic
         private void PlaySequencer(SongFiles song)
         {
             // Load song data
-            string filename = EnumToFilename(song);
-            byte[] songData = LoadSong(filename);
+            var filename = EnumToFilename(song);
+            var songData = LoadSong(filename);
             if (songData == null)
                 return;
 
             // Create song
-            MidiFile midiFile = new MidiFile(new MyMemoryFile(songData, filename));
+            var midiFile = new MidiFile(new MyMemoryFile(songData, filename));
             if (midiSequencer.LoadMidi(midiFile))
             {
                 midiSequencer.Play();
@@ -276,13 +270,13 @@ namespace DynamicMusic
                 return songBytes;
 
             // Get Daggerfal song
-            TextAsset asset = Resources.Load<TextAsset>(Path.Combine(SongFolder, filename));
+            var asset = Resources.Load<TextAsset>(Path.Combine(SongFolder, filename));
             if (asset != null)
             {
                 return asset.bytes;
             }
 
-            DaggerfallUnity.LogMessage(string.Format("DynamicSongPlayer: Song file '{0}' not found.", filename));
+            LogErrorMessage($"Song file '{filename}' not found.");
 
             return null;
         }
@@ -311,6 +305,11 @@ namespace DynamicMusic
 
             audioClip = null;
             return false;
+        }
+
+        private void LogErrorMessage(string errorMessage)
+        {
+            DaggerfallUnity.LogMessage($"{nameof(DynamicSongPlayer)}: {errorMessage}");
         }
 
         // Called when audio filter needs more sound data

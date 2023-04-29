@@ -19,8 +19,9 @@ namespace HotKeyHUD
         private const float maxCondBarWidth = buttonWidth - 3f;
         private const int iconPanelSlot = 1;
         private const int buttonKeyLabelSlot = 2;
-        private const int buttonConditionBarSlot = 3;
-        private const int buttonStackLabelSlot = 4;
+        private const int buttonConditionBarBackgroundSlot = 3;
+        private const int buttonConditionBarSlot = 4;
+        private const int buttonStackLabelSlot = 5;
         private const float condBarHeight = 1f;
         private const float iconsWidth = buttonWidth * 10f;
         private const float iconsY = 177f;
@@ -31,9 +32,10 @@ namespace HotKeyHUD
         public Panel Icon => (Panel)Components[iconPanelSlot];
         public TextLabel KeyLabel => (TextLabel)Components[buttonKeyLabelSlot];
         public TextLabel StackLabel => (TextLabel)Components[buttonStackLabelSlot];
+        public Panel ConditionBarBackground => (Panel)Components[buttonConditionBarBackgroundSlot];
         public Panel ConditionBar => (Panel)Components[buttonConditionBarSlot];
         private static Vector2 KeyLabelOriginalPos = new Vector2(1f, 1f);
-        private static Vector2 StackLabelOriginalPos = new Vector2(1f, 1f);
+        private static Vector2 StackLabelOriginalPos = new Vector2(1f, 14f);
         private static Vector2 CondBarOriginalPos = new Vector2(2f, buttonHeight - 3f);
 
         public HotKeyButton(Texture2D backdrop, Vector2 position, int keyIndex)
@@ -66,6 +68,15 @@ namespace HotKeyHUD
                 ShadowPosition = DaggerfallUI.DaggerfallDefaultShadowPos
             });
 
+            // Item condition bar background
+            Components.Add(new Panel
+            {
+                Position = CondBarOriginalPos,
+                Size = new Vector2(maxCondBarWidth, condBarHeight),
+                BackgroundColor = Color.black,
+                Enabled = false
+            });
+
             // Item condition bar
             Components.Add(new Panel
             {
@@ -80,7 +91,7 @@ namespace HotKeyHUD
             {
                 Position = StackLabelOriginalPos,
                 HorizontalAlignment = HorizontalAlignment.Right,
-                VerticalAlignment = VerticalAlignment.Bottom,
+                VerticalAlignment = VerticalAlignment.None,
                 Text = string.Empty,
                 Enabled = false,
                 ShadowColor = DaggerfallUI.DaggerfallDefaultShadowColor,
@@ -123,6 +134,7 @@ namespace HotKeyHUD
             if (item == null)
             {
                 Icon.BackgroundTexture = null;
+                ConditionBarBackground.Enabled = false;
                 ConditionBar.Enabled = false;
                 StackLabel.Enabled = false;
             }
@@ -134,6 +146,7 @@ namespace HotKeyHUD
                 StackLabel.Enabled = item.IsStackable() || IsBow(item);
                 // I'm assuming there aren't any stackables with condition worth tracking.
                 ConditionBar.Enabled = !StackLabel.Enabled || IsBow(item);
+                ConditionBarBackground.Enabled = ConditionBar.Enabled;
             }
         }
 
@@ -151,6 +164,7 @@ namespace HotKeyHUD
             Icon.BackgroundTexture = DaggerfallUI.Instance.SpellIconCollection.GetSpellIcon(spell.Icon);
             Icon.Size = new Vector2(Icon.Parent.Size.x * spellIconScale, Icon.Parent.Size.y * spellIconScale);
             StackLabel.Enabled = false;
+            ConditionBarBackground.Enabled = false;
             ConditionBar.Enabled = false;
         }
 
@@ -166,12 +180,10 @@ namespace HotKeyHUD
             if (item.IsQuestItem)
             {
                 // Get the quest this item belongs to
-                Quest quest = QuestMachine.Instance.GetQuest(item.QuestUID);
-                if (quest == null)
-                    throw new Exception("DaggerfallUnityItem references a quest that could not be found.");
+                var quest = QuestMachine.Instance.GetQuest(item.QuestUID) ?? throw new Exception("DaggerfallUnityItem references a quest that could not be found.");
 
                 // Get the Item resource from quest
-                Item questItem = quest.GetItem(item.QuestItemSymbol);
+                var questItem = quest.GetItem(item.QuestItemSymbol);
 
                 // Use quest item
                 if (!questItem.UseClicked && questItem.ActionWatching)
@@ -203,7 +215,7 @@ namespace HotKeyHUD
             // Note: Copied from DaggerfallInventoryWindow
             else if (item.ItemGroup == ItemGroups.UselessItems2 && item.TemplateIndex == (int)UselessItems2.Oil)
             {
-                DaggerfallUnityItem lantern = player.Items.GetItem(ItemGroups.UselessItems2, (int)UselessItems2.Lantern, allowQuestItem: false);
+                var lantern = player.Items.GetItem(ItemGroups.UselessItems2, (int)UselessItems2.Lantern, allowQuestItem: false);
                 if (lantern != null && lantern.currentCondition <= lantern.maxCondition - item.currentCondition)
                 {   // Re-fuel lantern with the oil.
                     lantern.currentCondition += item.currentCondition;
@@ -327,6 +339,9 @@ namespace HotKeyHUD
             StackLabel.Scale = scale;
             StackLabel.Position = new Vector2((float)Math.Round(StackLabelOriginalPos.x * scale.x + .5f), (float)Math.Round(StackLabelOriginalPos.y * scale.y + .5f));
             StackLabel.TextScale = scale.x;
+            ConditionBarBackground.Scale = scale;
+            ConditionBarBackground.Position = new Vector2((float)Math.Round(CondBarOriginalPos.x * scale.x + .5f), (float)Math.Round(CondBarOriginalPos.y * scale.y + .5f));
+            ConditionBarBackground.Size = new Vector2((float)Math.Round(maxCondBarWidth * scale.x + .5f), (float)Math.Round(condBarHeight * scale.y + .5f));
             ConditionBar.Scale = scale;
             ConditionBar.Position = new Vector2((float)Math.Round(CondBarOriginalPos.x * scale.x + .5f), (float)Math.Round(CondBarOriginalPos.y * scale.y + .5f));
             ConditionBar.Size = new Vector2((float)Math.Round(ConditionBar.Size.x * scale.x + .5f), (float)Math.Round(ConditionBar.Size.y * scale.y + .5f));
