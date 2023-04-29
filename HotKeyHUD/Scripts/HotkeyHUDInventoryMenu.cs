@@ -53,7 +53,7 @@ namespace HotKeyHUD
         protected override void PaperDoll_OnMouseClick(BaseScreenComponent sender, Vector2 position, ActionModes actionMode)
         {
             var equipInd = paperDoll.GetEquipIndex((int)position.x, (int)position.y);
-            if (equipInd == 0xff) // No item
+            if (equipInd == 0xFF) // No item
                 return;
             var slot = (EquipSlots)equipInd;
             var item = playerEntity.ItemEquipTable.GetItem(slot);

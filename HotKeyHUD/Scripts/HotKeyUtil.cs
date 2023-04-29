@@ -37,7 +37,7 @@ namespace HotKeyHUD
                 {
                     var inventoryTexture = ImageReader.GetTexture(baseInvTextureName);
                     itemBackdrops = new Texture2D[IconCount];
-                    for (int i = 0; i < itemBackdrops.Length; i++)
+                    for (var i = 0; i < itemBackdrops.Length; i++)
                         itemBackdrops[i] = ImageReader.GetSubTexture(inventoryTexture, backdropCutouts[i], new DFSize(320, 200));
                 }
 

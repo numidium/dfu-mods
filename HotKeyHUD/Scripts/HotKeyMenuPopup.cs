@@ -49,7 +49,7 @@ namespace HotKeyHUD
         {
             HotKeyButtons = new HotKeyButton[HotKeyUtil.IconCount];
             var itemBackdrops = HotKeyUtil.ItemBackdrops;
-            for (int i = 0; i < HotKeyButtons.Length; i++)
+            for (var i = 0; i < HotKeyButtons.Length; i++)
             {
                 HotKeyButtons[i] = new HotKeyButton(itemBackdrops[i],
                     new Vector2(xOffset + (float)((i % 3) * HotKeyButton.buttonWidth), yOffset + (i / 3) * HotKeyButton.buttonHeight + .5f), i + 1);

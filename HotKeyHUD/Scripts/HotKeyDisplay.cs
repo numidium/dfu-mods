@@ -238,7 +238,7 @@ namespace HotKeyHUD
             HotKeyButtons = new HotKeyButton[HotKeyUtil.IconCount];
             float xPosition = 0f;
             var itemBackdrops = HotKeyUtil.ItemBackdrops;
-            for (int i = 0; i < HotKeyButtons.Length; i++)
+            for (var i = 0; i < HotKeyButtons.Length; i++)
             {
                 var position = new Vector2 { x = xPosition, y = iconsY };
                 HotKeyButtons[i] = new HotKeyButton(itemBackdrops[i], position, i + 1);
@@ -256,18 +256,18 @@ namespace HotKeyHUD
         private void SetScale(Vector2 scale)
         {
             Scale = scale;
-            for (int i = 0; i < HotKeyButtons.Length; i++)
+            for (var i = 0; i < HotKeyButtons.Length; i++)
                 HotKeyButtons[i].SetScale(scale);
             EquippedButton.SetScale(scale);
         }
 
         private void SetEquipDelayTime(DaggerfallUnityItem lastRightHandItem, DaggerfallUnityItem lastLeftHandItem)
         {
-            int delayTimeRight = 0;
-            int delayTimeLeft = 0;
+            var delayTimeRight = 0;
+            var delayTimeLeft = 0;
             var player = GameManager.Instance.PlayerEntity;
-            DaggerfallUnityItem currentRightHandItem = player.ItemEquipTable.GetItem(EquipSlots.RightHand);
-            DaggerfallUnityItem currentLeftHandItem = player.ItemEquipTable.GetItem(EquipSlots.LeftHand);
+            var currentRightHandItem = player.ItemEquipTable.GetItem(EquipSlots.RightHand);
+            var currentLeftHandItem = player.ItemEquipTable.GetItem(EquipSlots.LeftHand);
 
             if (lastRightHandItem != currentRightHandItem)
             {

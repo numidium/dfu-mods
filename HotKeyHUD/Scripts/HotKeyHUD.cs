@@ -15,6 +15,7 @@ namespace HotKeyHUD
     {
         private static Mod mod;
         private bool componentAdded;
+        private const string modName = "Hot Key HUD";
         public static HotKeyHUD Instance { get; private set; }
         public Type SaveDataType => typeof(HotKeyHUDSaveData);
         public static string ModTitle => mod.Title;
@@ -26,10 +27,11 @@ namespace HotKeyHUD
             var go = new GameObject(mod.Title);
             Instance = go.AddComponent<HotKeyHUD>();
             mod.LoadSettingsCallback = Instance.LoadSettings;
+            mod.SaveDataInterface = Instance;
         }
 
         // Load settings that can change during runtime.
-        void LoadSettings(ModSettings settings, ModSettingsChange change)
+        private void LoadSettings(ModSettings settings, ModSettingsChange change)
         {
             HotKeyUtil.Visibility = (HotKeyUtil.HUDVisibility)settings.GetValue<int>("Options", "HUD Visibility");
             var menuKeyText = settings.GetValue<string>("Options", "Hotkey Setup Menu Key");
@@ -38,18 +40,17 @@ namespace HotKeyHUD
             else
             {
                 HotKeyUtil.SetupMenuKey = KeyCode.Alpha0;
-                Debug.Log("Hot Key HUD: Invalid setup menu keybind detected. Setting default.");
+                Debug.Log($"{modName}: Invalid setup menu keybind detected. Setting default.");
             }
         }
 
-        private void Awake()
+        private void Start()
         {
-            mod.SaveDataInterface = Instance;
             // Load settings that require a restart.
             var settings = mod.GetSettings();
             HotKeyUtil.OverrideMenus = settings.GetValue<bool>("Options", "Override Menus");
             LoadSettings(settings, new ModSettingsChange());
-            Debug.Log("Hot Key HUD initialized.");
+            Debug.Log($"{modName} initialized.");
             mod.IsReady = true;
             componentAdded = false;
         }
