@@ -122,7 +122,7 @@ namespace FutureShock
         private Dictionary<ImpactAnimation, Texture2D[]> impactAnimBank;
         private Dictionary<ProjectileAnimation, Texture2D[]> projectileAnimBank;
         //private Dictionary<ProjectileModel, Mesh> projectileMeshBank;
-        private Texture2D[] projectileTextures = new Texture2D[3];
+        private readonly Texture2D[] projectileTextures = new Texture2D[3];
         private Dictionary<WeaponSound, AudioClip> weaponSoundBank;
         private DaggerfallUnityItem lastEquippedRight;
         private DaggerfallUnityItem equippedRight;
@@ -150,7 +150,7 @@ namespace FutureShock
 
         }
 
-        private void Awake()
+        private void Start()
         {
             var settings = mod.GetSettings();
             var path = settings.GetValue<string>("Options", "FutureShock GAMEDATA path");
