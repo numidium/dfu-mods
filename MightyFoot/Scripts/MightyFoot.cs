@@ -80,8 +80,8 @@ namespace MightyFoot
 
         private void Update()
         {
-            // Prevent kicking while in menus. Thanks, |3lessed.
-            if (consoleController.ui.isConsoleOpen || GameManager.IsGamePaused || SaveLoadManager.Instance.LoadInProgress || DaggerfallUI.UIManager.WindowCount != 0)
+            // Prevent kicking while in menus or paralyzed. Thanks, |3lessed.
+            if (consoleController.ui.isConsoleOpen || GameManager.IsGamePaused || SaveLoadManager.Instance.LoadInProgress || DaggerfallUI.UIManager.WindowCount != 0 || gameManager.PlayerEntity.IsParalyzed)
                 return;
             // Perform forward kick on keypress and hide weapon from HUD when attack finishes.
             if (InputManager.Instance.GetKey(kickKey) &&
