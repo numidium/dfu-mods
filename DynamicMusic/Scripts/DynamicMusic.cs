@@ -578,15 +578,19 @@ namespace DynamicMusic
 
         private void Start()
         {
-            // Remove vanilla song players from memory.
-            var unityObjects = Resources.FindObjectsOfTypeAll(typeof(GameObject));
-            foreach (var unityObject in unityObjects)
-            {
-                if (unityObject.name == "SongPlayer")
-                    Destroy(unityObject);
-            }
-
             gameManager = GameManager.Instance;
+            const string songPlayerName = "SongPlayer";
+            // Remove vanilla song players from memory.
+            Destroy(gameManager.DungeonParent.transform.Find(songPlayerName).gameObject);
+            Destroy(gameManager.InteriorParent.transform.Find(songPlayerName).gameObject);
+            Destroy(gameManager.ExteriorParent.transform.Find(songPlayerName).gameObject);
+            // Replace with objects of same name (for compatibility).
+            var dummySongPlayer = new GameObject(songPlayerName);
+            dummySongPlayer.transform.parent = gameManager.DungeonParent.transform;
+            dummySongPlayer = new GameObject(songPlayerName);
+            dummySongPlayer.transform.parent = gameManager.InteriorParent.transform;
+            dummySongPlayer = new GameObject(songPlayerName);
+            dummySongPlayer.transform.parent = gameManager.ExteriorParent.transform;
             playerEntity = gameManager.PlayerEntity;
             localPlayerGPS = gameManager.PlayerGPS;
             playerEnterExit = localPlayerGPS.GetComponent<PlayerEnterExit>();
