@@ -14,14 +14,18 @@ namespace HotKeyHUD
 {
     public sealed class HotKeyButton : Panel
     {
+        private enum ComponentSlot
+        {
+            IconPanel = 1,
+            ButtonKeyLabel,
+            ButtonConditionBarBackground,
+            ButtonConditionBar,
+            ButtonStackLabel
+        }
+
         public const float buttonWidth = 22f;
         public const float buttonHeight = 22f;
         private const float maxCondBarWidth = buttonWidth - 3f;
-        private const int iconPanelSlot = 1;
-        private const int buttonKeyLabelSlot = 2;
-        private const int buttonConditionBarBackgroundSlot = 3;
-        private const int buttonConditionBarSlot = 4;
-        private const int buttonStackLabelSlot = 5;
         private const float condBarHeight = 1f;
         private const float iconsWidth = buttonWidth * 10f;
         private const float iconsY = 177f;
@@ -29,11 +33,11 @@ namespace HotKeyHUD
         public bool ForceUse { get; set; }
         public object Payload { get; set; }
         public byte PositionIndex { get; set; }
-        public Panel Icon => (Panel)Components[iconPanelSlot];
-        public TextLabel KeyLabel => (TextLabel)Components[buttonKeyLabelSlot];
-        public TextLabel StackLabel => (TextLabel)Components[buttonStackLabelSlot];
-        public Panel ConditionBarBackground => (Panel)Components[buttonConditionBarBackgroundSlot];
-        public Panel ConditionBar => (Panel)Components[buttonConditionBarSlot];
+        public Panel Icon => (Panel)Components[(int)ComponentSlot.IconPanel];
+        public TextLabel KeyLabel => (TextLabel)Components[(int)ComponentSlot.ButtonKeyLabel];
+        public TextLabel StackLabel => (TextLabel)Components[(int)ComponentSlot.ButtonStackLabel];
+        public Panel ConditionBarBackground => (Panel)Components[(int)ComponentSlot.ButtonConditionBarBackground];
+        public Panel ConditionBar => (Panel)Components[(int)ComponentSlot.ButtonConditionBar];
         private static Vector2 KeyLabelOriginalPos = new Vector2(1f, 1f);
         private static Vector2 StackLabelOriginalPos = new Vector2(1f, 14f);
         private static Vector2 CondBarOriginalPos = new Vector2(2f, buttonHeight - 3f);
