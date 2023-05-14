@@ -103,7 +103,7 @@ namespace Crossbows
             }
 
             GUI.depth = 0;
-            if ((cooldownRemaining <= 0f || currentFrame != 0) && Event.current.type.Equals(EventType.Repaint))
+            if ((cooldownRemaining <= 0f || currentFrame != 0) && Event.current.type.Equals(EventType.Repaint) && !playerEntity.IsParalyzed)
                 DaggerfallUI.DrawTextureWithTexCoords(weaponPosition, WeaponFrames[currentFrame], DaggerfallUnity.Settings.Handedness == 1 ? leftHanded : rightHanded);
         }
 
@@ -112,9 +112,9 @@ namespace Crossbows
             var screenRect = DaggerfallUI.Instance.CustomScreenRect ?? new Rect(0, 0, Screen.width, Screen.height);
             var weaponScaleX = (float)screenRect.width / nativeScreenWidth;
             var weaponScaleY = (float)screenRect.height / nativeScreenHeight;
-            //var horizOffset = DaggerfallUnity.Settings.Handedness == 1 ? -1f - HorizontalOffset + WeaponFrames[currentFrame].width * weaponScaleX / screenRect.width : HorizontalOffset;
+            var horizOffset = DaggerfallUnity.Settings.Handedness == 1 ? -1f - HorizontalOffset + WeaponFrames[currentFrame].width * weaponScaleX / screenRect.width : HorizontalOffset;
             weaponPosition = new Rect(
-                screenRect.x/* + screenRect.width * (1f + horizOffset) - WeaponFrames[currentFrame].width * weaponScaleX*/,
+                screenRect.x + screenRect.width * (1f + horizOffset) - WeaponFrames[currentFrame].width * weaponScaleX,
                 screenRect.y + screenRect.height * (1f + VerticalOffset) - WeaponFrames[currentFrame].height * weaponScaleY,
                 WeaponFrames[currentFrame].width * weaponScaleX,
                 WeaponFrames[currentFrame].height * weaponScaleY);
@@ -132,7 +132,6 @@ namespace Crossbows
             var missile = go.AddComponent<CustomMissile>();
             if (missile)
             {
-                SetMissile(missile); // Set up the way the prefab usually does.
                 // Undo adjustment so arrow is centered.
                 var gameManager = GameManager.Instance;
                 // Remove arrow
@@ -140,11 +139,14 @@ namespace Crossbows
                 var arrow = playerItems.GetItem(ItemGroups.Weapons, (int)Weapons.Arrow, allowQuestItem: false, priorityToConjured: true);
                 playerItems.RemoveOne(arrow);
                 // Set missile
+                missile.OriginWeapon = PairedItem;
+                missile.ImpactSound = SoundClips.ArrowHit;
                 missile.Caster = gameManager.PlayerEntityBehaviour;
-                missile.TargetType = TargetTypes.SingleTargetAtRange;
-                missile.ElementType = ElementTypes.None;
                 missile.IsArrow = true;
-                missile.IsArrowSummoned = arrow.IsSummoned;
+                missile.IsSummoned = arrow.IsSummoned;
+                //missile.HorizontalAdjust = -.0175f;
+                missile.VerticalAdjust = .12f;
+                missile.Velocity = 45f;
             }
         }
 
@@ -153,26 +155,6 @@ namespace Crossbows
             audioSource.clip = clip;
             audioSource.volume = DaggerfallUnity.Settings.SoundVolume;
             audioSource.Play();
-        }
-
-        private void SetMissile(CustomMissile missile)
-        {
-            missile.OriginWeapon = PairedItem;
-            missile.IsArrow = true;
-            missile.ImpactSound = SoundClips.ArrowHit;
-            var audioSource = missile.GetComponent<AudioSource>();
-            audioSource.volume = DaggerfallUnity.Settings.SoundVolume;
-            var sphereCollider = missile.GetComponent<SphereCollider>();
-            sphereCollider.radius = .4f;
-            var light = missile.GetComponent<Light>();
-            light.intensity = 0f;
-            var rigidBody = missile.GetComponent<Rigidbody>();
-            rigidBody.isKinematic = true;
-            rigidBody.mass = 1f;
-            rigidBody.angularDrag = .05f;
-            var meshCollider = missile.GetComponent<MeshCollider>();
-            meshCollider.convex = true;
-            meshCollider.cookingOptions = MeshColliderCookingOptions.UseFastMidphase | MeshColliderCookingOptions.WeldColocatedVertices | MeshColliderCookingOptions.EnableMeshCleaning | MeshColliderCookingOptions.CookForFasterSimulation;
         }
     }
 }

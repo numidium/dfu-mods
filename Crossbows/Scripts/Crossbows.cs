@@ -33,6 +33,7 @@ namespace Crossbows
             var go = new GameObject(mod.Title);
             Instance = go.AddComponent<Crossbows>();
             Instance.povWeapon = go.AddComponent<PovWeapon>();
+            Instance.povWeapon.HorizontalOffset = .003125f; // 1/320
             //mod.LoadSettingsCallback = Instance.LoadSettings;
         }
 
@@ -120,8 +121,6 @@ namespace Crossbows
         {
             equippedRight = gameManager.PlayerEntity.ItemEquipTable.GetItem(EquipSlots.RightHand);
             povWeapon.PairedItem = equippedRight;
-            // Freeze in holster when paralyzed.
-            povWeapon.IsHolstered = playerEntity.IsParalyzed;
             if (consoleController.ui.isConsoleOpen || GameManager.IsGamePaused || DaggerfallUI.UIManager.WindowCount != 0)
                 return;
             if (equippedRight != null && (equippedRight.currentCondition <= 0 || playerEntity.Items.GetItem(ItemGroups.Weapons, (int)Weapons.Arrow, allowQuestItem: false) == null))
@@ -134,7 +133,7 @@ namespace Crossbows
                 return;
             }
 
-            povWeapon.IsFiring = !povWeapon.IsHolstered && InputManager.Instance.HasAction(InputManager.Actions.SwingWeapon);
+            povWeapon.IsFiring = !povWeapon.IsHolstered && !playerEntity.IsParalyzed && InputManager.Instance.HasAction(InputManager.Actions.SwingWeapon);
             if (InputManager.Instance.ActionStarted(InputManager.Actions.ReadyWeapon) && IsCustomPovWeapon(equippedRight) && !povWeapon.IsFiring)
                 ShowWeapon = !ShowWeapon;
             if (!ShowWeapon)
