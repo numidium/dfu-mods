@@ -13,7 +13,7 @@ namespace FutureShock
         public override int InventoryTextureRecord => 1;
         public override int GetBaseDamageMin() => 2 + PlasmaBonus + ExplosiveBonus;
         public override int GetBaseDamageMax() => 3 + PlasmaBonus + ExplosiveBonus;
-        public override string ItemName => shortName == templateName ? GunName : shortName;
+        public override string ItemName => shortName == templateName || !IsIdentified ? GunName : shortName.Replace("%it", GunName);
         public override string LongName => ItemName;
         public override int GroupIndex => 0;
         public override ItemHands GetItemHands() => ItemHands.Both;
