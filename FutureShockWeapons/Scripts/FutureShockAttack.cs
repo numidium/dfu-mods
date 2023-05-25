@@ -85,6 +85,7 @@ namespace FutureShock
                 var damage = FormulaHelper.CalculateWeaponAttackDamage(playerEntity, entityBehaviour.Entity, damageModifiers, 1, weapon);
                 if (isHitSuccessful && damage > 0)
                 {
+                    damage = FormulaHelper.CalculateBackstabDamage(damage, backstabChance);
                     var enemyEntity = entityBehaviour.Entity as EnemyEntity;
                     if (blood != null)
                         blood.ShowBloodSplash(enemyEntity.MobileEnemy.BloodIndex, impactPosition);
