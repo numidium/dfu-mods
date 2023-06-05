@@ -43,6 +43,7 @@ namespace DynamicMusic
         private bool playEnabled = false;
         private float oldGain;
         private bool clipStarted;
+        private AudioClip streamedSong;
 
         void Start()
         {
@@ -108,9 +109,11 @@ namespace DynamicMusic
         public void Play(string track)
         {
             Stop();
-            if (IsImported = TryLoadSong(track, out var song))
+            if (streamedSong)
+                Destroy(streamedSong); // Only keep one clip asset.
+            if (IsImported = TryLoadSong(track, out streamedSong))
             {
-                AudioSource.clip = song;
+                AudioSource.clip = streamedSong;
                 AudioSource.loop = false;
                 clipStarted = false;
             }
