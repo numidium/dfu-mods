@@ -1,0 +1,20 @@
+{
+    "Version": "v1",
+    "Sections": [
+        {
+            "Name": "Options",
+            "Description": null,
+            "IsAdvanced": false,
+            "Keys": [
+				{
+					"Value": "true",
+                    "Name": "DOS-quality sounds",
+                    "Description": "Match sound quality to original Daggerfall sounds.",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
+				}
+            ],
+            "$version": "v1"
+        }
+    ]
+}

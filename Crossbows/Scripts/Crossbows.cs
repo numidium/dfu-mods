@@ -36,8 +36,10 @@ namespace Crossbows
 
         private void Start()
         {
+            // Load settings that require a restart.
+            var settings = mod.GetSettings();
+            var bitcrushed = settings.GetValue<bool>("Options", "DOS-quality sounds");
             // Load sounds.
-            var bitcrushed = true;
             var soundPrefix = "crossbow";
             var soundPostfix = bitcrushed ? "_lo" : string.Empty;
             var soundExtension = ".ogg";
