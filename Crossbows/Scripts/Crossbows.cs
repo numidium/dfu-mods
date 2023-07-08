@@ -1,15 +1,12 @@
 using DaggerfallWorkshop.Game.Utility.ModSupport;
 using DaggerfallWorkshop.Game;
-using System;
 using UnityEngine;
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Utility.AssetInjection;
 using DaggerfallWorkshop.Game.Items;
 using Wenzil.Console;
-using System.IO;
 using DaggerfallWorkshop.Game.Entity;
 using DaggerfallWorkshop.Game.Serialization;
-using DaggerfallWorkshop.Utility;
 
 namespace Crossbows
 {
@@ -39,21 +36,6 @@ namespace Crossbows
 
         private void Start()
         {
-            // Load POV textures.
-            const int animationFrames = 6;
-            var povTextures = new Texture2D[animationFrames];
-            for (var i = 0; i < povTextures.Length; i++)
-            {
-                var textureName = $"CROSSBOW_{i}_Steel.png";
-                if (TextureReplacement.TryImportImage(textureName, true, out var texture))
-                {
-                    texture.filterMode = DaggerfallUI.Instance.GlobalFilterMode;
-                    povTextures[i] = texture;
-                }
-                else
-                    LogAssetLoadError(textureName);
-            }
-
             // Load sounds.
             var bitcrushed = true;
             var soundPrefix = "crossbow";
@@ -72,7 +54,6 @@ namespace Crossbows
             playerEntity = gameManager.PlayerEntity;
             DaggerfallUnity.Instance.ItemHelper.RegisterCustomItem(crossbowTemplateIndex, ItemGroups.Weapons, typeof(ItemCrossbow));
             // Initialize POV weapon.
-            povWeapon.WeaponFrames = povTextures;
             povWeapon.LaunchFrame = 3;
             povWeapon.EquipSound = equipSound;
             povWeapon.LoadSound = loadSound;
@@ -88,7 +69,7 @@ namespace Crossbows
 
         private void Update()
         {
-            // When unsheathing, immediately re-sheathe weapon and use HitScanGun in place of FPSWeapon
+            // When unsheathing, immediately re-sheathe weapon and use PovWeapon in place of FPSWeapon
             var equipChanged = false;
             if (lastEquippedRight != equippedRight)
                 equipChanged = true;
@@ -102,6 +83,7 @@ namespace Crossbows
                     ShowWeapon = (!IsCustomPovWeapon(lastEquippedRight) && !lastNonCustomSheathed) || !povWeapon.IsHolstered;
                     povWeapon.PlayEquipSound();
                     povWeapon.IsHolstered = true;
+                    povWeapon.WeaponFrames = LoadPovWeaponTexture((WeaponMaterialTypes)equippedRight.NativeMaterialValue);
                 }
             }
             else if (!povWeapon.IsHolstered)
@@ -158,7 +140,33 @@ namespace Crossbows
             lastEquippedRight = equippedRight = playerEntity.ItemEquipTable.GetItem(EquipSlots.RightHand);
             if (lastEquippedRight == null)
                 return;
+            if (IsCustomPovWeapon(equippedRight))
+                povWeapon.WeaponFrames = LoadPovWeaponTexture((WeaponMaterialTypes)equippedRight.NativeMaterialValue);
             // Will need to put code to set weapon attributes here if multiple weapon types are defined.
+        }
+
+        /// <summary>
+        /// Loads POV textures from mod assets.
+        /// </summary>
+        /// <param name="weaponMaterial">The weapon material of the textures to be loaded.</param>
+        /// <returns>An array of textures.</returns>
+        private Texture2D[] LoadPovWeaponTexture(WeaponMaterialTypes weaponMaterial)
+        {
+            const int animationFrames = 6;
+            var povTextures = new Texture2D[animationFrames];
+            for (var i = 0; i < povTextures.Length; i++)
+            {
+                var textureName = $"CROSSBOW_{weaponMaterial}_{i}.png";
+                if (TextureReplacement.TryImportImage(textureName, true, out var texture))
+                {
+                    texture.filterMode = DaggerfallUI.Instance.GlobalFilterMode;
+                    povTextures[i] = texture;
+                }
+                else
+                    LogAssetLoadError(textureName);
+            }
+
+            return povTextures;
         }
     }
 }

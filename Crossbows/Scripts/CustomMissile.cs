@@ -26,6 +26,7 @@ namespace Crossbows
         private bool impactDetected = false;
         private bool impactAssigned = false;
         private GameObject goProjectile = null;
+        private Mesh projectileMesh;
         private int playerLayerMask;
         private bool isWaitTick = false;
         public float Velocity { private get; set; }
@@ -54,6 +55,7 @@ namespace Crossbows
             // Adjust to fit gun HUD position.
             adjust = (GameManager.Instance.MainCamera.transform.rotation * -Caster.transform.up) * VerticalAdjust;
             goProjectile = GameObjectHelper.CreateDaggerfallMeshGameObject(99800, transform, ignoreCollider: true); // TODO: Use proper models
+            projectileMesh = goProjectile.GetComponent<MeshFilter>().sharedMesh;
             if (!GameManager.Instance.WeaponManager.ScreenWeapon.FlipHorizontal)
                 adjust += GameManager.Instance.MainCamera.transform.right * HorizontalAdjust;
             else
@@ -94,7 +96,10 @@ namespace Crossbows
                 {
                     // Wait for audio clip.
                     if (!daggerfallAudioSource.IsPlaying())
+                    {
+                        Destroy(projectileMesh);
                         Destroy(gameObject);
+                    }
                 }
             }
         }
