@@ -31,6 +31,7 @@ namespace FutureShock
         private float initialRange;
         private float initialIntensity;
         private GameObject goProjectile = null;
+        private Mesh projectileMesh;
         private Texture2D[] impactFrames;
         private Texture2D[] projectileFrames;
         private Vector2 impactSize;
@@ -124,6 +125,7 @@ namespace FutureShock
                 flatProjectile.SetFrames(projectileFrames, projectileSize, false);
             }
 
+            projectileMesh = goProjectile.GetComponent<MeshFilter>().sharedMesh;
             if (travelSound)
                 PlaySound(travelSound, 0.6f, travelSoundIsLooped);
             playerLayerMask = ~(1 << LayerMask.NameToLayer("Player"));
@@ -147,7 +149,7 @@ namespace FutureShock
                 if (IsGrenade)
                     direction += Vector3.down * (downwardCurve * frameDeltaTime);
                 if (lifespan > lifespanInSeconds)
-                    Destroy(gameObject);
+                    DisposeSelf();
             }
             else
             {
@@ -190,7 +192,7 @@ namespace FutureShock
                     myLight.enabled = false;
                     // Wait for audio clip.
                     if (audioSource && !audioSource.isPlaying)
-                        Destroy(gameObject);
+                        DisposeSelf();
                 }
             }
         }
@@ -243,7 +245,7 @@ namespace FutureShock
                 isImpactBillboardRequested = IsExplosive || shotResult != FutureShockAttack.ShotResult.HitTarget;
             }
 
-            Destroy(goProjectile);
+            DisposeProjectile();
             impactDetected = true;
             if (IsExplosive)
                 DoSplashDamage(collisionPosition);
@@ -279,6 +281,23 @@ namespace FutureShock
             audioSource.dopplerLevel = 0f;
             audioSource.spatialBlend = spatialBlend;
             audioSource.Play();
+        }
+
+        private void DisposeSelf()
+        {
+            if (goProjectile)
+                DisposeProjectile();
+            Destroy(gameObject);
+        }
+
+        private void DisposeProjectile()
+        {
+            Destroy(projectileMesh);
+            foreach (var material in goProjectile.GetComponent<MeshRenderer>().materials)
+                Destroy(material);
+            if (goProjectile.TryGetComponent<FSBillboard>(out var projectileBillboard))
+                projectileBillboard.DisposeAssets();
+            Destroy(goProjectile);
         }
     }
 }
