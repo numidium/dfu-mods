@@ -280,7 +280,8 @@ namespace Crossbows
                     }
                     else
                     {
-                        enemySounds.PlayParrySound();
+                        if (enemyEntity.MobileEnemy.ParrySounds)
+                            enemySounds.PlayParrySound();
                     }
 
                     // Handle weapon striking enchantments - this could change damage amount

@@ -78,7 +78,7 @@ namespace Crossbows
             if (IsCustomPovWeapon(equippedRight))
             {
                 var lastNonCustomSheathed = gameManager.WeaponManager.Sheathed;
-                if (!lastNonCustomSheathed)
+                if (!lastNonCustomSheathed && gameManager.WeaponManager.UsingRightHand)
                     gameManager.WeaponManager.SheathWeapons();
                 if (equipChanged)
                 {
@@ -117,9 +117,19 @@ namespace Crossbows
                 return;
             }
 
-            povWeapon.IsFiring = !povWeapon.IsHolstered && !playerEntity.IsParalyzed && InputManager.Instance.HasAction(InputManager.Actions.SwingWeapon);
-            if (InputManager.Instance.ActionStarted(InputManager.Actions.ReadyWeapon) && IsCustomPovWeapon(equippedRight) && !povWeapon.IsFiring)
-                ShowWeapon = !ShowWeapon;
+            // Handle input.
+            if (gameManager.WeaponManager.UsingRightHand)
+            {
+                povWeapon.IsFiring = !povWeapon.IsHolstered && !playerEntity.IsParalyzed && InputManager.Instance.HasAction(InputManager.Actions.SwingWeapon);
+                if (InputManager.Instance.ActionStarted(InputManager.Actions.ReadyWeapon) && IsCustomPovWeapon(equippedRight) && !povWeapon.IsFiring)
+                    ShowWeapon = !ShowWeapon;
+                else if (InputManager.Instance.ActionComplete(InputManager.Actions.SwitchHand) && !povWeapon.IsHolstered)
+                    gameManager.WeaponManager.Sheathed = false; // Keep fist "unsheathed" when switching to HTH.
+            }
+            else if (InputManager.Instance.ActionComplete(InputManager.Actions.SwitchHand) && !gameManager.WeaponManager.Sheathed && IsCustomPovWeapon(equippedRight))
+                ShowWeapon = true; // Unholster weapon if switching from unsheathed weapon.
+            else if (gameManager.WeaponManager.Sheathed && ShowWeapon)
+                ShowWeapon = false; // Holster weapon if switched to left hand and sheathed.
             if (!ShowWeapon)
                 povWeapon.IsHolstered = true;
             else if (povWeapon.IsHolstered && gameManager.WeaponManager.EquipCountdownRightHand <= 0)
