@@ -2,11 +2,6 @@ using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.Items;
 using DaggerfallWorkshop.Game.Serialization;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Crossbows
 {
@@ -16,9 +11,9 @@ namespace Crossbows
         private const string itemName = "Crossbow";
         public override int InventoryTextureArchive => GameManager.Instance.PlayerEntity.Gender == DaggerfallWorkshop.Game.Entity.Genders.Female ? 1803 : 1802;
         public override int InventoryTextureRecord => 1;
-        // +10 from longbows to compensate for slower reload.
-        public override int GetBaseDamageMin() => 14;
-        public override int GetBaseDamageMax() => 28;
+        // +7 from longbows to compensate for slower reload.
+        public override int GetBaseDamageMin() => 11;
+        public override int GetBaseDamageMax() => 25;
         public override string ItemName => itemName;
         public override string LongName => $"{DaggerfallUnity.Instance.TextProvider.GetWeaponMaterialName((WeaponMaterialTypes)NativeMaterialValue)} {itemName}";
         public override int GroupIndex => 0;
