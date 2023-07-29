@@ -512,6 +512,7 @@ namespace DynamicMusic
         private bool customTrackQueued;
         private byte combatPlaylistIndex;
         private bool combatMusicIsMidi;
+        private bool combatMusicIsEnabled;
         private float previousTimeSinceStartup;
         private float deltaTime;
         private bool gameLoaded;
@@ -533,13 +534,22 @@ namespace DynamicMusic
             DontDestroyOnLoad(go);
             SaveLoadManager.OnLoad += SaveLoadManager_OnLoad;
             StartGameBehaviour.OnStartGame += StartGameBehaviour_OnStartGame;
-            //mod.LoadSettingsCallback = Instance.LoadSettings;
+            mod.LoadSettingsCallback = Instance.LoadSettings;
         }
 
-        private void Awake()
+        // Load settings that can change during runtime.
+        private void LoadSettings(ModSettings settings, ModSettingsChange change)
         {
-            //var settings = mod.GetSettings();
-            //LoadSettings(settings, new ModSettingsChange());
+            combatMusicIsEnabled = settings.GetValue<bool>("Options", "Enable Combat Music");
+        }
+
+        private void Start()
+        {
+            // Load settings that require a restart.
+            var settings = mod.GetSettings();
+            LoadSettings(settings, new ModSettingsChange());
+
+            // Load custom playlists from disk.
             var soundPath = Path.Combine(Application.streamingAssetsPath, soundDirectory);
             customPlaylists = new Playlist[(int)MusicPlaylist.None + 1];
             for (var i = 0; i < customPlaylists.Length; i++)
@@ -560,41 +570,29 @@ namespace DynamicMusic
                 customPlaylists[i] = new Playlist(trackList);
             }
 
-            combatPlaylist = customPlaylists[(int)MusicPlaylist.Combat];
-            combatMusicIsMidi = combatPlaylist == null;
-            previousTimeSinceStartup = Time.realtimeSinceStartup;
-            gameLoaded = false;
-            currentPlaylist = MusicPlaylist.None;
-            Debug.Log("Dynamic Music initialized.");
-            mod.IsReady = true;
-        }
-
-        // Load settings that can change during runtime.
-        /*
-        private void LoadSettings(ModSettings settings, ModSettingsChange change)
-        {
-        }
-        */
-
-        private void Start()
-        {
-            gameManager = GameManager.Instance;
-            const string songPlayerName = "SongPlayer";
             // Remove vanilla song players from memory.
+            const string songPlayerName = "SongPlayer";
+            gameManager = GameManager.Instance;
             Destroy(gameManager.DungeonParent.transform.Find(songPlayerName).gameObject);
             Destroy(gameManager.InteriorParent.transform.Find(songPlayerName).gameObject);
             Destroy(gameManager.ExteriorParent.transform.Find(songPlayerName).gameObject);
-            // Replace with objects of same name (for compatibility).
+            // Replace with dummy objects of same name (for compatibility).
             var dummySongPlayer = new GameObject(songPlayerName);
             dummySongPlayer.transform.parent = gameManager.DungeonParent.transform;
             dummySongPlayer = new GameObject(songPlayerName);
             dummySongPlayer.transform.parent = gameManager.InteriorParent.transform;
             dummySongPlayer = new GameObject(songPlayerName);
             dummySongPlayer.transform.parent = gameManager.ExteriorParent.transform;
+
+            // Set references for quick access.
             playerEntity = gameManager.PlayerEntity;
             localPlayerGPS = gameManager.PlayerGPS;
             playerEnterExit = localPlayerGPS.GetComponent<PlayerEnterExit>();
             playerWeather = localPlayerGPS.GetComponent<PlayerWeather>();
+
+            // Set timing variables and state.
+            previousTimeSinceStartup = Time.realtimeSinceStartup;
+            gameLoaded = false;
             detectionCheckInterval = 3f;
             combatTaperLength = 2;
             fadeOutLength = 2f;
@@ -602,13 +600,18 @@ namespace DynamicMusic
             currentState = State.Normal;
             lastState = currentState;
             currentMusicType = MusicType.Normal;
+            combatPlaylist = customPlaylists[(int)MusicPlaylist.Combat];
+            combatMusicIsMidi = combatPlaylist == null;
+            currentPlaylist = MusicPlaylist.None;
+
+            // Define default combat playlist.
             defaultCombatSongs = new SongFiles[]
             {
                 SongFiles.song_17, // fighter trainers
                 SongFiles.song_30  // unused sneaking (?) theme
             };
 
-            // Use alternate music if set
+            // Use alternate music if set.
             if (DaggerfallUnity.Settings.AlternateMusic)
             {
                 DungeonInteriorSongs = _dungeonSongsFM;
@@ -629,12 +632,17 @@ namespace DynamicMusic
                 SneakingSongs = _sneakingSongsFM;
             }
 
+            // Start with a random combat track.
             combatPlaylistIndex = (byte)UnityEngine.Random.Range(0, combatPlaylist == null ? defaultCombatSongs.Length : combatPlaylist.TrackCount);
+
+            // Setup events.
             PlayerEnterExit.OnTransitionInterior += OnTransitionInterior;
             PlayerEnterExit.OnTransitionExterior += OnTransitionExterior;
             PlayerEnterExit.OnTransitionDungeonInterior += OnTransitionDungeonInterior;
             PlayerEnterExit.OnTransitionDungeonExterior += OnTransitionDungeonExterior;
             playerEntity.OnDeath += OnDeath;
+            Debug.Log("Dynamic Music initialized.");
+            mod.IsReady = true;
         }
 
         private void Update()
@@ -698,7 +706,6 @@ namespace DynamicMusic
                     if (isUsingCustomPlaylist && dynamicSongPlayer.IsStoppedClip)
                         customTrackQueued = true;
                     lastState = State.Normal;
-
                     break;
                 case State.FadingOut:
                     if (currentMusicType == MusicType.Normal)
@@ -728,7 +735,6 @@ namespace DynamicMusic
                     }
 
                     lastState = State.FadingOut;
-
                     break;
                 case State.Combat:
                     {
@@ -758,7 +764,6 @@ namespace DynamicMusic
                     }
 
                     lastState = State.Combat;
-
                     break;
             }
 
@@ -768,7 +773,7 @@ namespace DynamicMusic
                 return;
             if (currentState == State.Normal || currentState == State.Combat)
             {
-                if (!gameManager.PlayerDeath.DeathInProgress && !playerEntity.Arrested && IsPlayerDetected())
+                if (combatMusicIsEnabled && !gameManager.PlayerDeath.DeathInProgress && !playerEntity.Arrested && IsPlayerDetected())
                 {
                     // Start combat music
                     lastState = currentState;
