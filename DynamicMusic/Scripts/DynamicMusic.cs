@@ -497,13 +497,13 @@ namespace DynamicMusic
         private DynamicSongPlayer dynamicSongPlayer;
         private GameManager gameManager;
         private PlayerEntity playerEntity;
-        private float detectionCheckInterval;
+        private const float detectionCheckInterval = 3f;
         private float detectionCheckDelta;
-        private float fadeOutLength;
-        //private float fadeInLength;
+        private const float fadeOutLength = 2f;
+        private const float fadeInLength = 2f;
         private float fadeOutTime;
-        //private float fadeInTime;
-        private byte combatTaperLength;
+        private float fadeInTime;
+        private const byte combatTaperLength = 2;
         private byte combatTaper;
         private SongFiles[] defaultCombatSongs;
         private Playlist combatPlaylist;
@@ -513,8 +513,10 @@ namespace DynamicMusic
         private byte combatPlaylistIndex;
         private bool combatMusicIsMidi;
         private bool combatMusicIsEnabled;
+        private bool resumeEnabled = true;
         private float previousTimeSinceStartup;
         private float deltaTime;
+        private float resumeSeeker = 0f;
         private bool gameLoaded;
         private MusicPlaylist currentPlaylist;
         private State currentState;
@@ -541,6 +543,7 @@ namespace DynamicMusic
         private void LoadSettings(ModSettings settings, ModSettingsChange change)
         {
             combatMusicIsEnabled = settings.GetValue<bool>("Options", "Enable Combat Music");
+            resumeEnabled = settings.GetValue<bool>("Options", "Enable Track Resume");
         }
 
         private void Start()
@@ -593,10 +596,6 @@ namespace DynamicMusic
             // Set timing variables and state.
             previousTimeSinceStartup = Time.realtimeSinceStartup;
             gameLoaded = false;
-            detectionCheckInterval = 3f;
-            combatTaperLength = 2;
-            fadeOutLength = 2f;
-            //fadeInLength = 3f;
             currentState = State.Normal;
             lastState = currentState;
             currentMusicType = MusicType.Normal;
@@ -655,6 +654,10 @@ namespace DynamicMusic
                 deltaTime = 0f;
             var previousPlaylist = currentPlaylist;
             currentPlaylist = GetMusicPlaylist(localPlayerGPS, playerEnterExit, playerWeather);
+            // Reset resume seeker if playlist changed.
+            if (resumeEnabled && previousPlaylist != currentPlaylist)
+                resumeSeeker = 0f;
+
             switch (currentState)
             {
                 case State.Normal:
@@ -678,33 +681,7 @@ namespace DynamicMusic
                     }
 
                     dynamicSongPlayer.AudioSource.volume = DaggerfallUnity.Settings.MusicVolume;
-                    var currentCustomPlaylist = customPlaylists[(int)currentPlaylist] != null ? currentPlaylist : MusicPlaylist.None;
-                    var isUsingCustomPlaylist = currentCustomPlaylist != MusicPlaylist.None;
-                    // Plays random tracks continuously as long as custom tracks are available for the current context.
-                    if (isUsingCustomPlaylist &&
-                        (currentCustomTrack != customPlaylists[(int)currentPlaylist].CurrentTrack || customTrackQueued)) // Changed to a different custom track.
-                    {
-                        var playlist = customPlaylists[(int)currentCustomPlaylist];
-                        dynamicSongPlayer.Play(playlist.GetNextTrack());
-                        currentCustomTrack = playlist.CurrentTrack;
-                        dynamicSongPlayer.Song = SongFiles.song_none;
-                        customTrackQueued = false;
-                    }
-                    // Loop the music as usual if no custom soundtracks are found.
-                    else if (currentCustomPlaylist == MusicPlaylist.None)
-                    {
-                        // Imported tracks start loading here.
-                        if (previousPlaylist == currentPlaylist && !dynamicSongPlayer.IsPlaying)
-                            dynamicSongPlayer.Play();
-                        else if (previousPlaylist != currentPlaylist || lastState != State.Normal)
-                            dynamicSongPlayer.Play(GetSong(currentPlaylist));
-
-                        currentCustomTrack = string.Empty; // Should not be a custom track set if one is not playing.
-                    }
-
-                    // Queue next custom track when at the end of the current one.
-                    if (isUsingCustomPlaylist && dynamicSongPlayer.IsStoppedClip)
-                        customTrackQueued = true;
+                    PlayNormalTrack(previousPlaylist);
                     lastState = State.Normal;
                     break;
                 case State.FadingOut:
@@ -728,13 +705,30 @@ namespace DynamicMusic
                         {
                             fadeOutTime = 0f;
                             currentMusicType = MusicType.Normal;
-                            currentState = State.Normal;
+                            currentState = State.FadingIn;
+                            dynamicSongPlayer.AudioSource.volume = 0f;
                             if (customPlaylists[(int)currentPlaylist] != null)
                                 customTrackQueued = true;
                         }
                     }
 
                     lastState = State.FadingOut;
+                    break;
+                case State.FadingIn:
+                    if (dynamicSongPlayer.AudioSource.volume == 0f)
+                        PlayNormalTrack(previousPlaylist);
+                    fadeInTime += deltaTime;
+                    // End fade when time elapsed.
+                    if (fadeInTime >= fadeInLength)
+                    {
+                        fadeInTime = 0f;
+                        currentState = State.Normal;
+                        // Syncing the volume here instead of waiting for the next frame prevents audio hiccup.
+                        dynamicSongPlayer.AudioSource.volume = DaggerfallUnity.Settings.MusicVolume;
+                    }
+                    else
+                        dynamicSongPlayer.AudioSource.volume = Mathf.Lerp(0f, DaggerfallUnity.Settings.MusicVolume, fadeInTime / fadeInLength);
+                    lastState = State.FadingIn;
                     break;
                 case State.Combat:
                     {
@@ -780,6 +774,8 @@ namespace DynamicMusic
                     currentState = State.Combat;
                     combatTaper = combatTaperLength;
                     currentMusicType = MusicType.Combat;
+                    if (resumeEnabled && lastState == State.Normal)
+                        resumeSeeker = dynamicSongPlayer.CurrentSecond;
                 }
                 else if (combatTaper > 0 && --combatTaper == 0)
                     currentState = State.FadingOut;
@@ -811,6 +807,40 @@ namespace DynamicMusic
                 currentState = State.FadingOut;
                 combatTaper = 0;
             }
+        }
+
+        private void PlayNormalTrack(MusicPlaylist previousPlaylist)
+        {
+            var currentCustomPlaylist = customPlaylists[(int)currentPlaylist] != null ? currentPlaylist : MusicPlaylist.None;
+            var isUsingCustomPlaylist = currentCustomPlaylist != MusicPlaylist.None;
+            // Plays random tracks continuously as long as custom tracks are available for the current context.
+            if (isUsingCustomPlaylist &&
+                (currentCustomTrack != customPlaylists[(int)currentPlaylist].CurrentTrack || customTrackQueued)) // Changed to a different custom track.
+            {
+                var playlist = customPlaylists[(int)currentCustomPlaylist];
+                var track = resumeSeeker > 0f ? playlist.CurrentTrack : playlist.GetNextTrack();
+                dynamicSongPlayer.Play(track, resumeSeeker);
+                resumeSeeker = 0f;
+                currentCustomTrack = playlist.CurrentTrack;
+                dynamicSongPlayer.Song = SongFiles.song_none;
+                customTrackQueued = false;
+            }
+            // Loop the music as usual if no custom soundtracks are found.
+            else if (currentCustomPlaylist == MusicPlaylist.None)
+            {
+                // Imported tracks start loading here.
+                if (previousPlaylist == currentPlaylist && !dynamicSongPlayer.IsPlaying)
+                    dynamicSongPlayer.Play();
+                else if (previousPlaylist != currentPlaylist || (lastState != State.Normal && lastState != State.FadingIn))
+                    dynamicSongPlayer.Play(GetSong(currentPlaylist), resumeSeeker);
+
+                resumeSeeker = 0f;
+                currentCustomTrack = string.Empty; // Should not be a custom track set if one is not playing.
+            }
+
+            // Queue next custom track when at the end of the current one.
+            if (isUsingCustomPlaylist && dynamicSongPlayer.IsStoppedClip)
+                customTrackQueued = true;
         }
 
         private MusicPlaylist GetMusicPlaylist(PlayerGPS localPlayerGPS, PlayerEnterExit playerEnterExit, PlayerWeather playerWeather)

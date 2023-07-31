@@ -34,6 +34,8 @@ namespace DynamicMusic
         public bool IsAudioSourcePlaying => AudioSource.isPlaying || (AudioSource.clip && AudioSource.clip.loadState == AudioDataLoadState.Loading);
         public bool IsPlaying => IsAudioSourcePlaying || (midiSequencer != null && midiSequencer.IsPlaying);
         public bool IsStoppedClip => clipStarted && AudioSource.clip && AudioSource.clip.loadState == AudioDataLoadState.Loaded && !AudioSource.isPlaying;
+        // midiSequencer.CurrentTime is the current sample #. Therefore dividing the sample by sample rate in Hz yields the current second.
+        public float CurrentSecond => midiSequencer.IsPlaying ? midiSequencer.CurrentTime / midiSequencer.Synth.SampleRate : AudioSource.time;
         private Synthesizer midiSynthesizer = null;
         private MidiFileSequencer midiSequencer = null;
         private float[] sampleBuffer = new float[0];
@@ -75,6 +77,7 @@ namespace DynamicMusic
                     StopSequencer();
                     if (AudioSource.clip)
                         AudioSource.Play();
+
                     clipStarted = true;
                 }
             }
@@ -88,7 +91,7 @@ namespace DynamicMusic
             Play(Song);
         }
 
-        public void Play(SongFiles song)
+        public void Play(SongFiles song, float timeSeek = 0f)
         {
             if (!InitSynth())
                 return;
@@ -99,14 +102,15 @@ namespace DynamicMusic
             {
                 Song = song;
                 AudioSource.clip = clip;
+                AudioSource.time = timeSeek;
                 clipStarted = false;
             }
             else
-                PlaySequencer(song);
+                PlaySequencer(song, (int)timeSeek);
             AudioSource.loop = true;
         }
 
-        public void Play(string track)
+        public void Play(string track, float timeSeek = 0f)
         {
             Stop();
             if (streamedSong)
@@ -114,6 +118,7 @@ namespace DynamicMusic
             if (IsImported = TryLoadSong(track, out streamedSong))
             {
                 AudioSource.clip = streamedSong;
+                AudioSource.time = timeSeek;
                 AudioSource.loop = false;
                 clipStarted = false;
             }
@@ -247,7 +252,7 @@ namespace DynamicMusic
             return null;
         }
 
-        private void PlaySequencer(SongFiles song)
+        private void PlaySequencer(SongFiles song, int timeSeek = 0)
         {
             // Load song data
             var filename = EnumToFilename(song);
@@ -259,6 +264,8 @@ namespace DynamicMusic
             var midiFile = new MidiFile(new MyMemoryFile(songData, filename));
             if (midiSequencer.LoadMidi(midiFile))
             {
+                var time = new TimeSpan(0, 0, timeSeek);
+                midiSequencer.Seek(time);
                 midiSequencer.Play();
                 Song = song;
                 playEnabled = true;
