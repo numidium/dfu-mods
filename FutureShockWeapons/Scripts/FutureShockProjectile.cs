@@ -270,6 +270,8 @@ namespace FutureShock
                 var ray = new Ray(position, direction);
                 if (Physics.Raycast(ray, out RaycastHit hit, explosionRadius, playerLayerMask))
                     FutureShockAttack.DealDamage(OriginWeapon, hit.transform, hit.point, ray.direction, true);
+                if (Physics.Raycast(ray, out _, explosionRadius, ~playerLayerMask)) // Damage player if caught in the blast.
+                    FutureShockAttack.DamagePlayer(OriginWeapon);
             }
         }
 

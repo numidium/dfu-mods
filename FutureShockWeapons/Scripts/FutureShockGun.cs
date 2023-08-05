@@ -1,6 +1,7 @@
 using DaggerfallConnect;
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
+using DaggerfallWorkshop.Game.Entity;
 using DaggerfallWorkshop.Game.Items;
 using DaggerfallWorkshop.Game.Serialization;
 using DaggerfallWorkshop.Utility;
@@ -180,7 +181,7 @@ namespace FutureShock
             }
 
             GUI.depth = 0;
-            if (Event.current.type.Equals(EventType.Repaint) && !IsHolstered)
+            if (Event.current.type.Equals(EventType.Repaint) && !IsHolstered && gameManager.WeaponManager.UsingRightHand && !gameManager.PlayerEntity.IsParalyzed)
                 DaggerfallUI.DrawTextureWithTexCoords(weaponPosition, WeaponFrames[currentFrame], DaggerfallUnity.Settings.Handedness == 1 ? leftHanded : rightHanded);
         }
 

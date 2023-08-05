@@ -126,5 +126,11 @@ namespace FutureShock
 
             return isHitSuccessful ? ShotResult.HitTarget : ShotResult.MissedTarget;
         }
+
+        public static void DamagePlayer(DaggerfallUnityItem weapon)
+        {
+            var damage = Random.Range(weapon.GetBaseDamageMin(), weapon.GetBaseDamageMax() + 1) + weapon.GetWeaponMaterialModifier();
+            GameManager.Instance.PlayerObject.SendMessage("RemoveHealth", damage);
+        }
     }
 }

@@ -2,7 +2,6 @@ using DaggerfallConnect;
 using DaggerfallConnect.Arena2;
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
-using DaggerfallWorkshop.Game.Entity;
 using DaggerfallWorkshop.Game.Items;
 using DaggerfallWorkshop.Game.Serialization;
 using DaggerfallWorkshop.Game.Utility.ModSupport;
@@ -176,7 +175,7 @@ namespace FutureShock
             if (IsGun(equippedRight))
             {
                 var lastNonGunSheathed = gameManager.WeaponManager.Sheathed;
-                if (!lastNonGunSheathed)
+                if (!lastNonGunSheathed && gameManager.WeaponManager.UsingRightHand)
                     gameManager.WeaponManager.SheathWeapons();
                 if (equipChanged)
                 {
@@ -212,9 +211,19 @@ namespace FutureShock
                 return;
             }
 
-            fpsGun.IsFiring = !fpsGun.IsHolstered && InputManager.Instance.HasAction(InputManager.Actions.SwingWeapon) && !gameManager.PlayerEntity.IsParalyzed;
-            if (InputManager.Instance.ActionStarted(InputManager.Actions.ReadyWeapon) && IsGun(equippedRight) && !fpsGun.IsFiring)
-                ShowWeapon = !ShowWeapon;
+            // Handle input.
+            if (gameManager.WeaponManager.UsingRightHand)
+            {
+                fpsGun.IsFiring = !fpsGun.IsHolstered && !gameManager.PlayerEntity.IsParalyzed && InputManager.Instance.HasAction(InputManager.Actions.SwingWeapon);
+                if (InputManager.Instance.ActionStarted(InputManager.Actions.ReadyWeapon) && IsGun(equippedRight) && !fpsGun.IsFiring)
+                    ShowWeapon = !ShowWeapon;
+                else if (InputManager.Instance.ActionComplete(InputManager.Actions.SwitchHand) && !fpsGun.IsHolstered)
+                    gameManager.WeaponManager.Sheathed = false; // Keep fist "unsheathed" when switching to HTH.
+            }
+            else if (InputManager.Instance.ActionComplete(InputManager.Actions.SwitchHand) && !gameManager.WeaponManager.Sheathed && IsGun(equippedRight))
+                ShowWeapon = true; // Unholster weapon if switching from unsheathed weapon.
+            else if (gameManager.WeaponManager.Sheathed && ShowWeapon)
+                ShowWeapon = false; // Holster weapon if switched to left hand and sheathed.
             if (!ShowWeapon)
                 fpsGun.IsHolstered = true;
             else if (fpsGun.IsHolstered && gameManager.WeaponManager.EquipCountdownRightHand <= 0)
@@ -576,7 +585,7 @@ namespace FutureShock
                     fpsGun.TravelSound = null;
                     fpsGun.ShotConditionCost = 1;
                     fpsGun.SetBurst();
-                    fpsGun.ShotSpread = .15f;
+                    fpsGun.ShotSpread = .1f;
                     break;
                 case FSWeapon.M16:
                     fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON02];
@@ -589,7 +598,7 @@ namespace FutureShock
                     fpsGun.TravelSound = null;
                     fpsGun.ShotConditionCost = 1;
                     fpsGun.SetBurst();
-                    fpsGun.ShotSpread = .05f;
+                    fpsGun.ShotSpread = .03f;
                     break;
                 case FSWeapon.MachineGun:
                     fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON03];
@@ -602,7 +611,7 @@ namespace FutureShock
                     fpsGun.TravelSound = null;
                     fpsGun.ShotConditionCost = 1;
                     fpsGun.SetBurst();
-                    fpsGun.ShotSpread = .1f;
+                    fpsGun.ShotSpread = .05f;
                     break;
                 case FSWeapon.Shotgun:
                     fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON04];
@@ -615,7 +624,7 @@ namespace FutureShock
                     fpsGun.TravelSound = null;
                     fpsGun.ShotConditionCost = 3;
                     fpsGun.SetPellets();
-                    fpsGun.ShotSpread = .13f;
+                    fpsGun.ShotSpread = .1f;
                     break;
                 case FSWeapon.GrenadeLauncher:
                     fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON05];
