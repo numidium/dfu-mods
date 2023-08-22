@@ -8,6 +8,7 @@ using DaggerfallWorkshop.Game.UserInterfaceWindows;
 using DaggerfallWorkshop.Game.Utility;
 using DaggerfallWorkshop.Game.Utility.ModSupport;
 using DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings;
+using DaggerfallWorkshop.Game.Weather;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -450,6 +451,9 @@ namespace DynamicMusic
         public SongFiles[] SneakingSongs = _sneakingSongs;
         #endregion Playlists
 
+        /// <summary>
+        /// Holds a list of strings that represent music tracks. Advances track and auto shuffles.
+        /// </summary>
         private sealed class Playlist
         {
             private readonly List<string> tracks;
@@ -489,6 +493,36 @@ namespace DynamicMusic
             public string CurrentTrack => tracks[index];
         }
 
+        /// <summary>
+        /// Set of vanilla conditions that determine which playlist to use.
+        /// </summary>
+        private struct Conditions
+        {
+            public DFRegion.LocationTypes LocationType; // exterior
+            public DFLocation.BuildingTypes BuildingType; // interior
+            public WeatherType WeatherType;
+            public uint FactionId;
+            public bool IsNight;
+            public bool IsInInterior;
+            public bool IsInDungeon;
+            public bool IsInDungeonCastle;
+        }
+
+        private struct ConditionLookup
+        {
+            public bool IsBoolean;
+            public ConditionMethod MethodDefinition;
+        }
+
+        private delegate bool ConditionMethod(ref Conditions conditions, bool negate, int parameter);
+        private class ConditionUsage
+        {
+            public Conditions ConditionsArg;
+            public bool NegateArg;
+            public int ParameterArg;
+            public ConditionMethod ConditionMethod;
+        }
+
         public static DynamicMusic Instance { get; private set; }
         private static Mod mod;
         private PlayerGPS localPlayerGPS;
@@ -508,6 +542,7 @@ namespace DynamicMusic
         private SongFiles[] defaultCombatSongs;
         private Playlist combatPlaylist;
         private Playlist[] customPlaylists;
+        private Dictionary<int, List<ConditionUsage>> userDefinedConditionSets;
         private string currentCustomTrack;
         private bool customTrackQueued;
         private byte combatPlaylistIndex;
@@ -518,13 +553,12 @@ namespace DynamicMusic
         private float deltaTime;
         private float resumeSeeker = 0f;
         private bool gameLoaded;
-        private MusicPlaylist currentPlaylist;
+        private int currentPlaylist;
         private State currentState;
         private State lastState;
         private MusicType currentMusicType;
-        private const string soundDirectory = "Sound";
-        private const string baseDirectory = "DynMusic";
         private const string fileSearchPattern = "*.ogg";
+        private const string modSignature = "Dynamic Music";
 
         [Invoke(StateManager.StateTypes.Start, 0)]
         public static void Init(InitParams initParams)
@@ -552,19 +586,221 @@ namespace DynamicMusic
             var settings = mod.GetSettings();
             LoadSettings(settings, new ModSettingsChange());
 
-            // Load custom playlists from disk.
-            var soundPath = Path.Combine(Application.streamingAssetsPath, soundDirectory);
-            customPlaylists = new Playlist[(int)MusicPlaylist.None + 1];
-            for (var i = 0; i < customPlaylists.Length; i++)
+            const string soundDirectory = "Sound";
+            const string baseDirectory = "DynMusic";
+            var basePath = Path.Combine(Application.streamingAssetsPath, soundDirectory, baseDirectory);
+            var userDefinedPlaylists = new List<Playlist>();
+
+            // Load user-defined playlists from disk (user-defined meaning the conditions and tracks are custom).
+            var conditionLibrary = new Dictionary<string, ConditionLookup>
             {
-                var musicPath = Path.Combine(soundPath, baseDirectory, $"{(MusicPlaylist)i}");
-                if (!Directory.Exists(musicPath))
+                // Vanilla conditions:
+                ["night"] = new ConditionLookup()
                 {
-                    Directory.CreateDirectory(musicPath);
+                    IsBoolean = true,
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int parameter)
+                    {
+                        return negate ? !conditions.IsNight : conditions.IsNight;
+                    }
+                },
+                ["interior"] = new ConditionLookup()
+                {
+                    IsBoolean = true,
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int parameter)
+                    {
+                        return negate ? !conditions.IsInInterior : conditions.IsInInterior;
+                    }
+                },
+                ["dungeon"] = new ConditionLookup()
+                {
+                    IsBoolean = true,
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int parameter)
+                    {
+                        return negate ? !conditions.IsInDungeon : conditions.IsInDungeon;
+                    }
+                },
+                ["dungeoncastle"] = new ConditionLookup()
+                {
+                    IsBoolean = true,
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int parameter)
+                    {
+                        return negate ? !conditions.IsInDungeonCastle : conditions.IsInDungeonCastle;
+                    }
+                },
+                ["locationtype"] = new ConditionLookup()
+                {
+                    IsBoolean = false,
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int parameter)
+                    {
+                        return conditions.LocationType == (DFRegion.LocationTypes)parameter;
+                    }
+                },
+                ["buildingtype"] = new ConditionLookup()
+                {
+                    IsBoolean = false,
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int parameter)
+                    {
+                        return conditions.BuildingType == (DFLocation.BuildingTypes)parameter;
+                    }
+                },
+                ["weathertype"] = new ConditionLookup()
+                {
+                    IsBoolean = false,
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int parameter)
+                    {
+                        return conditions.WeatherType == (WeatherType)parameter;
+                    }
+                },
+                ["factionid"] = new ConditionLookup()
+                {
+                    IsBoolean = false,
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int parameter)
+                    {
+                        return conditions.FactionId == parameter;
+                    }
+                },
+                // Non-vanilla conditions:
+                ["climate"] = new ConditionLookup()
+                {
+                    IsBoolean = false,
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int parameter)
+                    {
+                        // TODO: make sure parameter is valid type and catch if not
+                        return localPlayerGPS.ClimateSettings.ClimateType == (DFLocation.ClimateBaseType)parameter;
+                    }
+                },
+                ["regionindex"] = new ConditionLookup()
+                {
+                    IsBoolean = false,
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int parameter)
+                    {
+                        return localPlayerGPS.CurrentRegionIndex == parameter;
+                    }
+                },
+                ["dungeontype"] = new ConditionLookup()
+                {
+                    IsBoolean = false,
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int parameter)
+                    {
+                        return (playerEnterExit.Dungeon != null) && playerEnterExit.Dungeon.Summary.DungeonType == (DFRegion.DungeonTypes)parameter;
+                    }
+                }
+            };
+
+            const string userPlaylistsFileName = "UserDefined.txt";
+            var filePath = Path.Combine(basePath, userPlaylistsFileName);
+            if (Directory.Exists(basePath) && File.Exists(filePath))
+            {
+                using (var file = new StreamReader(filePath))
+                {
+                    userDefinedConditionSets = new Dictionary<int, List<ConditionUsage>>();
+                    ushort lineCounter = 0;
+                    string line;
+                    while ((line = file.ReadLine()) != null)
+                    {
+                        line = line.Trim(); // Remove whitespace to the left and right.
+                        lineCounter++;
+                        var trackList = new List<string>();
+                        // # = Comment/memo line, ignore.
+                        if (line[0] != '#')
+                        {
+                            // Get track names from directory.
+                            var lineContainsError = false;
+                            var tokens = line.Split(' ', ',');
+                            var playlistName = tokens[0];
+                            if (!Directory.Exists(Path.Combine(basePath, playlistName)))
+                            {
+                                PrintParserError($"Reference to non-existent playlist directory", lineCounter, playlistName);
+                                lineContainsError = true;
+                            }
+                            else
+                            {
+                                var files = Directory.GetFiles(Path.Combine(basePath, playlistName), fileSearchPattern);
+                                if (files.Length > 0)
+                                {
+                                    foreach (var fileName in files)
+                                        trackList.Add(fileName);
+                                    // Add playlist.
+                                    userDefinedPlaylists.Add(new Playlist(trackList));
+                                }
+                            }
+
+                            // Parse conditional tokens on current line.
+                            var playlistKey = (int)MusicPlaylist.None + userDefinedPlaylists.Count;
+                            userDefinedConditionSets[playlistKey] = new List<ConditionUsage>();
+                            var tokenIndex = 2;
+                            while (tokenIndex < tokens.Length)
+                            {
+                                var negate = false;
+                                if (tokens[tokenIndex].ToLower() == "not")
+                                {
+                                    tokenIndex++;
+                                    negate = true;
+                                }
+
+                                if (!conditionLibrary.ContainsKey(tokens[tokenIndex].ToLower()))
+                                {
+                                    PrintParserError($"Unrecognized condition", lineCounter, tokens[tokenIndex]);
+                                    lineContainsError = true;
+                                    break;
+                                }
+                                else
+                                {
+                                    var conditionToken = tokens[tokenIndex].ToLower();
+                                    if (negate && !conditionLibrary[conditionToken].IsBoolean)
+                                    {
+                                        PrintParserError($"Negation applied to non-boolean condition.", lineCounter, conditionToken);
+                                        lineContainsError = true;
+                                        break;
+                                    }
+                                    else if (!lineContainsError)
+                                    {
+                                        ushort result = 0;
+                                        if (!conditionLibrary[conditionToken].IsBoolean) // Don't look for argument if condition is boolean.
+                                            ushort.TryParse(tokens[++tokenIndex], out result);
+                                        var conditionUsage = new ConditionUsage()
+                                        {
+                                            NegateArg = negate,
+                                            ParameterArg = result,
+                                            ConditionMethod = conditionLibrary[conditionToken].MethodDefinition
+                                        };
+
+                                        // Add condition for current playlist.
+                                        userDefinedConditionSets[playlistKey].Add(conditionUsage);
+                                    }
+
+                                    tokenIndex++; // Advance to expected ','.
+                                    if (tokenIndex < tokens.Length && tokens[tokenIndex] != "")
+                                    {
+                                        PrintParserError($"Expected a ',' before next token.", lineCounter, conditionToken);
+                                        lineContainsError = true;
+                                        break;
+                                    }
+                                    else
+                                        tokenIndex++; // Move to next condition.
+                                }
+                            }
+
+                            if (lineContainsError)
+                                userDefinedConditionSets.Remove(playlistKey);
+                            // jesus christ this is way too much nesting
+                        }
+                    }
+                }
+            }
+
+            // Load custom playlists from disk.
+            customPlaylists = new Playlist[(int)MusicPlaylist.None + userDefinedPlaylists.Count + 1];
+            for (var i = 0; i < (int)MusicPlaylist.None + 1; i++)
+            {
+                var playlistPath = Path.Combine(basePath, $"{(MusicPlaylist)i}");
+                if (!Directory.Exists(playlistPath))
+                {
+                    Directory.CreateDirectory(playlistPath);
                     continue;
                 }
 
-                var files = Directory.GetFiles(musicPath, fileSearchPattern);
+                var files = Directory.GetFiles(playlistPath, fileSearchPattern);
                 if (files.Length == 0)
                     continue;
                 var trackList = new List<string>();
@@ -572,6 +808,11 @@ namespace DynamicMusic
                     trackList.Add(fileName);
                 customPlaylists[i] = new Playlist(trackList);
             }
+
+            // Append user defined playlists to custom playlists.
+            var j = 0;
+            for (var i = (int)MusicPlaylist.None + 1; j < userDefinedPlaylists.Count; i++)
+                customPlaylists[i] = userDefinedPlaylists[j++];
 
             // Remove vanilla song players from memory.
             const string songPlayerName = "SongPlayer";
@@ -601,7 +842,7 @@ namespace DynamicMusic
             currentMusicType = MusicType.Normal;
             combatPlaylist = customPlaylists[(int)MusicPlaylist.Combat];
             combatMusicIsMidi = combatPlaylist == null;
-            currentPlaylist = MusicPlaylist.None;
+            currentPlaylist = (int)MusicPlaylist.None;
 
             // Define default combat playlist.
             defaultCombatSongs = new SongFiles[]
@@ -640,7 +881,7 @@ namespace DynamicMusic
             PlayerEnterExit.OnTransitionDungeonInterior += OnTransitionDungeonInterior;
             PlayerEnterExit.OnTransitionDungeonExterior += OnTransitionDungeonExterior;
             playerEntity.OnDeath += OnDeath;
-            Debug.Log("Dynamic Music initialized.");
+            Debug.Log($"{modSignature} initialized.");
             mod.IsReady = true;
         }
 
@@ -653,7 +894,17 @@ namespace DynamicMusic
             if (deltaTime < 0f)
                 deltaTime = 0f;
             var previousPlaylist = currentPlaylist;
-            currentPlaylist = GetMusicPlaylist(localPlayerGPS, playerEnterExit, playerWeather);
+            currentPlaylist = (int)GetMusicPlaylist(localPlayerGPS, playerEnterExit, playerWeather, out var conditions);
+            // Check if conditions match any user-defined condition sets.
+            foreach (var key in userDefinedConditionSets.Keys)
+            {
+                var eval = true;
+                foreach (var condition in userDefinedConditionSets[key])
+                    eval &= condition.ConditionMethod(ref conditions, condition.NegateArg, condition.ParameterArg);
+                if (eval)
+                    currentPlaylist = key;
+            }
+
             // Reset resume seeker if playlist changed.
             if (resumeEnabled && previousPlaylist != currentPlaylist)
                 resumeSeeker = 0f;
@@ -662,14 +913,14 @@ namespace DynamicMusic
             {
                 case State.Normal:
                     // Fade out when switching playlists.
-                    if (currentPlaylist != previousPlaylist && previousPlaylist != MusicPlaylist.None)
+                    if (currentPlaylist != previousPlaylist && previousPlaylist != (int)MusicPlaylist.None)
                     {
                         currentState = State.FadingOut;
                         break;
                     }
 
                     // Stop music if no playlist found.
-                    if (currentPlaylist == MusicPlaylist.None)
+                    if (currentPlaylist == (int)MusicPlaylist.None)
                     {
                         if (dynamicSongPlayer.IsPlaying)
                         {
@@ -707,7 +958,7 @@ namespace DynamicMusic
                             currentMusicType = MusicType.Normal;
                             currentState = State.FadingIn;
                             dynamicSongPlayer.AudioSource.volume = 0f;
-                            if (customPlaylists[(int)currentPlaylist] != null)
+                            if (customPlaylists[currentPlaylist] != null)
                                 customTrackQueued = true;
                         }
                     }
@@ -784,6 +1035,11 @@ namespace DynamicMusic
             detectionCheckDelta = 0f;
         }
 
+        private void PrintParserError(string text, ushort lineNumber, string token)
+        {
+            Debug.Log($"{modSignature} user-defined playlist: {text} at line {lineNumber}: {token}");
+        }
+
         private bool IsPlayerDetected()
         {
             var entityBehaviours = FindObjectsOfType<DaggerfallEntityBehaviour>();
@@ -809,10 +1065,10 @@ namespace DynamicMusic
             }
         }
 
-        private void PlayNormalTrack(MusicPlaylist previousPlaylist)
+        private void PlayNormalTrack(int previousPlaylist)
         {
-            var currentCustomPlaylist = customPlaylists[(int)currentPlaylist] != null ? currentPlaylist : MusicPlaylist.None;
-            var isUsingCustomPlaylist = currentCustomPlaylist != MusicPlaylist.None;
+            var currentCustomPlaylist = customPlaylists[(int)currentPlaylist] != null ? currentPlaylist : (int)MusicPlaylist.None;
+            var isUsingCustomPlaylist = currentCustomPlaylist != (int)MusicPlaylist.None;
             // Plays random tracks continuously as long as custom tracks are available for the current context.
             if (isUsingCustomPlaylist &&
                 (currentCustomTrack != customPlaylists[(int)currentPlaylist].CurrentTrack || customTrackQueued)) // Changed to a different custom track.
@@ -826,13 +1082,13 @@ namespace DynamicMusic
                 customTrackQueued = false;
             }
             // Loop the music as usual if no custom soundtracks are found.
-            else if (currentCustomPlaylist == MusicPlaylist.None)
+            else if (currentCustomPlaylist == (int)MusicPlaylist.None)
             {
                 // Imported tracks start loading here.
                 if (previousPlaylist == currentPlaylist && !dynamicSongPlayer.IsPlaying)
                     dynamicSongPlayer.Play();
                 else if (previousPlaylist != currentPlaylist || (lastState != State.Normal && lastState != State.FadingIn))
-                    dynamicSongPlayer.Play(GetSong(currentPlaylist), resumeSeeker);
+                    dynamicSongPlayer.Play(GetSong((MusicPlaylist)currentPlaylist), resumeSeeker);
 
                 resumeSeeker = 0f;
                 currentCustomTrack = string.Empty; // Should not be a custom track set if one is not playing.
@@ -843,11 +1099,12 @@ namespace DynamicMusic
                 customTrackQueued = true;
         }
 
-        private MusicPlaylist GetMusicPlaylist(PlayerGPS localPlayerGPS, PlayerEnterExit playerEnterExit, PlayerWeather playerWeather)
+        private MusicPlaylist GetMusicPlaylist(PlayerGPS localPlayerGPS, PlayerEnterExit playerEnterExit, PlayerWeather playerWeather, out Conditions conditions)
         {
             // Note: Code was adapted from SongManager.cs. Credit goes to Interkarma for the original implementation.
             var dfUnity = DaggerfallUnity.Instance;
             var topWindow = DaggerfallUI.UIManager.TopWindow;
+            conditions = new Conditions();
             if (!gameLoaded || !playerEnterExit || !localPlayerGPS || !dfUnity || topWindow is DaggerfallVidPlayerWindow)
                 return MusicPlaylist.None;
             if (playerEntity.Arrested)
@@ -858,6 +1115,7 @@ namespace DynamicMusic
             {
                 if (localPlayerGPS.IsPlayerInLocationRect)
                 {
+                    conditions.LocationType = localPlayerGPS.CurrentLocationType;
                     switch (localPlayerGPS.CurrentLocationType)
                     {
                         case DFRegion.LocationTypes.DungeonKeep:
@@ -890,6 +1148,8 @@ namespace DynamicMusic
             // Dungeons
             else if (playerEnterExit.IsPlayerInsideDungeon)
             {
+                conditions.IsInDungeon = true;
+                conditions.IsInDungeonCastle = playerEnterExit.IsPlayerInsideDungeonCastle;
                 if (playerEnterExit.IsPlayerInsideDungeonCastle)
                     musicEnvironment = MusicEnvironment.Castle;
                 else
@@ -898,6 +1158,9 @@ namespace DynamicMusic
             // Interiors
             else if (playerEnterExit.IsPlayerInside)
             {
+                conditions.IsInInterior = true;
+                conditions.BuildingType = playerEnterExit.BuildingType;
+                conditions.FactionId = playerEnterExit.FactionID;
                 switch (playerEnterExit.BuildingType)
                 {
                     case DFLocation.BuildingTypes.Alchemist:
@@ -934,6 +1197,8 @@ namespace DynamicMusic
                 }
             }
 
+            conditions.IsNight = dfUnity.WorldTime.Now.IsNight;
+            conditions.WeatherType = playerWeather.WeatherType;
             if (musicEnvironment == MusicEnvironment.City || musicEnvironment == MusicEnvironment.Wilderness)
             {
                 if (dfUnity.WorldTime.Now.IsNight)
@@ -1143,7 +1408,7 @@ namespace DynamicMusic
             if (currentState == State.Combat)
                 combatTaper = 0;
             currentState = State.FadingOut;
-            currentPlaylist = MusicPlaylist.None;
+            currentPlaylist = (int)MusicPlaylist.None;
             gameLoaded = false;
         }
     }
