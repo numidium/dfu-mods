@@ -931,23 +931,9 @@ namespace DynamicMusic
             var previousPlaylist = currentPlaylist;
             currentPlaylist = (int)GetMusicPlaylist(localPlayerGPS, playerEnterExit, playerWeather, out var conditions);
             // Check if conditions match any user-defined condition sets.
-            foreach (var key in userDefinedConditionSets.Keys)
-            {
-                var eval = true;
-                foreach (var condition in userDefinedConditionSets[key])
-                {
-                    eval &= condition.ConditionMethod(ref conditions, condition.NegateArg, condition.ParameterArgs);
-                    if (!eval)
-                        break;
-                }
-
-                if (eval)
-                {
-                    currentPlaylist = key;
-                    break;
-                }
-            }
-
+            GetUserDefinedPlaylistKey(userDefinedConditionSets, ref conditions, out var key);
+            if (key >= 0)
+                currentPlaylist = key;
             // Reset resume seeker if playlist changed.
             if (resumeEnabled && previousPlaylist != currentPlaylist)
                 resumeSeeker = 0f;
@@ -1031,22 +1017,9 @@ namespace DynamicMusic
                         if (lastState != State.Combat)
                         {
                             combatPlaylist = customPlaylists[(int)MusicPlaylist.Combat]; // Start with default.
-                            foreach (var key in userCombatConditionSets.Keys)
-                            {
-                                var eval = true;
-                                foreach (var condition in userCombatConditionSets[key])
-                                {
-                                    eval &= condition.ConditionMethod(ref conditions, condition.NegateArg, condition.ParameterArgs);
-                                    if (!eval)
-                                        break;
-                                }
-
-                                if (eval)
-                                {
-                                    combatPlaylist = customPlaylists[key];
-                                    break;
-                                }
-                            }
+                            GetUserDefinedPlaylistKey(userCombatConditionSets, ref conditions, out var combatKey);
+                            if (combatKey >= 0)
+                                combatPlaylist = customPlaylists[combatKey];
 
                             var songFile = defaultCombatSongs[combatPlaylistIndex % defaultCombatSongs.Length];
                             if (combatPlaylist != null) // combat music is not MIDI
@@ -1094,6 +1067,28 @@ namespace DynamicMusic
             }
 
             detectionCheckDelta = 0f;
+        }
+
+        private void GetUserDefinedPlaylistKey(Dictionary<int, List<ConditionUsage>> conditionSets, ref Conditions conditions, out int playlistKey)
+        {
+            foreach (var key in conditionSets.Keys)
+            {
+                var eval = true;
+                foreach (var condition in conditionSets[key])
+                {
+                    eval &= condition.ConditionMethod(ref conditions, condition.NegateArg, condition.ParameterArgs);
+                    if (!eval)
+                        break;
+                }
+
+                if (eval)
+                {
+                    playlistKey = key;
+                    return;
+                }
+            }
+
+            playlistKey = -1;
         }
 
         private void PrintParserError(string text, ushort lineNumber, string token)
