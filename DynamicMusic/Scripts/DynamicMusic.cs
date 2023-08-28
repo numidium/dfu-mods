@@ -514,12 +514,12 @@ namespace DynamicMusic
             public ConditionMethod MethodDefinition;
         }
 
-        private delegate bool ConditionMethod(ref Conditions conditions, bool negate, int parameter);
+        private delegate bool ConditionMethod(ref Conditions conditions, bool negate, List<ushort> parameters);
         private class ConditionUsage
         {
             public Conditions ConditionsArg;
             public bool NegateArg;
-            public int ParameterArg;
+            public List<ushort> ParameterArgs;
             public ConditionMethod ConditionMethod;
         }
 
@@ -543,10 +543,10 @@ namespace DynamicMusic
         private Playlist combatPlaylist;
         private Playlist[] customPlaylists;
         private Dictionary<int, List<ConditionUsage>> userDefinedConditionSets;
+        private Dictionary<int, List<ConditionUsage>> userCombatConditionSets;
         private string currentCustomTrack;
         private bool customTrackQueued;
         private byte combatPlaylistIndex;
-        private bool combatMusicIsMidi;
         private bool combatMusicIsEnabled;
         private bool resumeEnabled = true;
         private float previousTimeSinceStartup;
@@ -592,13 +592,14 @@ namespace DynamicMusic
             var userDefinedPlaylists = new List<Playlist>();
 
             // Load user-defined playlists from disk (user-defined meaning the conditions and tracks are custom).
+            const string combatToken = "combat";
             var conditionLibrary = new Dictionary<string, ConditionLookup>
             {
                 // Vanilla conditions:
                 ["night"] = new ConditionLookup()
                 {
                     IsBoolean = true,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int parameter)
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<ushort> parameters)
                     {
                         return negate ? !conditions.IsNight : conditions.IsNight;
                     }
@@ -606,7 +607,7 @@ namespace DynamicMusic
                 ["interior"] = new ConditionLookup()
                 {
                     IsBoolean = true,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int parameter)
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<ushort> parameters)
                     {
                         return negate ? !conditions.IsInInterior : conditions.IsInInterior;
                     }
@@ -614,7 +615,7 @@ namespace DynamicMusic
                 ["dungeon"] = new ConditionLookup()
                 {
                     IsBoolean = true,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int parameter)
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<ushort> parameters)
                     {
                         return negate ? !conditions.IsInDungeon : conditions.IsInDungeon;
                     }
@@ -622,7 +623,7 @@ namespace DynamicMusic
                 ["dungeoncastle"] = new ConditionLookup()
                 {
                     IsBoolean = true,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int parameter)
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<ushort> parameters)
                     {
                         return negate ? !conditions.IsInDungeonCastle : conditions.IsInDungeonCastle;
                     }
@@ -630,59 +631,88 @@ namespace DynamicMusic
                 ["locationtype"] = new ConditionLookup()
                 {
                     IsBoolean = false,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int parameter)
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<ushort> parameters)
                     {
-                        return conditions.LocationType == (DFRegion.LocationTypes)parameter;
+                        var result = false;
+                        foreach (var parameter in parameters)
+                            result |= conditions.LocationType == (DFRegion.LocationTypes)parameter;
+                        return result;
                     }
                 },
                 ["buildingtype"] = new ConditionLookup()
                 {
                     IsBoolean = false,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int parameter)
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<ushort> parameters)
                     {
-                        return conditions.BuildingType == (DFLocation.BuildingTypes)parameter;
+                        var result = false;
+                        foreach (var parameter in parameters)
+                            result |= conditions.BuildingType == (DFLocation.BuildingTypes)parameter;
+                        return result;
                     }
                 },
                 ["weathertype"] = new ConditionLookup()
                 {
                     IsBoolean = false,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int parameter)
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<ushort> parameters)
                     {
-                        return conditions.WeatherType == (WeatherType)parameter;
+                        var result = false;
+                        foreach (var parameter in parameters)
+                            result |= conditions.WeatherType == (WeatherType)parameter;
+                        return result;
                     }
                 },
                 ["factionid"] = new ConditionLookup()
                 {
                     IsBoolean = false,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int parameter)
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<ushort> parameters)
                     {
-                        return conditions.FactionId == parameter;
+                        var result = false;
+                        foreach (var parameter in parameters)
+                            result |= conditions.FactionId == parameter;
+                        return result;
                     }
                 },
                 // Non-vanilla conditions:
                 ["climate"] = new ConditionLookup()
                 {
                     IsBoolean = false,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int parameter)
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<ushort> parameters)
                     {
                         // TODO: make sure parameter is valid type and catch if not
-                        return localPlayerGPS.ClimateSettings.ClimateType == (DFLocation.ClimateBaseType)parameter;
+                        var result = false;
+                        foreach (var parameter in parameters)
+                            result |= localPlayerGPS.ClimateSettings.ClimateType == (DFLocation.ClimateBaseType)parameter;
+                        return result;
                     }
                 },
                 ["regionindex"] = new ConditionLookup()
                 {
                     IsBoolean = false,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int parameter)
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<ushort> parameters)
                     {
-                        return localPlayerGPS.CurrentRegionIndex == parameter;
+                        var result = false;
+                        foreach (var parameter in parameters)
+                            result |= localPlayerGPS.CurrentRegionIndex == parameter;
+                        return result;
                     }
                 },
                 ["dungeontype"] = new ConditionLookup()
                 {
                     IsBoolean = false,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int parameter)
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<ushort> parameters)
                     {
-                        return (playerEnterExit.Dungeon != null) && playerEnterExit.Dungeon.Summary.DungeonType == (DFRegion.DungeonTypes)parameter;
+                        var result = false;
+                        foreach (var parameter in parameters)
+                            result |= (playerEnterExit.Dungeon != null) && playerEnterExit.Dungeon.Summary.DungeonType == (DFRegion.DungeonTypes)parameter;
+                        return result;
+                    }
+                },
+                ["combat"] = new ConditionLookup()
+                {
+                    IsBoolean = true,
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<ushort> parameters)
+                    {
+                        return false; // This is a dummy condition - not used like the others.
                     }
                 }
             };
@@ -694,97 +724,103 @@ namespace DynamicMusic
                 using (var file = new StreamReader(filePath))
                 {
                     userDefinedConditionSets = new Dictionary<int, List<ConditionUsage>>();
+                    userCombatConditionSets = new Dictionary<int, List<ConditionUsage>>();
+                    var isCombatPlaylist = false;
                     ushort lineCounter = 0;
                     string line;
                     while ((line = file.ReadLine()) != null)
                     {
                         line = line.Trim(); // Remove whitespace to the left and right.
                         lineCounter++;
+                        if (line[0] == '#') // # = Comment/memo line, ignore.
+                            continue;
                         var trackList = new List<string>();
-                        // # = Comment/memo line, ignore.
-                        if (line[0] != '#')
+                        // Get track names from directory.
+                        var lineContainsError = false;
+                        var tokens = line.Split(' ', ',');
+                        var playlistName = tokens[0];
+                        if (!Directory.Exists(Path.Combine(basePath, playlistName)))
                         {
-                            // Get track names from directory.
-                            var lineContainsError = false;
-                            var tokens = line.Split(' ', ',');
-                            var playlistName = tokens[0];
-                            if (!Directory.Exists(Path.Combine(basePath, playlistName)))
+                            PrintParserError($"Reference to non-existent playlist directory", lineCounter, playlistName);
+                            continue; // Throw out this line.
+                        }
+                        else
+                        {
+                            var files = Directory.GetFiles(Path.Combine(basePath, playlistName), fileSearchPattern);
+                            if (files.Length > 0)
                             {
-                                PrintParserError($"Reference to non-existent playlist directory", lineCounter, playlistName);
+                                foreach (var fileName in files)
+                                    trackList.Add(fileName);
+                                // Add playlist.
+                                userDefinedPlaylists.Add(new Playlist(trackList));
+                            }
+                        }
+
+                        // Parse conditional tokens on current line.
+                        var playlistKey = (int)MusicPlaylist.None + userDefinedPlaylists.Count;
+                        var conditionSet = new List<ConditionUsage>();
+                        var tokenIndex = 2;
+                        while (tokenIndex < tokens.Length)
+                        {
+                            var negate = false;
+                            if (tokens[tokenIndex].ToLower() == "not")
+                            {
+                                tokenIndex++;
+                                negate = true;
+                            }
+
+                            if (!conditionLibrary.ContainsKey(tokens[tokenIndex].ToLower()))
+                            {
+                                PrintParserError($"Unrecognized condition", lineCounter, tokens[tokenIndex]);
                                 lineContainsError = true;
+                                break;
                             }
                             else
                             {
-                                var files = Directory.GetFiles(Path.Combine(basePath, playlistName), fileSearchPattern);
-                                if (files.Length > 0)
+                                var conditionToken = tokens[tokenIndex++].ToLower();
+                                if (negate && !conditionLibrary[conditionToken].IsBoolean)
                                 {
-                                    foreach (var fileName in files)
-                                        trackList.Add(fileName);
-                                    // Add playlist.
-                                    userDefinedPlaylists.Add(new Playlist(trackList));
-                                }
-                            }
-
-                            // Parse conditional tokens on current line.
-                            var playlistKey = (int)MusicPlaylist.None + userDefinedPlaylists.Count;
-                            userDefinedConditionSets[playlistKey] = new List<ConditionUsage>();
-                            var tokenIndex = 2;
-                            while (tokenIndex < tokens.Length)
-                            {
-                                var negate = false;
-                                if (tokens[tokenIndex].ToLower() == "not")
-                                {
-                                    tokenIndex++;
-                                    negate = true;
-                                }
-
-                                if (!conditionLibrary.ContainsKey(tokens[tokenIndex].ToLower()))
-                                {
-                                    PrintParserError($"Unrecognized condition", lineCounter, tokens[tokenIndex]);
+                                    PrintParserError($"Negation applied to non-boolean condition", lineCounter, conditionToken);
                                     lineContainsError = true;
                                     break;
                                 }
-                                else
+                                else if (!lineContainsError && conditionToken == combatToken)
                                 {
-                                    var conditionToken = tokens[tokenIndex].ToLower();
-                                    if (negate && !conditionLibrary[conditionToken].IsBoolean)
-                                    {
-                                        PrintParserError($"Negation applied to non-boolean condition.", lineCounter, conditionToken);
-                                        lineContainsError = true;
-                                        break;
-                                    }
-                                    else if (!lineContainsError)
-                                    {
-                                        ushort result = 0;
-                                        if (!conditionLibrary[conditionToken].IsBoolean) // Don't look for argument if condition is boolean.
-                                            ushort.TryParse(tokens[++tokenIndex], out result);
-                                        var conditionUsage = new ConditionUsage()
-                                        {
-                                            NegateArg = negate,
-                                            ParameterArg = result,
-                                            ConditionMethod = conditionLibrary[conditionToken].MethodDefinition
-                                        };
-
-                                        // Add condition for current playlist.
-                                        userDefinedConditionSets[playlistKey].Add(conditionUsage);
-                                    }
-
-                                    tokenIndex++; // Advance to expected ','.
-                                    if (tokenIndex < tokens.Length && tokens[tokenIndex] != "")
-                                    {
-                                        PrintParserError($"Expected a ',' before next token.", lineCounter, conditionToken);
-                                        lineContainsError = true;
-                                        break;
-                                    }
-                                    else
-                                        tokenIndex++; // Move to next condition.
+                                    isCombatPlaylist = true;
                                 }
-                            }
+                                else if (!lineContainsError)
+                                {
+                                    var arguments = new List<ushort>();
+                                    while (tokenIndex < tokens.Length && tokens[tokenIndex] != "")
+                                    {
+                                        if (!ushort.TryParse(tokens[tokenIndex++], out var result))
+                                        {
+                                            PrintParserError($"Invalid argument", lineCounter, conditionToken);
+                                            lineContainsError = true;
+                                            break;
+                                        }
 
-                            if (lineContainsError)
-                                userDefinedConditionSets.Remove(playlistKey);
-                            // jesus christ this is way too much nesting
+                                        arguments.Add(result);
+                                    }
+
+                                    var conditionUsage = new ConditionUsage()
+                                    {
+                                        NegateArg = negate,
+                                        ParameterArgs = arguments,
+                                        ConditionMethod = conditionLibrary[conditionToken].MethodDefinition
+                                    };
+
+                                    conditionSet.Add(conditionUsage);
+                                }
+
+                                tokenIndex++;
+                            }
                         }
+
+                        var conditionSets = isCombatPlaylist ? userCombatConditionSets : userDefinedConditionSets;
+                        conditionSets[playlistKey] = conditionSet;
+                        if (lineContainsError && conditionSets.ContainsKey(playlistKey))
+                            conditionSets.Remove(playlistKey); // Don't tolerate errors.
                     }
                 }
             }
@@ -841,7 +877,6 @@ namespace DynamicMusic
             lastState = currentState;
             currentMusicType = MusicType.Normal;
             combatPlaylist = customPlaylists[(int)MusicPlaylist.Combat];
-            combatMusicIsMidi = combatPlaylist == null;
             currentPlaylist = (int)MusicPlaylist.None;
 
             // Define default combat playlist.
@@ -900,9 +935,17 @@ namespace DynamicMusic
             {
                 var eval = true;
                 foreach (var condition in userDefinedConditionSets[key])
-                    eval &= condition.ConditionMethod(ref conditions, condition.NegateArg, condition.ParameterArg);
+                {
+                    eval &= condition.ConditionMethod(ref conditions, condition.NegateArg, condition.ParameterArgs);
+                    if (!eval)
+                        break;
+                }
+
                 if (eval)
+                {
                     currentPlaylist = key;
+                    break;
+                }
             }
 
             // Reset resume seeker if playlist changed.
@@ -987,10 +1030,28 @@ namespace DynamicMusic
                         dynamicSongPlayer.AudioSource.volume = DaggerfallUnity.Settings.MusicVolume;
                         if (lastState != State.Combat)
                         {
+                            combatPlaylist = customPlaylists[(int)MusicPlaylist.Combat]; // Start with default.
+                            foreach (var key in userCombatConditionSets.Keys)
+                            {
+                                var eval = true;
+                                foreach (var condition in userCombatConditionSets[key])
+                                {
+                                    eval &= condition.ConditionMethod(ref conditions, condition.NegateArg, condition.ParameterArgs);
+                                    if (!eval)
+                                        break;
+                                }
+
+                                if (eval)
+                                {
+                                    combatPlaylist = customPlaylists[key];
+                                    break;
+                                }
+                            }
+
                             var songFile = defaultCombatSongs[combatPlaylistIndex % defaultCombatSongs.Length];
-                            if (!combatMusicIsMidi)
+                            if (combatPlaylist != null) // combat music is not MIDI
                                 dynamicSongPlayer.Play(combatPlaylist.GetNextTrack());
-                            else if (combatMusicIsMidi)
+                            else if (combatPlaylist == null) // combat music is MIDI
                                 dynamicSongPlayer.Play(songFile);
 
                             var playlistCount = defaultCombatSongs.Length;
