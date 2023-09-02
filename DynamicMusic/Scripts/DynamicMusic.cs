@@ -514,12 +514,12 @@ namespace DynamicMusic
             public ConditionMethod MethodDefinition;
         }
 
-        private delegate bool ConditionMethod(ref Conditions conditions, bool negate, List<ushort> parameters);
-        private class ConditionUsage
+        private delegate bool ConditionMethod(ref Conditions conditions, bool negate, List<int> parameters);
+        private sealed class ConditionUsage
         {
             public Conditions ConditionsArg;
             public bool NegateArg;
-            public List<ushort> ParameterArgs;
+            public List<int> ParameterArgs;
             public ConditionMethod ConditionMethod;
         }
 
@@ -599,7 +599,7 @@ namespace DynamicMusic
                 ["night"] = new ConditionLookup()
                 {
                     IsBoolean = true,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<ushort> parameters)
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<int> parameters)
                     {
                         return negate ? !conditions.IsNight : conditions.IsNight;
                     }
@@ -607,7 +607,7 @@ namespace DynamicMusic
                 ["interior"] = new ConditionLookup()
                 {
                     IsBoolean = true,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<ushort> parameters)
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<int> parameters)
                     {
                         return negate ? !conditions.IsInInterior : conditions.IsInInterior;
                     }
@@ -615,7 +615,7 @@ namespace DynamicMusic
                 ["dungeon"] = new ConditionLookup()
                 {
                     IsBoolean = true,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<ushort> parameters)
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<int> parameters)
                     {
                         return negate ? !conditions.IsInDungeon : conditions.IsInDungeon;
                     }
@@ -623,7 +623,7 @@ namespace DynamicMusic
                 ["dungeoncastle"] = new ConditionLookup()
                 {
                     IsBoolean = true,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<ushort> parameters)
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<int> parameters)
                     {
                         return negate ? !conditions.IsInDungeonCastle : conditions.IsInDungeonCastle;
                     }
@@ -631,7 +631,7 @@ namespace DynamicMusic
                 ["locationtype"] = new ConditionLookup()
                 {
                     IsBoolean = false,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<ushort> parameters)
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<int> parameters)
                     {
                         var result = false;
                         foreach (var parameter in parameters)
@@ -642,7 +642,7 @@ namespace DynamicMusic
                 ["buildingtype"] = new ConditionLookup()
                 {
                     IsBoolean = false,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<ushort> parameters)
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<int> parameters)
                     {
                         var result = false;
                         foreach (var parameter in parameters)
@@ -653,7 +653,7 @@ namespace DynamicMusic
                 ["weathertype"] = new ConditionLookup()
                 {
                     IsBoolean = false,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<ushort> parameters)
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<int> parameters)
                     {
                         var result = false;
                         foreach (var parameter in parameters)
@@ -664,7 +664,7 @@ namespace DynamicMusic
                 ["factionid"] = new ConditionLookup()
                 {
                     IsBoolean = false,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<ushort> parameters)
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<int> parameters)
                     {
                         var result = false;
                         foreach (var parameter in parameters)
@@ -676,7 +676,7 @@ namespace DynamicMusic
                 ["climate"] = new ConditionLookup()
                 {
                     IsBoolean = false,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<ushort> parameters)
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<int> parameters)
                     {
                         // TODO: make sure parameter is valid type and catch if not
                         var result = false;
@@ -688,7 +688,7 @@ namespace DynamicMusic
                 ["regionindex"] = new ConditionLookup()
                 {
                     IsBoolean = false,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<ushort> parameters)
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<int> parameters)
                     {
                         var result = false;
                         foreach (var parameter in parameters)
@@ -699,7 +699,7 @@ namespace DynamicMusic
                 ["dungeontype"] = new ConditionLookup()
                 {
                     IsBoolean = false,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<ushort> parameters)
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<int> parameters)
                     {
                         var result = false;
                         foreach (var parameter in parameters)
@@ -710,7 +710,7 @@ namespace DynamicMusic
                 ["combat"] = new ConditionLookup()
                 {
                     IsBoolean = true,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<ushort> parameters)
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<int> parameters)
                     {
                         return false; // This is a dummy condition - not used like the others.
                     }
@@ -725,7 +725,6 @@ namespace DynamicMusic
                 {
                     userDefinedConditionSets = new Dictionary<int, List<ConditionUsage>>();
                     userCombatConditionSets = new Dictionary<int, List<ConditionUsage>>();
-                    var isCombatPlaylist = false;
                     ushort lineCounter = 0;
                     string line;
                     while ((line = file.ReadLine()) != null)
@@ -734,8 +733,8 @@ namespace DynamicMusic
                         lineCounter++;
                         if (line[0] == '#') // # = Comment/memo line, ignore.
                             continue;
-                        var trackList = new List<string>();
                         // Get track names from directory.
+                        List<string> trackList;
                         var lineContainsError = false;
                         var tokens = line.Split(' ', ',');
                         var playlistName = tokens[0];
@@ -747,6 +746,7 @@ namespace DynamicMusic
                         else
                         {
                             var files = Directory.GetFiles(Path.Combine(basePath, playlistName), fileSearchPattern);
+                            trackList = new List<string>();
                             if (files.Length > 0)
                             {
                                 foreach (var fileName in files)
@@ -757,6 +757,7 @@ namespace DynamicMusic
                         }
 
                         // Parse conditional tokens on current line.
+                        var isCombatPlaylist = false;
                         var playlistKey = (int)MusicPlaylist.None + userDefinedPlaylists.Count;
                         var conditionSet = new List<ConditionUsage>();
                         var tokenIndex = 2;
@@ -790,10 +791,10 @@ namespace DynamicMusic
                                 }
                                 else if (!lineContainsError)
                                 {
-                                    var arguments = new List<ushort>();
+                                    var arguments = new List<int>();
                                     while (tokenIndex < tokens.Length && tokens[tokenIndex] != "")
                                     {
-                                        if (!ushort.TryParse(tokens[tokenIndex++], out var result))
+                                        if (!int.TryParse(tokens[tokenIndex++], out var result))
                                         {
                                             PrintParserError($"Invalid argument", lineCounter, conditionToken);
                                             lineContainsError = true;
@@ -817,10 +818,10 @@ namespace DynamicMusic
                             }
                         }
 
+                        if (lineContainsError)
+                            continue; // Don't tolerate errors.
                         var conditionSets = isCombatPlaylist ? userCombatConditionSets : userDefinedConditionSets;
                         conditionSets[playlistKey] = conditionSet;
-                        if (lineContainsError && conditionSets.ContainsKey(playlistKey))
-                            conditionSets.Remove(playlistKey); // Don't tolerate errors.
                     }
                 }
             }
@@ -931,9 +932,13 @@ namespace DynamicMusic
             var previousPlaylist = currentPlaylist;
             currentPlaylist = (int)GetMusicPlaylist(localPlayerGPS, playerEnterExit, playerWeather, out var conditions);
             // Check if conditions match any user-defined condition sets.
-            GetUserDefinedPlaylistKey(userDefinedConditionSets, ref conditions, out var key);
-            if (key >= 0)
-                currentPlaylist = key;
+            if (currentPlaylist != (int)MusicPlaylist.None)
+            {
+                GetUserDefinedPlaylistKey(userDefinedConditionSets, ref conditions, out var key);
+                if (key >= 0)
+                    currentPlaylist = key;
+            }
+
             // Reset resume seeker if playlist changed.
             if (resumeEnabled && previousPlaylist != currentPlaylist)
                 resumeSeeker = 0f;
@@ -1199,7 +1204,10 @@ namespace DynamicMusic
                     }
                 }
                 else
+                {
+                    conditions.LocationType = DFRegion.LocationTypes.None;
                     musicEnvironment = MusicEnvironment.Wilderness;
+                }
             }
             // Dungeons
             else if (playerEnterExit.IsPlayerInsideDungeon)
