@@ -1,3 +1,5 @@
+using DaggerfallConnect.Arena2;
+using DaggerfallConnect;
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.Items;
@@ -5,6 +7,7 @@ using DaggerfallWorkshop.Game.UserInterface;
 using DaggerfallWorkshop.Game.UserInterfaceWindows;
 using DaggerfallWorkshop.Utility;
 using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
 
 namespace HotKeyHUD
@@ -87,7 +90,7 @@ namespace HotKeyHUD
             };
 
             itemListScroller.OnItemClick += ItemListScroller_OnItemClick;
-            var spellbookTexture = ImageReader.GetTexture(spellBookTextureFilename);
+            var spellbookTexture = GetTextureFromVanillaImg(spellBookTextureFilename); // Bypass texture replacements.
             spellsListPanel = new Panel()
             {
                 Position = new Vector2(spellsListRect.x, spellsListRect.y),
@@ -222,6 +225,15 @@ namespace HotKeyHUD
             spellsListScrollBar.Reset(spellsList.RowsDisplayed, spellsList.Count, spellsList.ScrollIndex);
             spellsListScrollBar.TotalUnits = spellsList.Count;
             spellsListScrollBar.ScrollIndex = spellsList.ScrollIndex;
+        }
+
+        private Texture2D GetTextureFromVanillaImg(string fileName)
+        {
+            var dfUnity = DaggerfallUnity.Instance;
+            var imgFile = new ImgFile(Path.Combine(dfUnity.Arena2Path, fileName), FileUsage.UseMemory, true);
+            imgFile.LoadPalette(Path.Combine(dfUnity.Arena2Path, imgFile.PaletteName));
+            var dfBitmap = imgFile.GetDFBitmap();
+            return ImageReader.GetTexture(dfBitmap.GetColor32(), dfBitmap.Width, dfBitmap.Height);
         }
     }
 }
