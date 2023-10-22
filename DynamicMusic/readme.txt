@@ -31,9 +31,9 @@ A playlist with an empty DynMusic playlist directory will choose vanilla tracks 
 
 2. Custom Tracks
 -------------------------
-Custom tracks are to be placed in any of the playlist directories within the DynMusic directory. They must be in .ogg
-format in order to be recognized. Soundtracks with .ogg files will play their tracks in shuffle order (i.e. all tracks
-play in random order before repeating).
+Custom tracks are to be placed in any of the playlist directories within the StreamingAssets/Sound/DynMusic directory.
+They must be in .ogg format in order to be recognized. Soundtracks with .ogg files will play their tracks in shuffle
+order (i.e. all tracks play in random order before repeating).
 
 If any .ogg files are added to a playlist during runtime then they will not become part of their respective playlists
 until DFU restarts. Deleting .ogg files during runtime should be avoided as it will cause errors.
@@ -80,7 +80,7 @@ hamlet, or village (code 0, 1, or 2). If all these conditions are met then the p
 3b. Condition Lookup
 -------------------------
 Night - Boolean, True if time is between 18:00 and 6:00
-Interior - Boolean, True if player is indoors - specify to avoid indoor/outdoor music being overridden.
+Interior - Boolean, True if player is in a building that isn't a dungeon or castle.
 Dungeon - Boolean, True if player is in a dungeon
 DungeonCastle - Boolean, True if player is inside a castle
 LocationType - Function, True if player's outdoor location fits one of the parameters (see 3ci)

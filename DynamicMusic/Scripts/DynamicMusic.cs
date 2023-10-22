@@ -456,15 +456,15 @@ namespace DynamicMusic
         /// </summary>
         private sealed class Playlist
         {
-            private readonly List<string> tracks;
+            private readonly string[] tracks;
             private int index = 0;
             private void ShuffleTracks()
             {
-                if (tracks.Count < 3)
+                if (tracks.Length < 3)
                     return;
-                var endTrack = tracks[tracks.Count - 1];
+                var endTrack = tracks[tracks.Length - 1];
                 // Fisher-Yates shuffle
-                for (var i = tracks.Count - 1; i > 0; i--)
+                for (var i = tracks.Length - 1; i > 0; i--)
                 {
                     var randIndex = UnityEngine.Random.Range(0, i + 1);
                     (tracks[randIndex], tracks[i]) = (tracks[i], tracks[randIndex]);
@@ -472,24 +472,24 @@ namespace DynamicMusic
 
                 // Ensure that 0 doesn't swap with n-1. Otherwise there will be a repeat on re-shuffle.
                 if (tracks[0] == endTrack)
-                    (tracks[0], tracks[tracks.Count - 1]) = (tracks[tracks.Count - 1], tracks[0]);
+                    (tracks[0], tracks[tracks.Length - 1]) = (tracks[tracks.Length - 1], tracks[0]);
             }
 
             public Playlist(List<string> trackList)
             {
-                tracks = trackList;
+                tracks = trackList.ToArray();
                 ShuffleTracks();
             }
 
             public string GetNextTrack()
             {
-                index = (index + 1) % tracks.Count;
+                index = (index + 1) % tracks.Length;
                 if (index == 0)
                     ShuffleTracks();
                 return tracks[index];
             }
 
-            public int TrackCount => tracks.Count;
+            public int TrackCount => tracks.Length;
             public string CurrentTrack => tracks[index];
         }
 
@@ -514,12 +514,12 @@ namespace DynamicMusic
             public ConditionMethod MethodDefinition;
         }
 
-        private delegate bool ConditionMethod(ref Conditions conditions, bool negate, List<int> parameters);
+        private delegate bool ConditionMethod(ref Conditions conditions, bool negate, int[] parameters);
         private sealed class ConditionUsage
         {
             public Conditions ConditionsArg;
             public bool NegateArg;
-            public List<int> ParameterArgs;
+            public int[] ParameterArgs;
             public ConditionMethod ConditionMethod;
         }
 
@@ -542,8 +542,8 @@ namespace DynamicMusic
         private SongFiles[] defaultCombatSongs;
         private Playlist combatPlaylist;
         private Playlist[] customPlaylists;
-        private Dictionary<int, List<ConditionUsage>> userDefinedConditionSets;
-        private Dictionary<int, List<ConditionUsage>> userCombatConditionSets;
+        private Dictionary<int, ConditionUsage[]> userDefinedConditionSets;
+        private Dictionary<int, ConditionUsage[]> userCombatConditionSets;
         private string currentCustomTrack;
         private bool customTrackQueued;
         private byte combatPlaylistIndex;
@@ -559,6 +559,24 @@ namespace DynamicMusic
         private MusicType currentMusicType;
         private const string fileSearchPattern = "*.ogg";
         private const string modSignature = "Dynamic Music";
+        private bool IsPlayerDetected
+        {
+            get
+            {
+                var entityBehaviours = FindObjectsOfType<DaggerfallEntityBehaviour>();
+                foreach (var entityBehaviour in entityBehaviours)
+                {
+                    if (entityBehaviour.EntityType == EntityTypes.EnemyMonster || entityBehaviour.EntityType == EntityTypes.EnemyClass)
+                    {
+                        var enemySenses = entityBehaviour.GetComponent<EnemySenses>();
+                        if (enemySenses && enemySenses.Target == gameManager.PlayerEntityBehaviour && enemySenses.DetectedTarget && enemySenses.TargetInSight)
+                            return true;
+                    }
+                }
+
+                return false;
+            }
+        }
 
         [Invoke(StateManager.StateTypes.Start, 0)]
         public static void Init(InitParams initParams)
@@ -599,7 +617,7 @@ namespace DynamicMusic
                 ["night"] = new ConditionLookup()
                 {
                     IsBoolean = true,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<int> parameters)
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int[] parameters)
                     {
                         return negate ? !conditions.IsNight : conditions.IsNight;
                     }
@@ -607,7 +625,7 @@ namespace DynamicMusic
                 ["interior"] = new ConditionLookup()
                 {
                     IsBoolean = true,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<int> parameters)
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int[] parameters)
                     {
                         return negate ? !conditions.IsInInterior : conditions.IsInInterior;
                     }
@@ -615,7 +633,7 @@ namespace DynamicMusic
                 ["dungeon"] = new ConditionLookup()
                 {
                     IsBoolean = true,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<int> parameters)
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int[] parameters)
                     {
                         return negate ? !conditions.IsInDungeon : conditions.IsInDungeon;
                     }
@@ -623,7 +641,7 @@ namespace DynamicMusic
                 ["dungeoncastle"] = new ConditionLookup()
                 {
                     IsBoolean = true,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<int> parameters)
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int[] parameters)
                     {
                         return negate ? !conditions.IsInDungeonCastle : conditions.IsInDungeonCastle;
                     }
@@ -631,8 +649,9 @@ namespace DynamicMusic
                 ["locationtype"] = new ConditionLookup()
                 {
                     IsBoolean = false,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<int> parameters)
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int[] parameters)
                     {
+                        if (conditions.IsInDungeon) return false;
                         var result = false;
                         foreach (var parameter in parameters)
                             result |= conditions.LocationType == (DFRegion.LocationTypes)parameter;
@@ -642,7 +661,7 @@ namespace DynamicMusic
                 ["buildingtype"] = new ConditionLookup()
                 {
                     IsBoolean = false,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<int> parameters)
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int[] parameters)
                     {
                         var result = false;
                         foreach (var parameter in parameters)
@@ -653,7 +672,7 @@ namespace DynamicMusic
                 ["weathertype"] = new ConditionLookup()
                 {
                     IsBoolean = false,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<int> parameters)
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int[] parameters)
                     {
                         var result = false;
                         foreach (var parameter in parameters)
@@ -664,7 +683,7 @@ namespace DynamicMusic
                 ["factionid"] = new ConditionLookup()
                 {
                     IsBoolean = false,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<int> parameters)
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int[] parameters)
                     {
                         var result = false;
                         foreach (var parameter in parameters)
@@ -676,7 +695,7 @@ namespace DynamicMusic
                 ["climate"] = new ConditionLookup()
                 {
                     IsBoolean = false,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<int> parameters)
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int[] parameters)
                     {
                         // TODO: make sure parameter is valid type and catch if not
                         var result = false;
@@ -688,7 +707,7 @@ namespace DynamicMusic
                 ["regionindex"] = new ConditionLookup()
                 {
                     IsBoolean = false,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<int> parameters)
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int[] parameters)
                     {
                         var result = false;
                         foreach (var parameter in parameters)
@@ -699,7 +718,7 @@ namespace DynamicMusic
                 ["dungeontype"] = new ConditionLookup()
                 {
                     IsBoolean = false,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<int> parameters)
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int[] parameters)
                     {
                         var result = false;
                         foreach (var parameter in parameters)
@@ -710,7 +729,7 @@ namespace DynamicMusic
                 ["combat"] = new ConditionLookup()
                 {
                     IsBoolean = true,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, List<int> parameters)
+                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int[] parameters)
                     {
                         return false; // This is a dummy condition - not used like the others.
                     }
@@ -723,8 +742,8 @@ namespace DynamicMusic
             {
                 using (var file = new StreamReader(filePath))
                 {
-                    userDefinedConditionSets = new Dictionary<int, List<ConditionUsage>>();
-                    userCombatConditionSets = new Dictionary<int, List<ConditionUsage>>();
+                    userDefinedConditionSets = new Dictionary<int, ConditionUsage[]>();
+                    userCombatConditionSets = new Dictionary<int, ConditionUsage[]>();
                     ushort lineCounter = 0;
                     string line;
                     while ((line = file.ReadLine()) != null)
@@ -807,7 +826,7 @@ namespace DynamicMusic
                                     var conditionUsage = new ConditionUsage()
                                     {
                                         NegateArg = negate,
-                                        ParameterArgs = arguments,
+                                        ParameterArgs = arguments.ToArray(),
                                         ConditionMethod = conditionLibrary[conditionToken].MethodDefinition
                                     };
 
@@ -821,7 +840,7 @@ namespace DynamicMusic
                         if (lineContainsError)
                             continue; // Don't tolerate errors.
                         var conditionSets = isCombatPlaylist ? userCombatConditionSets : userDefinedConditionSets;
-                        conditionSets[playlistKey] = conditionSet;
+                        conditionSets[playlistKey] = conditionSet.ToArray();
                     }
                 }
             }
@@ -934,7 +953,7 @@ namespace DynamicMusic
             // Check if conditions match any user-defined condition sets.
             if (currentPlaylist != (int)MusicPlaylist.None)
             {
-                GetUserDefinedPlaylistKey(userDefinedConditionSets, ref conditions, out var key);
+                var key = GetUserDefinedPlaylistKey(userDefinedConditionSets, ref conditions);
                 if (key >= 0)
                     currentPlaylist = key;
             }
@@ -1022,7 +1041,7 @@ namespace DynamicMusic
                         if (lastState != State.Combat)
                         {
                             combatPlaylist = customPlaylists[(int)MusicPlaylist.Combat]; // Start with default.
-                            GetUserDefinedPlaylistKey(userCombatConditionSets, ref conditions, out var combatKey);
+                            var combatKey = GetUserDefinedPlaylistKey(userCombatConditionSets, ref conditions);
                             if (combatKey >= 0)
                                 combatPlaylist = customPlaylists[combatKey];
 
@@ -1057,7 +1076,7 @@ namespace DynamicMusic
                 return;
             if (currentState == State.Normal || currentState == State.Combat)
             {
-                if (combatMusicIsEnabled && !gameManager.PlayerDeath.DeathInProgress && !playerEntity.Arrested && IsPlayerDetected())
+                if (combatMusicIsEnabled && !gameManager.PlayerDeath.DeathInProgress && !playerEntity.Arrested && IsPlayerDetected)
                 {
                     // Start combat music
                     lastState = currentState;
@@ -1074,7 +1093,7 @@ namespace DynamicMusic
             detectionCheckDelta = 0f;
         }
 
-        private void GetUserDefinedPlaylistKey(Dictionary<int, List<ConditionUsage>> conditionSets, ref Conditions conditions, out int playlistKey)
+        private int GetUserDefinedPlaylistKey(Dictionary<int, ConditionUsage[]> conditionSets, ref Conditions conditions)
         {
             foreach (var key in conditionSets.Keys)
             {
@@ -1088,33 +1107,16 @@ namespace DynamicMusic
 
                 if (eval)
                 {
-                    playlistKey = key;
-                    return;
+                    return key;
                 }
             }
 
-            playlistKey = -1;
+            return -1;
         }
 
         private void PrintParserError(string text, ushort lineNumber, string token)
         {
             Debug.Log($"{modSignature} user-defined playlist: {text} at line {lineNumber}: {token}");
-        }
-
-        private bool IsPlayerDetected()
-        {
-            var entityBehaviours = FindObjectsOfType<DaggerfallEntityBehaviour>();
-            foreach (var entityBehaviour in entityBehaviours)
-            {
-                if (entityBehaviour.EntityType == EntityTypes.EnemyMonster || entityBehaviour.EntityType == EntityTypes.EnemyClass)
-                {
-                    var enemySenses = entityBehaviour.GetComponent<EnemySenses>();
-                    if (enemySenses && enemySenses.Target == gameManager.PlayerEntityBehaviour && enemySenses.DetectedTarget && enemySenses.TargetInSight)
-                        return true;
-                }
-            }
-
-            return false;
         }
 
         private void HandleLocationChange()
@@ -1128,13 +1130,13 @@ namespace DynamicMusic
 
         private void PlayNormalTrack(int previousPlaylist)
         {
-            var currentCustomPlaylist = customPlaylists[(int)currentPlaylist] != null ? currentPlaylist : (int)MusicPlaylist.None;
+            var currentCustomPlaylist = customPlaylists[currentPlaylist] != null ? currentPlaylist : (int)MusicPlaylist.None;
             var isUsingCustomPlaylist = currentCustomPlaylist != (int)MusicPlaylist.None;
             // Plays random tracks continuously as long as custom tracks are available for the current context.
             if (isUsingCustomPlaylist &&
-                (currentCustomTrack != customPlaylists[(int)currentPlaylist].CurrentTrack || customTrackQueued)) // Changed to a different custom track.
+                (currentCustomTrack != customPlaylists[currentPlaylist].CurrentTrack || customTrackQueued)) // Changed to a different custom track.
             {
-                var playlist = customPlaylists[(int)currentCustomPlaylist];
+                var playlist = customPlaylists[currentCustomPlaylist];
                 var track = resumeSeeker > 0f ? playlist.CurrentTrack : playlist.GetNextTrack();
                 dynamicSongPlayer.Play(track, resumeSeeker);
                 resumeSeeker = 0f;

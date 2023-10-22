@@ -1,9 +1,9 @@
 {
     "ModTitle": "Dynamic Music",
-    "ModVersion": "2.1.5",
+    "ModVersion": "2.1.6",
     "ModAuthor": "numidium3rd",
     "ContactInfo": "https://forums.dfworkshop.net/ - User: numidium",
-    "DFUnity_Version": "0.15.3",
+    "DFUnity_Version": "0.16.1",
     "ModDescription": "Expands Daggerfall's music system.",
     "GUID": "ce40a69d-75b8-4563-ae76-dcd60d72389b",
     "Files": [
