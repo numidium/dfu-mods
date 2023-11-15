@@ -1,0 +1,14 @@
+{
+    "ModTitle": "Flat Replacer",
+    "ModVersion": "0.0.0",
+    "ModAuthor": "numidium3rd",
+    "ContactInfo": "https://forums.dfworkshop.net/ - User: numidium",
+    "DFUnity_Version": "0.16.1",
+    "ModDescription": "A framework for replacing building interior flats.",
+    "GUID": "8f05f3ed-bc08-4eb9-b856-05a58b0b63da",
+    "Files": [
+        "Assets/Game/Mods/FlatReplacer/FlatReplacer.cs",
+        "Assets/Game/Mods/FlatReplacer/ReplacementBillboard.cs",
+        "Assets/Game/Mods/FlatReplacer/FlatReplacer.dfmod.json"
+    ]
+}
