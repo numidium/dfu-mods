@@ -1,5 +1,6 @@
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
+using DaggerfallWorkshop.Game.Utility;
 using DaggerfallWorkshop.Game.Utility.ModSupport;
 using DaggerfallWorkshop.Utility.AssetInjection;
 using FullSerializer;
@@ -13,22 +14,24 @@ namespace FlatReplacer
     {
         public static FlatReplacer Instance { get; private set; }
         private static Mod mod;
-        private Dictionary<uint, FlatReplacement> flatReplacements;
+        private Dictionary<uint, List<FlatReplacement>> flatReplacements;
 
-        private struct FlatReplacementRecord
+        private class FlatReplacementRecord
         {
             public int[] Regions;
             public int FactionId;
+            public int BuildingType;
             public int QualityMin;
             public int QualityMax;
-            public int ChanceToReplace;
             public int TextureArchive;
             public int TextureRecord;
+            public int ReplaceTextureArchive;
+            public int ReplaceTextureRecord;
             public string FlatTextureName;
             public int FlatPortrait;
         }
 
-        private struct FlatReplacement
+        private class FlatReplacement
         {
             public FlatReplacementRecord Record;
             public Texture2D[] AnimationFrames;
@@ -53,7 +56,7 @@ namespace FlatReplacer
             var serializer = new fsSerializer();
             var texturesDirectory = Path.Combine(Application.streamingAssetsPath, "Textures");
             List<FlatReplacementRecord> replacementRecords = null;
-            flatReplacements = new Dictionary<uint, FlatReplacement>();
+            flatReplacements = new Dictionary<uint, List<FlatReplacement>>();
             var textureCache = new Dictionary<string, Texture2D>();
             foreach (var replacementFile in replacementFiles)
             {
@@ -69,30 +72,40 @@ namespace FlatReplacer
                 foreach (var record in replacementRecords)
                 {
                     var key = ((uint)record.TextureArchive << 16) + (uint)record.TextureRecord; // Pack archive and record into single unsigned 32-bit integer
-                    if (flatReplacements.ContainsKey(key))
-                    {
-                        Debug.Log($"FlatReplacer: Conflict -> {flatReplacements[key].Record.FlatTextureName} and {record.FlatTextureName} both replace the same flat. Ignoring the latter.");
-                        continue;
-                    }
-
+                    if (!flatReplacements.ContainsKey(key))
+                        flatReplacements[key] = new List<FlatReplacement>();
+                    var isValidVanillaFlat = record.TextureArchive > -1 && record.TextureRecord > -1;
+                    var isValidCustomFlat = false;
                     // Reserve a frame for each numbered texture file starting with 0.
                     var animationFrameCount = 0;
                     while (File.Exists(Path.Combine(texturesDirectory, $"{record.FlatTextureName}{animationFrameCount}.png")))
                         animationFrameCount++;
-                    if (animationFrameCount == 0) // Don't make an entry with no textures.
-                        continue;
-                    flatReplacements[key] = new FlatReplacement() { Record = record, AnimationFrames = new Texture2D[animationFrameCount] };
-                    for (var i = 0; i < animationFrameCount; i++)
+                    Texture2D[] animationFrames = null;
+                    if (animationFrameCount > 0)
                     {
-                        var textureName = $"{record.FlatTextureName}{i}";
-                        if (TryGetTexture(textureName, textureCache, out var texture))
+                        isValidCustomFlat = true;
+                        animationFrames = new Texture2D[animationFrameCount];
+                        for (var i = 0; i < animationFrameCount; i++)
                         {
-                            texture.filterMode = DaggerfallUI.Instance.GlobalFilterMode;
-                            flatReplacements[key].AnimationFrames[i] = texture;
+                            var textureName = $"{record.FlatTextureName}{i}";
+                            if (TryGetTexture(textureName, textureCache, out var texture))
+                            {
+                                texture.filterMode = DaggerfallUI.Instance.GlobalFilterMode;
+                                animationFrames[i] = texture;
+                            }
+                            else
+                            {
+                                Debug.Log($"FlatReplacer: Failed to load custom texture: {textureName}.");
+                                isValidCustomFlat = false;
+                                break;
+                            }
                         }
-                        else
-                            Debug.Log($"Failed to load {textureName}.");
                     }
+                    else
+                        isValidCustomFlat = false;
+                    var customAnimation = isValidCustomFlat ? animationFrames : null;
+                    if (isValidCustomFlat || isValidVanillaFlat)
+                        flatReplacements[key].Add(new FlatReplacement() { Record = record, AnimationFrames = customAnimation });
                 }
             }
 
@@ -136,6 +149,7 @@ namespace FlatReplacer
             var playerGps = gameManager.PlayerGPS;
             var scene = gameManager.InteriorParent.transform.Find(DaggerfallInterior.GetSceneName(playerGps.CurrentLocation, args.StaticDoor));
             var npcTransforms = scene.transform.Find("People Flats");
+            var buildingData = gameManager.PlayerEnterExit.BuildingDiscoveryData;
             foreach (Transform npcTransform in npcTransforms)
             {
                 // Discard vanilla billboard if there is a replacement loaded that fits criteria.
@@ -150,43 +164,61 @@ namespace FlatReplacer
                 var key = ((uint)archive << 16) + (uint)record;
                 if (!flatReplacements.ContainsKey(key))
                     continue; // Nothing to replace this with.
-                var regionFound = false;
-                if (flatReplacements[key].Record.Regions[0] == -1)
-                    regionFound = true; // -1 = region wildcard
-                else
-                    foreach (var regionIndex in flatReplacements[key].Record.Regions)
-                    {
-                        if (playerGps.CurrentRegionIndex == regionIndex)
+                var candidates = new List<byte>();
+                for (var i = (byte)0; i < flatReplacements[key].Count; i++)
+                {
+                    var replacementRecord = flatReplacements[key][i].Record;
+                    var regionFound = false;
+                    if (replacementRecord.Regions[0] == -1)
+                        regionFound = true; // -1 = region wildcard
+                    else
+                        foreach (var regionIndex in replacementRecord.Regions)
                         {
-                            regionFound = true;
-                            break;
+                            if (playerGps.CurrentRegionIndex == regionIndex)
+                            {
+                                regionFound = true;
+                                break;
+                            }
                         }
-                    }
 
-                if (!regionFound)
-                    continue; // Don't replace if outside specified regions.
-                var buildingData = gameManager.PlayerEnterExit.BuildingDiscoveryData;
-                if (flatReplacements[key].Record.FactionId != -1 && flatReplacements[key].Record.FactionId != buildingData.factionID)
-                    continue; // Don't replace if faction-specific. -1 indicates faction-agnostic.
-                if (buildingData.quality < flatReplacements[key].Record.QualityMin || buildingData.quality > flatReplacements[key].Record.QualityMax)
-                    continue; // Don't replace if outside building quality range.
-                // Don't replace if chance to replace isn't hit. Result is pseudo-random, same every time for any given static NPC.
+                    if (!regionFound)
+                        continue; // Don't replace if outside specified regions.
+                    // -1 = wildcard value
+                    if ((replacementRecord.FactionId != -1 && replacementRecord.FactionId != buildingData.factionID) || // Don't replace if faction-specific.
+                        (replacementRecord.BuildingType != -1 && replacementRecord.BuildingType != (int)buildingData.buildingType) || // Don't replace if building type does not match.
+                        (buildingData.quality < replacementRecord.QualityMin || buildingData.quality > replacementRecord.QualityMax)) // Don't replace if outside building quality range.
+                        continue;
+                    candidates.Add(i);
+                }
+
+                if (candidates.Count == 0)
+                    return;
                 var staticNpc = go.GetComponent<StaticNPC>();
-                // TODO: new-ing a random class probably has some overhead. Find leaner way to do this. Preferably stack-only.
-                var random100 = flatReplacements[key].Record.ChanceToReplace == 100 ? 0 : (uint)new System.Random(staticNpc.Data.nameSeed).Next() % 100;
-                #if UNITY_EDITOR
-                Debug.Log($"Replacement for flat {flatReplacements[key].Record.TextureArchive}-{flatReplacements[key].Record.TextureRecord} ({flatReplacements[key].Record.FlatTextureName}) detected. {flatReplacements[key].Record.ChanceToReplace}% chance. Building quality: {buildingData.quality}. Roll: {random100} = {(random100 <= flatReplacements[key].Record.ChanceToReplace ? "success" : "fail")}.");
-                #endif
-                if (!staticNpc || random100 > flatReplacements[key].Record.ChanceToReplace)
-                    continue;
+                // Pick a random replacement from any that match the criteria.
+                var randomNumber = candidates.Count > 1 ? new System.Random(staticNpc.Data.nameSeed).Next() : 0;
+                var chosenIndex = candidates[randomNumber % candidates.Count];
+                var chosenReplacement = flatReplacements[key][chosenIndex];
+                var chosenReplacementRecord = chosenReplacement.Record;
+#if UNITY_EDITOR
+                var logText = $"Replacement for flat {chosenReplacementRecord.TextureArchive}-{chosenReplacementRecord.TextureRecord} ";
+                if (chosenReplacementRecord.FlatTextureName == string.Empty || chosenReplacementRecord.FlatTextureName == null)
+                    logText += $"(Vanilla Texture: {chosenReplacementRecord.ReplaceTextureArchive}-{chosenReplacementRecord.ReplaceTextureRecord}) detected.";
+                else
+                    logText += $"(Custom Texture: {chosenReplacementRecord.FlatTextureName}) detected. ";
+                logText += $"Building type: {buildingData.buildingType}, quality: {buildingData.quality}.";
+                Debug.Log(logText);
+#endif
                 Destroy(billboard);
-                // Use custom implementation.
+                // Use custom billboard
                 var replacementBillboard = go.AddComponent<ReplacementBillboard>();
-                replacementBillboard.SetMaterial(flatReplacements[key].Record.FlatTextureName, new Vector2(flatReplacements[key].AnimationFrames[0].width, flatReplacements[key].AnimationFrames[0].height), flatReplacements[key].AnimationFrames);
-                if (flatReplacements[key].Record.FlatPortrait > -1)
+                if (chosenReplacement.AnimationFrames != null) // Custom graphics supplied
+                    replacementBillboard.SetMaterial(chosenReplacementRecord.FlatTextureName, new Vector2(chosenReplacement.AnimationFrames[0].width, chosenReplacement.AnimationFrames[0].height), chosenReplacement.AnimationFrames);
+                else // Vanilla graphics swap
+                    replacementBillboard.SetMaterial(chosenReplacementRecord.ReplaceTextureArchive, chosenReplacementRecord.ReplaceTextureRecord);
+                if (chosenReplacementRecord.FlatPortrait > -1)
                 {
                     replacementBillboard.HasCustomPortrait = true;
-                    replacementBillboard.CustomPortraitRecord = flatReplacements[key].Record.FlatPortrait;
+                    replacementBillboard.CustomPortraitRecord = chosenReplacementRecord.FlatPortrait;
                 }
             }
         }

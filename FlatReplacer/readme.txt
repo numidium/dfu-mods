@@ -38,7 +38,8 @@ operation of the mod. The important aspect is their syntax. A JSON file for this
     },
     {
         ...properties for second object defined here...
-    }
+    },
+    ...and so on...
 ]
 
 You may define as many objects within the "[]" array as needed but they must be separated with a comma. Don't place a comma after the final object,
@@ -48,22 +49,26 @@ however. Below is an example JSON file containing two replacements that you may 
 	{
 		"Regions": [01, 52],
 		"FactionId": -1,
+        "BuildingType": -1,
 		"QualityMin": 1,
 		"QualityMax": 20,
-		"ChanceToReplace": 100,
 		"TextureArchive": 182,
 		"TextureRecord": 0,
+        "ReplaceTextureArchive": -1,
+        "ReplaceTextureRecord": -1,
 		"FlatTextureName": "merchant",
 		"FlatPortrait": 503
 	},
 	{
 		"Regions": [01, 52],
 		"FactionId": -1,
+        "BuildingType": -1,
 		"QualityMin": 1,
 		"QualityMax": 20,
-		"ChanceToReplace": 100,
-		"TextureArchive": 183,
-		"TextureRecord": 5,
+		"TextureArchive": 182,
+		"TextureRecord": 0,
+        "ReplaceTextureArchive": -1,
+        "ReplaceTextureRecord": -1,
 		"FlatTextureName": "banker",
 		"FlatPortrait": 504
 	}
@@ -85,19 +90,24 @@ ignore the interior's faction.
 See https://github.com/Interkarma/daggerfall-unity/blob/master/Assets/Scripts/API/FactionFile.cs#L56 for Faction IDs.
 Use the numerical value under FactionIDs in conditions.
 
+BuildingType - Integer - The code of the town building which houses the static NPC. Use -1 for any building type.
+See https://en.uesp.net/wiki/Daggerfall_Mod:Building_types for building type IDs. NOTE: You must supply these numbers in DECIMAL format. If you are
+not familiar with hexidecimal-decimal conversion then use the "programmer" mode on Windows calculator and enter the hex values to see their decimal 
+equivalents.
+
 QualityMin/QualityMax - Integer - The minimum/maximum quality values of the interior for the replacement to take place. Use these to have your new
 NPC flat only appear in interiors that are a certain degree of upscale or impoverished. The values range from 1 to 20 with 1 being lowest quality
 and 20 being highest. To ignore this set QualityMin to 1 and QualityMax to 20.
-
-ChanceToReplace - Integer - The percent chance that the replacement will take place given all other conditions are met. Ranges from 0 to 100. The
-random roll is seeded by a persistent value so the result will always be the same for any given interior.
 
 TextureArchive - Integer - The index of the archive file of the original flat graphic which will be replaced.
 
 TextureRecord - Integer - The index of the record within the archive of the original flat graphic which will be replaced.
 
-FlatTextureName - String - The name prefix of the replacement's flat graphic file(s). The files themselves should be named with the prefix followed
-by an ascending numerical sequence starting from 0.
+ReplaceTextureArchive/ReplaceTextureRecord - Integer - The vanilla texture archive/record to replace the current one in use with. If an invalid
+record is specified then the object will be discarded. If a valid FlatTextureName is specified then these values will be ignored.
+
+FlatTextureName - String - The name prefix of the replacement's custom flat graphic file(s). The files themselves should be named with the prefix
+followed by an ascending numerical sequence starting from 0.
 
 FlatPortrait - Integer - The index of the NPC's portrait used in the talk window. If greater than 502 then a custom portrait file must be supplied.
 If set to -1 then the default portrait will be used.
@@ -123,7 +133,7 @@ If your replacements aren't appearing then check the Player.log file in...
 (DriveLetter):\Users\(UserName)\AppData\LocalLow\Daggerfall Workshop\Daggerfall Unity
 ...for errors. I don't know where that is on OSes that aren't Windows. Sorry.
 
-Conflicts between replacements are reported to the log file. Search "FlatReplacer" in Player.log to see if any conflicts occurred.
+Errors that occur when parsing or using replacement objects are reported to the log file. Search "FlatReplacer" in Player.log.
 
 
 4. Credits

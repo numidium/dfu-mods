@@ -6,6 +6,7 @@ using UnityEngine;
 using DaggerfallWorkshop.Game;
 using DaggerfallConnect.Arena2;
 using System.Linq;
+using UnityEngine.Rendering;
 
 namespace FlatReplacer
 {
@@ -348,9 +349,125 @@ namespace FlatReplacer
             summary.NameSeed = (int)position;
         }
 
+        // Copied from DaggerfallBillboard.cs (slightly modified)
         public override Material SetMaterial(int archive, int record, int frame = 0)
         {
-            throw new System.NotImplementedException();
+            // Get DaggerfallUnity
+            DaggerfallUnity dfUnity = DaggerfallUnity.Instance;
+            if (!dfUnity.IsReady)
+                return null;
+
+            // Get references
+            meshRenderer = GetComponent<MeshRenderer>();
+
+            Vector2 size;
+            Vector2 scale;
+            Mesh mesh = null;
+            Material material = null;
+            if (material = TextureReplacement.GetStaticBillboardMaterial(gameObject, archive, record, ref summary, out scale))
+            {
+                mesh = dfUnity.MeshReader.GetBillboardMesh(summary.Rect, archive, record, out size);
+                size *= scale;
+                summary.AtlasedMaterial = false;
+                summary.AnimatedMaterial = summary.ImportedTextures.FrameCount > 1;
+            }
+            else if (dfUnity.MaterialReader.AtlasTextures)
+            {
+                material = dfUnity.MaterialReader.GetMaterialAtlas(
+                    archive,
+                    0,
+                    4,
+                    2048,
+                    out summary.AtlasRects,
+                    out summary.AtlasIndices,
+                    4,
+                    true,
+                    0,
+                    false,
+                    true);
+                if (record >= summary.AtlasIndices.Length)
+                {
+                    Debug.Log($"FlatReplacer: Error - Invalid texture record for vanilla replacement | Archive: {archive} Record: {record}.");
+                    return material; // Invalid record specified.
+                }
+
+                mesh = dfUnity.MeshReader.GetBillboardMesh(
+                    summary.AtlasRects[summary.AtlasIndices[record].startIndex],
+                    archive,
+                    record,
+                    out size);
+                summary.AtlasedMaterial = true;
+                if (summary.AtlasIndices[record].frameCount > 1)
+                    summary.AnimatedMaterial = true;
+                else
+                    summary.AnimatedMaterial = false;
+            }
+            else
+            {
+                material = dfUnity.MaterialReader.GetMaterial(
+                    archive,
+                    record,
+                    frame,
+                    0,
+                    out summary.Rect,
+                    4,
+                    true,
+                    true);
+                mesh = dfUnity.MeshReader.GetBillboardMesh(
+                    summary.Rect,
+                    archive,
+                    record,
+                    out size);
+                summary.AtlasedMaterial = false;
+                summary.AnimatedMaterial = false;
+            }
+
+            // Set summary
+            summary.FlatType = MaterialReader.GetFlatType(archive);
+            summary.Archive = archive;
+            summary.Record = record;
+            summary.Size = size;
+
+            // Set editor flat types
+            if (summary.FlatType == FlatTypes.Editor)
+                summary.EditorFlatType = MaterialReader.GetEditorFlatType(summary.Record);
+
+            // Set NPC flat type based on archive
+            if (RDBLayout.IsNPCFlat(summary.Archive))
+                summary.FlatType = FlatTypes.NPC;
+
+            // Assign mesh and material
+            MeshFilter meshFilter = GetComponent<MeshFilter>();
+            Mesh oldMesh = meshFilter.sharedMesh;
+            if (mesh)
+            {
+                meshFilter.sharedMesh = mesh;
+                meshRenderer.sharedMaterial = material;
+            }
+            if (oldMesh)
+            {
+                // The old mesh is no longer required
+#if UNITY_EDITOR
+                DestroyImmediate(oldMesh);
+#else
+                Destroy(oldMesh);
+#endif
+            }
+
+            // General billboard shadows if enabled
+            bool isLightArchive = (archive == TextureReader.LightsTextureArchive);
+            meshRenderer.shadowCastingMode = (DaggerfallUnity.Settings.GeneralBillboardShadows && !isLightArchive) ? ShadowCastingMode.TwoSided : ShadowCastingMode.Off;
+
+            // Add NPC trigger collider
+            if (summary.FlatType == FlatTypes.NPC)
+            {
+                Collider col = gameObject.GetComponent<BoxCollider>();
+                if (col == null)
+                    col = gameObject.AddComponent<BoxCollider>();
+                col.isTrigger = true;
+            }
+
+            return material;
         }
 
         public override Material SetMaterial(Texture2D texture, Vector2 size, bool isLightArchive = false)
