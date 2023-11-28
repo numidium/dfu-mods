@@ -1,7 +1,7 @@
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
-using DaggerfallWorkshop.Game.Utility;
 using DaggerfallWorkshop.Game.Utility.ModSupport;
+using DaggerfallWorkshop.Utility;
 using DaggerfallWorkshop.Utility.AssetInjection;
 using FullSerializer;
 using System.Collections.Generic;
@@ -55,7 +55,7 @@ namespace FlatReplacer
             var replacementFiles = Directory.GetFiles(replacementPath);
             var serializer = new fsSerializer();
             var texturesDirectory = Path.Combine(Application.streamingAssetsPath, "Textures");
-            List<FlatReplacementRecord> replacementRecords = null;
+            List<FlatReplacementRecord> replacementRecords;
             flatReplacements = new Dictionary<uint, List<FlatReplacement>>();
             var textureCache = new Dictionary<string, Texture2D>();
             foreach (var replacementFile in replacementFiles)
@@ -65,6 +65,7 @@ namespace FlatReplacer
                     var fsResult = fsJsonParser.Parse(streamReader.ReadToEnd(), out var fsData); // Parse whole file.
                     if (!fsResult.Equals(fsResult.Success))
                         continue;
+                    replacementRecords = null;
                     serializer.TryDeserialize(fsData, ref replacementRecords).AssertSuccess();
                 }
 
@@ -215,6 +216,13 @@ namespace FlatReplacer
                     replacementBillboard.SetMaterial(chosenReplacementRecord.FlatTextureName, new Vector2(chosenReplacement.AnimationFrames[0].width, chosenReplacement.AnimationFrames[0].height), chosenReplacement.AnimationFrames);
                 else // Vanilla graphics swap
                     replacementBillboard.SetMaterial(chosenReplacementRecord.ReplaceTextureArchive, chosenReplacementRecord.ReplaceTextureRecord);
+                var collider = go.GetComponent<BoxCollider>();
+                var boundsResize = new Vector3(replacementBillboard.Summary.Size.x, replacementBillboard.Summary.Size.y, 0f);
+                collider.size = boundsResize; // Resize collider to fit new graphics dimensions.
+                // Is supposed to align billboard to floor but sends it into the air by half its height. Works well for getting feet out of the floor.
+                // TODO: Do this in a way that doesn't require moving the billboard twice and raycasting downward.
+                replacementBillboard.AlignToBase();
+                GameObjectHelper.AlignBillboardToGround(go, collider.size, 4f);
                 if (chosenReplacementRecord.FlatPortrait > -1)
                 {
                     replacementBillboard.HasCustomPortrait = true;
