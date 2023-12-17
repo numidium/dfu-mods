@@ -353,7 +353,7 @@ namespace HotKeyHUD
 
         private static bool IsBow(DaggerfallUnityItem item)
         {
-            return item.ItemGroup == ItemGroups.Weapons && (item.ItemTemplate.index == (int)Weapons.Long_Bow || item.ItemTemplate.index == (int)Weapons.Short_Bow);
+            return item.ItemGroup == ItemGroups.Weapons && item.GetWeaponType() == WeaponTypes.Bow;
         }
 
         private static int GetArrowCount()

@@ -208,10 +208,12 @@ namespace HotKeyHUD
             var slot = HotKeyButtons[index].Payload;
             if (slot == null)
                 return;
-            if (slot is DaggerfallUnityItem item)
-                HandleItemHotkeyPress(item, index);
-            else if (slot is EffectBundleSettings spell)
+            var racialOverride = GameManager.Instance.PlayerEffectManager.GetRacialOverrideEffect();
+            var suppressInventory = racialOverride != null && racialOverride.GetSuppressInventory(out _);
+            if (slot is EffectBundleSettings spell)
                 HotKeyButtons[index].HandleSpellHotkeyPress(ref spell);
+            else if (slot is DaggerfallUnityItem item && !suppressInventory)
+                HandleItemHotkeyPress(item, index);
         }
 
         private void HandleItemHotkeyPress(DaggerfallUnityItem item, int index)
