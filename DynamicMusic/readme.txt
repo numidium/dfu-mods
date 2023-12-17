@@ -59,7 +59,7 @@ are present in your condition then your playlist will not play.
 -------------------------
 Each playlist condition line contains the directory name, a single-character separator, and a set of conditions,
 repectively. In general terms:
-PlaylistName = (Not) Condition0 (param0... paramN,...) (Not) ConditionN (param0... paramN)
+PlaylistName = (Not) Condition0 (param0... paramN,...) ... (Not) ConditionN (param0... paramN)
 
 Conditions, which are separated by commas, come in two types: Booleans and functions. Boolean conditions may be
 written as-is or preceded with a "Not" for negation. Function conditions take one or more parameters and may NOT
@@ -80,16 +80,16 @@ hamlet, or village (code 0, 1, or 2). If all these conditions are met then the p
 3b. Condition Lookup
 -------------------------
 Night - Boolean, True if time is between 18:00 and 6:00
-Interior - Boolean, True if player is in a building that isn't a dungeon or castle.
+Interior - Boolean, True if player is in a building that isn't a dungeon or castle
 Dungeon - Boolean, True if player is in a dungeon
 DungeonCastle - Boolean, True if player is inside a castle
 LocationType - Function, True if player's outdoor location fits one of the parameters (see 3ci)
-BuildingType - Function, True if player is inside the specified building type (see 3cii)
-WeatherType - Function, True if the current weather fits the given type(s) (see 3ciii)
-FactionId - Function, True if the faction of the player's current environment fits the given value(s) (see 3civ)
-Climate - Function, True if the climate fits the given value(s) (see 3cv)
-RegionIndex - Function, True if the player's location is within the given region(s) (see 3cvi)
-DungeonType - Function, True if the player is inside a dungeon of the given type(s) (see 3cvii)
+BuildingType - Function, True if player is inside one of the specified building types (see 3cii)
+WeatherType - Function, True if the current weather fits one of the given types (see 3ciii)
+FactionId - Function, True if the faction of the player's current environment fits one of the given values (see 3civ)
+Climate - Function, True if the climate fits one of the given values (see 3cv)
+RegionIndex - Function, True if the player's location is within one of the given regions (see 3cvi)
+DungeonType - Function, True if the player is inside a dungeon of one of the given types (see 3cvii)
 Combat - Boolean, True if player is in combat
 
 

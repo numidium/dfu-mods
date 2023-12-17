@@ -8,7 +8,6 @@ using DaggerfallWorkshop.Game.UserInterfaceWindows;
 using DaggerfallWorkshop.Game.Utility;
 using DaggerfallWorkshop.Game.Utility.ModSupport;
 using DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings;
-using DaggerfallWorkshop.Game.Weather;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -38,6 +37,8 @@ namespace DynamicMusic
             Court,
             //Sneaking,
             Combat,
+            MainMenu,
+            CharCreation,
             None
         }
 
@@ -500,18 +501,12 @@ namespace DynamicMusic
         {
             public DFRegion.LocationTypes LocationType; // exterior
             public DFLocation.BuildingTypes BuildingType; // interior
-            public WeatherType WeatherType;
+            public DaggerfallWorkshop.Game.Weather.WeatherType WeatherType;
             public uint FactionId;
             public bool IsNight;
             public bool IsInInterior;
             public bool IsInDungeon;
             public bool IsInDungeonCastle;
-        }
-
-        private struct ConditionLookup
-        {
-            public bool IsBoolean;
-            public ConditionMethod MethodDefinition;
         }
 
         private delegate bool ConditionMethod(ref Conditions conditions, bool negate, int[] parameters);
@@ -554,6 +549,7 @@ namespace DynamicMusic
         private float resumeSeeker = 0f;
         private bool gameLoaded;
         private int currentPlaylist;
+        private int previousLocationIndex;
         private State currentState;
         private State lastState;
         private MusicType currentMusicType;
@@ -611,128 +607,80 @@ namespace DynamicMusic
 
             // Load user-defined playlists from disk (user-defined meaning the conditions and tracks are custom).
             const string combatToken = "combat";
-            var conditionLibrary = new Dictionary<string, ConditionLookup>
+            var conditionLibrary = new Dictionary<string, ConditionMethod>
             {
                 // Vanilla conditions:
-                ["night"] = new ConditionLookup()
+                ["night"] = delegate (ref Conditions conditions, bool negate, int[] parameters)
                 {
-                    IsBoolean = true,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int[] parameters)
-                    {
-                        return negate ? !conditions.IsNight : conditions.IsNight;
-                    }
+                    return negate ? !conditions.IsNight : conditions.IsNight;
                 },
-                ["interior"] = new ConditionLookup()
+                ["interior"] = delegate (ref Conditions conditions, bool negate, int[] parameters)
                 {
-                    IsBoolean = true,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int[] parameters)
-                    {
-                        return negate ? !conditions.IsInInterior : conditions.IsInInterior;
-                    }
+                    return negate ? !conditions.IsInInterior : conditions.IsInInterior;
                 },
-                ["dungeon"] = new ConditionLookup()
+                ["dungeon"] = delegate (ref Conditions conditions, bool negate, int[] parameters)
                 {
-                    IsBoolean = true,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int[] parameters)
-                    {
-                        return negate ? !conditions.IsInDungeon : conditions.IsInDungeon;
-                    }
+                    return negate ? !conditions.IsInDungeon : conditions.IsInDungeon;
                 },
-                ["dungeoncastle"] = new ConditionLookup()
+                ["dungeoncastle"] = delegate (ref Conditions conditions, bool negate, int[] parameters)
                 {
-                    IsBoolean = true,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int[] parameters)
-                    {
-                        return negate ? !conditions.IsInDungeonCastle : conditions.IsInDungeonCastle;
-                    }
+                    return negate ? !conditions.IsInDungeonCastle : conditions.IsInDungeonCastle;
                 },
-                ["locationtype"] = new ConditionLookup()
+                ["locationtype"] = delegate (ref Conditions conditions, bool negate, int[] parameters)
                 {
-                    IsBoolean = false,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int[] parameters)
-                    {
-                        if (conditions.IsInDungeon) return false;
-                        var result = false;
-                        foreach (var parameter in parameters)
-                            result |= conditions.LocationType == (DFRegion.LocationTypes)parameter;
-                        return result;
-                    }
+                    if (conditions.IsInDungeon) return false;
+                    var result = false;
+                    foreach (var parameter in parameters)
+                        result |= conditions.LocationType == (DFRegion.LocationTypes)parameter;
+                    return negate ? !result : result;
                 },
-                ["buildingtype"] = new ConditionLookup()
+                ["buildingtype"] = delegate (ref Conditions conditions, bool negate, int[] parameters)
                 {
-                    IsBoolean = false,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int[] parameters)
-                    {
-                        var result = false;
-                        foreach (var parameter in parameters)
-                            result |= conditions.BuildingType == (DFLocation.BuildingTypes)parameter;
-                        return result;
-                    }
+                    var result = false;
+                    foreach (var parameter in parameters)
+                        result |= conditions.BuildingType == (DFLocation.BuildingTypes)parameter;
+                    return negate ? !result : result;
                 },
-                ["weathertype"] = new ConditionLookup()
+                ["weathertype"] = delegate (ref Conditions conditions, bool negate, int[] parameters)
                 {
-                    IsBoolean = false,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int[] parameters)
-                    {
-                        var result = false;
-                        foreach (var parameter in parameters)
-                            result |= conditions.WeatherType == (WeatherType)parameter;
-                        return result;
-                    }
+                    var result = false;
+                    foreach (var parameter in parameters)
+                        result |= conditions.WeatherType == (DaggerfallWorkshop.Game.Weather.WeatherType)parameter;
+                    return negate ? !result : result;
                 },
-                ["factionid"] = new ConditionLookup()
+                ["factionid"] = delegate (ref Conditions conditions, bool negate, int[] parameters)
                 {
-                    IsBoolean = false,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int[] parameters)
-                    {
-                        var result = false;
-                        foreach (var parameter in parameters)
-                            result |= conditions.FactionId == parameter;
-                        return result;
-                    }
+                    var result = false;
+                    foreach (var parameter in parameters)
+                        result |= conditions.FactionId == parameter;
+                    return negate ? !result : result;
                 },
                 // Non-vanilla conditions:
-                ["climate"] = new ConditionLookup()
+                ["climate"] = delegate (ref Conditions conditions, bool negate, int[] parameters)
                 {
-                    IsBoolean = false,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int[] parameters)
-                    {
-                        // TODO: make sure parameter is valid type and catch if not
-                        var result = false;
-                        foreach (var parameter in parameters)
-                            result |= localPlayerGPS.ClimateSettings.ClimateType == (DFLocation.ClimateBaseType)parameter;
-                        return result;
-                    }
+                    // TODO: make sure parameter is valid type and catch if not
+                    var result = false;
+                    foreach (var parameter in parameters)
+                        result |= localPlayerGPS.ClimateSettings.ClimateType == (DFLocation.ClimateBaseType)parameter;
+                    return negate ? !result : result;
                 },
-                ["regionindex"] = new ConditionLookup()
+                ["regionindex"] = delegate (ref Conditions conditions, bool negate, int[] parameters)
                 {
-                    IsBoolean = false,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int[] parameters)
-                    {
-                        var result = false;
-                        foreach (var parameter in parameters)
-                            result |= localPlayerGPS.CurrentRegionIndex == parameter;
-                        return result;
-                    }
+                    var result = false;
+                    foreach (var parameter in parameters)
+                        result |= localPlayerGPS.CurrentRegionIndex == parameter;
+                    return negate ? !result : result;
                 },
-                ["dungeontype"] = new ConditionLookup()
+                ["dungeontype"] = delegate (ref Conditions conditions, bool negate, int[] parameters)
                 {
-                    IsBoolean = false,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int[] parameters)
-                    {
-                        var result = false;
-                        foreach (var parameter in parameters)
-                            result |= (playerEnterExit.Dungeon != null) && playerEnterExit.Dungeon.Summary.DungeonType == (DFRegion.DungeonTypes)parameter;
-                        return result;
-                    }
+                    var result = false;
+                    foreach (var parameter in parameters)
+                        result |= (playerEnterExit.Dungeon != null) && playerEnterExit.Dungeon.Summary.DungeonType == (DFRegion.DungeonTypes)parameter;
+                    return negate ? !result : result;
                 },
-                ["combat"] = new ConditionLookup()
+                ["combat"] = delegate (ref Conditions conditions, bool negate, int[] parameters)
                 {
-                    IsBoolean = true,
-                    MethodDefinition = delegate (ref Conditions conditions, bool negate, int[] parameters)
-                    {
-                        return false; // This is a dummy condition - not used like the others.
-                    }
+                    return false; // This is a dummy condition - not used like the others.
                 }
             };
 
@@ -798,16 +746,8 @@ namespace DynamicMusic
                             else
                             {
                                 var conditionToken = tokens[tokenIndex++].ToLower();
-                                if (negate && !conditionLibrary[conditionToken].IsBoolean)
-                                {
-                                    PrintParserError($"Negation applied to non-boolean condition", lineCounter, conditionToken);
-                                    lineContainsError = true;
-                                    break;
-                                }
-                                else if (!lineContainsError && conditionToken == combatToken)
-                                {
+                                if (!lineContainsError && conditionToken == combatToken)
                                     isCombatPlaylist = true;
-                                }
                                 else if (!lineContainsError)
                                 {
                                     var arguments = new List<int>();
@@ -827,7 +767,7 @@ namespace DynamicMusic
                                     {
                                         NegateArg = negate,
                                         ParameterArgs = arguments.ToArray(),
-                                        ConditionMethod = conditionLibrary[conditionToken].MethodDefinition
+                                        ConditionMethod = conditionLibrary[conditionToken]
                                     };
 
                                     conditionSet.Add(conditionUsage);
@@ -893,8 +833,7 @@ namespace DynamicMusic
             // Set timing variables and state.
             previousTimeSinceStartup = Time.realtimeSinceStartup;
             gameLoaded = false;
-            currentState = State.Normal;
-            lastState = currentState;
+            lastState = currentState = State.Normal;
             currentMusicType = MusicType.Normal;
             combatPlaylist = customPlaylists[(int)MusicPlaylist.Combat];
             currentPlaylist = (int)MusicPlaylist.None;
@@ -1150,8 +1089,14 @@ namespace DynamicMusic
                 // Imported tracks start loading here.
                 if (previousPlaylist == currentPlaylist && !dynamicSongPlayer.IsPlaying)
                     dynamicSongPlayer.Play();
-                else if (previousPlaylist != currentPlaylist || (lastState != State.Normal && lastState != State.FadingIn))
-                    dynamicSongPlayer.Play(GetSong((MusicPlaylist)currentPlaylist), resumeSeeker);
+                else if (previousPlaylist != currentPlaylist || previousLocationIndex != localPlayerGPS.CurrentLocationIndex || (lastState != State.Normal && lastState != State.FadingIn))
+                {
+                    var song = GetSong((MusicPlaylist)currentPlaylist);
+                    if (song == dynamicSongPlayer.Song)
+                        return;
+                    dynamicSongPlayer.Play(song, resumeSeeker);
+                    previousLocationIndex = localPlayerGPS.CurrentLocationIndex;
+                }
 
                 resumeSeeker = 0f;
                 currentCustomTrack = string.Empty; // Should not be a custom track set if one is not playing.
@@ -1168,6 +1113,16 @@ namespace DynamicMusic
             var dfUnity = DaggerfallUnity.Instance;
             var topWindow = DaggerfallUI.UIManager.TopWindow;
             conditions = new Conditions();
+            if (gameManager.StateManager.CurrentState == StateManager.StateTypes.Start && !(topWindow is DaggerfallVidPlayerWindow) && !(topWindow is DaggerfallHUD))
+            {
+                if (topWindow is DaggerfallStartWindow ||
+                            topWindow is DaggerfallUnitySaveGameWindow ||
+                            topWindow is DaggerfallLoadClassicGameWindow)
+                    return MusicPlaylist.MainMenu;
+                else
+                    return MusicPlaylist.CharCreation;
+            }
+
             if (!gameLoaded || !playerEnterExit || !localPlayerGPS || !dfUnity || topWindow is DaggerfallVidPlayerWindow)
                 return MusicPlaylist.None;
             if (playerEntity.Arrested)
@@ -1458,6 +1413,7 @@ namespace DynamicMusic
         {
             Instance.HandleLocationChange();
             Instance.lastState = State.Normal;
+            Instance.previousLocationIndex = Instance.localPlayerGPS.CurrentLocationIndex;
             Instance.gameLoaded = true;
         }
 
@@ -1465,6 +1421,7 @@ namespace DynamicMusic
         {
             Instance.HandleLocationChange();
             Instance.lastState = State.Normal;
+            Instance.previousLocationIndex = Instance.localPlayerGPS.CurrentLocationIndex;
             Instance.gameLoaded = true;
         }
 
