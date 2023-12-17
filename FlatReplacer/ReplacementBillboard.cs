@@ -128,7 +128,7 @@ namespace FlatReplacer
         }
 
         // Adapted from DaggerfallBillboard.cs
-        public Material SetMaterial(string namePrefix, Vector2 dimensions, Texture2D[] textures)
+        public Material SetMaterial(string namePrefix, Vector2 dimensions, Texture2D[] textures, int archive, int record, bool useExactDimensions)
         {
             // Get DaggerfallUnity
             DaggerfallUnity dfUnity = DaggerfallUnity.Instance;
@@ -141,7 +141,10 @@ namespace FlatReplacer
             Vector2 size = dimensions;
             Mesh mesh = null;
             var material = GetStaticBillboardMaterial(gameObject, namePrefix, ref summary, out Vector2 scale, textures);
-            mesh = CreateBillboardMesh(summary.Rect, size, Vector2.one, out size);
+            if (useExactDimensions)
+                mesh = CreateBillboardMesh(summary.Rect, size, Vector2.one, out size);
+            else
+                mesh = dfUnity.MeshReader.GetBillboardMesh(summary.Rect, archive, record, out size);
             size *= scale;
             summary.AtlasedMaterial = false;
             summary.AnimatedMaterial = summary.ImportedTextures.FrameCount > 1;

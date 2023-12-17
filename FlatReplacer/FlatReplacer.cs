@@ -28,6 +28,7 @@ namespace FlatReplacer
             public int ReplaceTextureArchive;
             public int ReplaceTextureRecord;
             public string FlatTextureName;
+            public bool UseExactDimensions;
             public int FlatPortrait;
         }
 
@@ -75,7 +76,7 @@ namespace FlatReplacer
                     var key = ((uint)record.TextureArchive << 16) + (uint)record.TextureRecord; // Pack archive and record into single unsigned 32-bit integer
                     if (!flatReplacements.ContainsKey(key))
                         flatReplacements[key] = new List<FlatReplacement>();
-                    var isValidVanillaFlat = record.TextureArchive > -1 && record.TextureRecord > -1;
+                    var isValidVanillaFlat = record.ReplaceTextureArchive > -1 && record.ReplaceTextureRecord > -1;
                     var isValidCustomFlat = false;
                     // Reserve a frame for each numbered texture file starting with 0.
                     var animationFrameCount = 0;
@@ -107,6 +108,8 @@ namespace FlatReplacer
                     var customAnimation = isValidCustomFlat ? animationFrames : null;
                     if (isValidCustomFlat || isValidVanillaFlat)
                         flatReplacements[key].Add(new FlatReplacement() { Record = record, AnimationFrames = customAnimation });
+                    else
+                        Debug.Log($"FlatReplacer: Failed to add replacement for {record.TextureArchive}-{record.TextureRecord} -> '{record.FlatTextureName}', ({record.ReplaceTextureArchive}-{record.ReplaceTextureRecord})");
                 }
             }
 
@@ -213,7 +216,10 @@ namespace FlatReplacer
                 // Use custom billboard
                 var replacementBillboard = go.AddComponent<ReplacementBillboard>();
                 if (chosenReplacement.AnimationFrames != null) // Custom graphics supplied
-                    replacementBillboard.SetMaterial(chosenReplacementRecord.FlatTextureName, new Vector2(chosenReplacement.AnimationFrames[0].width, chosenReplacement.AnimationFrames[0].height), chosenReplacement.AnimationFrames);
+                    replacementBillboard.SetMaterial(chosenReplacementRecord.FlatTextureName,
+                        new Vector2(chosenReplacement.AnimationFrames[0].width, chosenReplacement.AnimationFrames[0].height),
+                        chosenReplacement.AnimationFrames, chosenReplacementRecord.TextureArchive,
+                        chosenReplacementRecord.TextureRecord, chosenReplacementRecord.UseExactDimensions);
                 else // Vanilla graphics swap
                     replacementBillboard.SetMaterial(chosenReplacementRecord.ReplaceTextureArchive, chosenReplacementRecord.ReplaceTextureRecord);
                 var collider = go.GetComponent<BoxCollider>();

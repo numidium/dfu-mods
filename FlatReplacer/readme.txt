@@ -57,6 +57,7 @@ however. Below is an example JSON file containing two replacements that you may 
         "ReplaceTextureArchive": -1,
         "ReplaceTextureRecord": -1,
 		"FlatTextureName": "merchant",
+        "UseExactDimensions": false,
 		"FlatPortrait": 503
 	},
 	{
@@ -70,6 +71,7 @@ however. Below is an example JSON file containing two replacements that you may 
         "ReplaceTextureArchive": -1,
         "ReplaceTextureRecord": -1,
 		"FlatTextureName": "banker",
+        "UseExactDimensions": false,
 		"FlatPortrait": 504
 	}
 ]
@@ -108,6 +110,9 @@ record is specified then the object will be discarded. If a valid FlatTextureNam
 
 FlatTextureName - String - The name prefix of the replacement's custom flat graphic file(s). The files themselves should be named with the prefix
 followed by an ascending numerical sequence starting from 0.
+
+UseExactDimensions - Boolean - Whether or not to draw the image at its original size without any scaling. Unless you are using an image that was 
+drawn in the low-res, pixelated style of the vanilla game you should probably leave this as false.
 
 FlatPortrait - Integer - The index of the NPC's portrait used in the talk window. If greater than 502 then a custom portrait file must be supplied.
 If set to -1 then the default portrait will be used.
