@@ -77,35 +77,24 @@ namespace FlatReplacer
                     if (!flatReplacements.ContainsKey(key))
                         flatReplacements[key] = new List<FlatReplacement>();
                     var isValidVanillaFlat = record.ReplaceTextureArchive > -1 && record.ReplaceTextureRecord > -1;
-                    var isValidCustomFlat = false;
-                    // Reserve a frame for each numbered texture file starting with 0.
-                    var animationFrameCount = 0;
-                    while (File.Exists(Path.Combine(texturesDirectory, $"{record.FlatTextureName}{animationFrameCount}.png")))
-                        animationFrameCount++;
-                    Texture2D[] animationFrames = null;
-                    if (animationFrameCount > 0)
+                    var isValidCustomFlat = true;
+                    var animationFrames = new List<Texture2D>();
+                    if (record.FlatTextureName != string.Empty && record.FlatTextureName != null)
                     {
-                        isValidCustomFlat = true;
-                        animationFrames = new Texture2D[animationFrameCount];
-                        for (var i = 0; i < animationFrameCount; i++)
+                        while (TryGetTexture($"{record.FlatTextureName}{animationFrames.Count}", textureCache, out var texture))
                         {
-                            var textureName = $"{record.FlatTextureName}{i}";
-                            if (TryGetTexture(textureName, textureCache, out var texture))
-                            {
-                                texture.filterMode = DaggerfallUI.Instance.GlobalFilterMode;
-                                animationFrames[i] = texture;
-                            }
-                            else
-                            {
-                                Debug.Log($"FlatReplacer: Failed to load custom texture: {textureName}.");
-                                isValidCustomFlat = false;
-                                break;
-                            }
+                            texture.filterMode = DaggerfallUI.Instance.GlobalFilterMode;
+                            animationFrames.Add(texture);
+                        }
+
+                        if (animationFrames.Count < 1)
+                        {
+                            Debug.Log($"FlatReplacer: Failed to load custom texture: {record.FlatTextureName}.");
+                            isValidCustomFlat = false;
                         }
                     }
-                    else
-                        isValidCustomFlat = false;
-                    var customAnimation = isValidCustomFlat ? animationFrames : null;
+
+                    var customAnimation = isValidCustomFlat ? animationFrames.ToArray() : null;
                     if (isValidCustomFlat || isValidVanillaFlat)
                         flatReplacements[key].Add(new FlatReplacement() { Record = record, AnimationFrames = customAnimation });
                     else
