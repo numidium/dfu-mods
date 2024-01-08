@@ -117,9 +117,8 @@ namespace FutureShock
         private static Mod mod;
         private static ConsoleController consoleController;
         private FutureShockGun fpsGun;
-        private Dictionary<WeaponAnimation, Texture2D[]> weaponAnimBank;
-        private Dictionary<ImpactAnimation, Texture2D[]> impactAnimBank;
-        private Dictionary<ProjectileAnimation, Texture2D[]> projectileAnimBank;
+        private uint[] impactAnimMap;
+        private uint[] projectileAnimMap;
         //private Dictionary<ProjectileModel, Mesh> projectileMeshBank;
         private readonly Texture2D[] projectileTextures = new Texture2D[3];
         private Dictionary<WeaponSound, AudioClip> weaponSoundBank;
@@ -127,6 +126,8 @@ namespace FutureShock
         private DaggerfallUnityItem equippedRight;
         private bool ShowWeapon;
         private GameManager gameManager;
+        private string gameDataPath;
+        private DFPalette shockPalette;
         private const string textureFilePrefix = "TEXTURE.";
         public static FutureShockWeapons Instance { get; private set; }
         public Type SaveDataType => typeof(FutureShockWeapons);
@@ -152,10 +153,10 @@ namespace FutureShock
         private void Start()
         {
             var settings = mod.GetSettings();
-            var path = settings.GetValue<string>("Options", "FutureShock GAMEDATA path");
+            gameDataPath = settings.GetValue<string>("Options", "FutureShock GAMEDATA path");
             gameManager = GameManager.Instance;
             //LoadSettings(settings, new ModSettingsChange());
-            if (InitMod(path))
+            if (InitMod())
                 Debug.Log("Future Shock Weapons initialized.");
             else
             {
@@ -240,7 +241,7 @@ namespace FutureShock
 
         private static bool IsGun(DaggerfallUnityItem item) => item != null && item.TemplateIndex == ItemFSGun.customTemplateIndex;
 
-        public bool InitMod(string gameDataPath)
+        public bool InitMod()
         {
             const string paletteExt = ".COL";
             const string shockPaletteName = "SHOCK" + paletteExt;
@@ -250,20 +251,20 @@ namespace FutureShock
             // Create copy of Future Shock palette file with file name that TextureFile class uses.
             if (!File.Exists($"{gameDataPath}{dagPaletteName}") && File.Exists(shockPalettePath))
                 File.Copy(shockPalettePath, $"{gameDataPath}{dagPaletteName}");
-            var shockPalette = new DFPalette(shockPalettePath);
-            // Import HUD animations
-            weaponAnimBank = new Dictionary<WeaponAnimation, Texture2D[]>();
-            // Check for and/or load loose CFA files. Normally these will not exist until first run.
-            foreach (WeaponAnimation textureName in Enum.GetValues(typeof(WeaponAnimation)))
-                weaponAnimBank[textureName] = GetTextureAnimFromCfaFile($"{gameDataPath}{textureName}.CFA", shockPalette);
-            // Import impact/explosion animations
-            impactAnimBank = new Dictionary<ImpactAnimation, Texture2D[]>
+            shockPalette = new DFPalette(shockPalettePath);
+            // Map impact/explosion animations (archive, record) to bullet types.
+            impactAnimMap = new uint[]
             {
-                [ImpactAnimation.Bullet] = GetTextureAnimation(gameDataPath, 357, 0),
-                [ImpactAnimation.RPG] = GetTextureAnimation(gameDataPath, 363, 0),
-                [ImpactAnimation.Laser] = GetTextureAnimation(gameDataPath, 359, 1),
-                [ImpactAnimation.Grenade] = GetTextureAnimation(gameDataPath, 360, 0),
-                [ImpactAnimation.Plasma] = GetTextureAnimation(gameDataPath, 364, 0)
+                357 << 16,       // Bullet: 357, 0
+                (359 << 16) | 1, // Laser: 359, 1
+                360 << 16,       // Grenade: 360, 0
+                363 << 16,       // RPG: 363, 0
+                364 << 16        // Plasma: 364, 0
+            };
+
+            projectileAnimMap = new uint[]
+            {
+                (512 << 16) | 2 // Grenade: 512, 2
             };
 
             // Archive 217 has a banned filename. Need to clone it so DFU's texture reader can use it.
@@ -271,13 +272,6 @@ namespace FutureShock
             const int goodArchive = 512;
             if (!File.Exists($"{gameDataPath}{textureFilePrefix}{goodArchive}"))
                 File.Copy($"{gameDataPath}{textureFilePrefix}{badArchive}", $"{gameDataPath}{textureFilePrefix}{goodArchive}");
-
-            // Import 2D projectile animations
-            projectileAnimBank = new Dictionary<ProjectileAnimation, Texture2D[]>()
-            {
-                [ProjectileAnimation.Grenade] = GetTextureAnimation(gameDataPath, 512, 2)
-            };
-
             const string bsaExt = ".BSA";
             const string imgsFile = "MDMDIMGS" + bsaExt;
             using (var textureReader = new BsaReader($"{gameDataPath}{imgsFile}"))
@@ -292,8 +286,9 @@ namespace FutureShock
                 {
                     var fileName = textureReader.GetFileName(textureIndex);
                     var fileLength = textureReader.GetFileLength(textureIndex);
-                    // Skip file if not in bank or already loaded.
-                    if (!Enum.TryParse(Path.GetFileNameWithoutExtension(fileName), out WeaponAnimation weaponAnimation) || weaponAnimBank[weaponAnimation] != null)
+                    var cfaPath = $"{gameDataPath}{fileName}";
+                    // Skip file if not in bank or already exists.
+                    if (!Enum.TryParse(Path.GetFileNameWithoutExtension(fileName), out WeaponAnimation weaponAnimation) || File.Exists(cfaPath))
                     {
                         textureReader.Reader.BaseStream.Seek(fileLength, SeekOrigin.Current);
                         continue;
@@ -301,13 +296,10 @@ namespace FutureShock
 
                     var textureData = textureReader.Reader.ReadBytes(fileLength);
                     // Create a standalone CFA file that Interkarma's class can use.
-                    var cfaPath = $"{gameDataPath}{fileName}";
                     using (BinaryWriter binaryWriter = new BinaryWriter(new FileStream(cfaPath, FileMode.Create)))
                     {
                         binaryWriter.Write(textureData);
                     }
-
-                    weaponAnimBank[weaponAnimation] = GetTextureAnimFromCfaFile(cfaPath, shockPalette);
                 }
             }
             // Import Sounds
@@ -483,7 +475,21 @@ namespace FutureShock
             return false;
         }
 
-        private static Texture2D[] GetTextureAnimFromCfaFile(string path, DFPalette palette)
+        private Texture2D[] GetCfaAnimation(WeaponAnimation textureName) => GetCfaAnimation($"{gameDataPath}{textureName}.CFA", shockPalette);
+
+        private Texture2D[] GetTextureAnimation(ImpactAnimation impactAnimation) => GetTextureAnimation(impactAnimMap, (int)impactAnimation);
+
+        private Texture2D[] GetTextureAnimation(ProjectileAnimation projectileAnimation) => GetTextureAnimation(projectileAnimMap, (int)projectileAnimation);
+
+        private Texture2D[] GetTextureAnimation(uint[] animationMap, int index)
+        {
+            // High 16 bits = archive, Low 16 bits = record
+            var archive = animationMap[index] >> 16;
+            var record = 0x0000FFFF & animationMap[index];
+            return GetTextureAnimation(gameDataPath, (int)archive, (int)record);
+        }
+
+        private static Texture2D[] GetCfaAnimation(string path, DFPalette palette)
         {
             var cfaFile = new CfaFile() { Palette = palette };
             if (!cfaFile.Load(path, FileUsage.UseMemory, true))
@@ -575,9 +581,10 @@ namespace FutureShock
             {
                 case FSWeapon.Uzi:
                 default:
-                    fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON01];
-                    fpsGun.ImpactFrames = impactAnimBank[ImpactAnimation.Bullet];
+                    fpsGun.WeaponFrames = GetCfaAnimation(WeaponAnimation.WEAPON01);
+                    fpsGun.ImpactFrames = GetTextureAnimation(ImpactAnimation.Bullet);
                     fpsGun.ImpactFrameSize = new Vector2(.5f, .5f);
+                    fpsGun.ProjectileFrames = null;
                     fpsGun.HorizontalOffset = -.3f;
                     fpsGun.VerticalOffset = 0f;
                     fpsGun.ShootSound = weaponSoundBank[WeaponSound.SHOTS5];
@@ -588,9 +595,10 @@ namespace FutureShock
                     fpsGun.ShotSpread = .1f;
                     break;
                 case FSWeapon.M16:
-                    fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON02];
-                    fpsGun.ImpactFrames = impactAnimBank[ImpactAnimation.Bullet];
+                    fpsGun.WeaponFrames = GetCfaAnimation(WeaponAnimation.WEAPON02);
+                    fpsGun.ImpactFrames = GetTextureAnimation(ImpactAnimation.Bullet);
                     fpsGun.ImpactFrameSize = new Vector2(.5f, .5f);
+                    fpsGun.ProjectileFrames = null;
                     fpsGun.HorizontalOffset = .1f;
                     fpsGun.VerticalOffset = .01f;
                     fpsGun.ShootSound = weaponSoundBank[WeaponSound.SHOTS2];
@@ -601,9 +609,10 @@ namespace FutureShock
                     fpsGun.ShotSpread = .03f;
                     break;
                 case FSWeapon.MachineGun:
-                    fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON03];
-                    fpsGun.ImpactFrames = impactAnimBank[ImpactAnimation.Bullet];
+                    fpsGun.WeaponFrames = GetCfaAnimation(WeaponAnimation.WEAPON03);
+                    fpsGun.ImpactFrames = GetTextureAnimation(ImpactAnimation.Bullet);
                     fpsGun.ImpactFrameSize = new Vector2(.5f, .5f);
+                    fpsGun.ProjectileFrames = null;
                     fpsGun.HorizontalOffset = 0f;
                     fpsGun.VerticalOffset = 0f;
                     fpsGun.ShootSound = weaponSoundBank[WeaponSound.FASTGUN2];
@@ -614,9 +623,10 @@ namespace FutureShock
                     fpsGun.ShotSpread = .05f;
                     break;
                 case FSWeapon.Shotgun:
-                    fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON04];
-                    fpsGun.ImpactFrames = impactAnimBank[ImpactAnimation.Bullet];
+                    fpsGun.WeaponFrames = GetCfaAnimation(WeaponAnimation.WEAPON04);
+                    fpsGun.ImpactFrames = GetTextureAnimation(ImpactAnimation.Bullet);
                     fpsGun.ImpactFrameSize = new Vector2(.5f, .5f);
+                    fpsGun.ProjectileFrames = null;
                     fpsGun.HorizontalOffset = -.25f;
                     fpsGun.VerticalOffset = 0f;
                     fpsGun.ShootSound = weaponSoundBank[WeaponSound.SHTGUN];
@@ -627,10 +637,10 @@ namespace FutureShock
                     fpsGun.ShotSpread = .1f;
                     break;
                 case FSWeapon.GrenadeLauncher:
-                    fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON05];
-                    fpsGun.ImpactFrames = impactAnimBank[ImpactAnimation.Grenade];
+                    fpsGun.WeaponFrames = GetCfaAnimation(WeaponAnimation.WEAPON05);
+                    fpsGun.ImpactFrames = GetTextureAnimation(ImpactAnimation.Grenade);
                     fpsGun.ImpactFrameSize = new Vector2(2.5f, 2.5f);
-                    fpsGun.ProjectileFrames = projectileAnimBank[ProjectileAnimation.Grenade];
+                    fpsGun.ProjectileFrames = GetTextureAnimation(ProjectileAnimation.Grenade);
                     fpsGun.ProjectileFrameSize = new Vector2(.2f, .2f);
                     fpsGun.HorizontalOffset = -.1f;
                     fpsGun.VerticalOffset = 0f;
@@ -649,9 +659,10 @@ namespace FutureShock
                     fpsGun.ProjPostImpactFade = 2f;
                     break;
                 case FSWeapon.RPG:
-                    fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON06];
-                    fpsGun.ImpactFrames = impactAnimBank[ImpactAnimation.RPG];
+                    fpsGun.WeaponFrames = GetCfaAnimation(WeaponAnimation.WEAPON06);
+                    fpsGun.ImpactFrames = GetTextureAnimation(ImpactAnimation.RPG);
                     fpsGun.ImpactFrameSize = new Vector2(3f, 3f);
+                    fpsGun.ProjectileFrames = null;
                     fpsGun.HorizontalOffset = 0f;
                     fpsGun.VerticalOffset = 0f;
                     fpsGun.HorizProjAdjust = .17f;
@@ -671,9 +682,10 @@ namespace FutureShock
                     fpsGun.ProjPostImpactFade = 1.3f;
                     break;
                 case FSWeapon.LaserRifle:
-                    fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON07];
-                    fpsGun.ImpactFrames = impactAnimBank[ImpactAnimation.Laser];
+                    fpsGun.WeaponFrames = GetCfaAnimation(WeaponAnimation.WEAPON07);
+                    fpsGun.ImpactFrames = GetTextureAnimation(ImpactAnimation.Laser);
                     fpsGun.ImpactFrameSize = new Vector2(.7f, .7f);
+                    fpsGun.ProjectileFrames = null;
                     fpsGun.HorizontalOffset = -.05f;
                     fpsGun.VerticalOffset = 0f;
                     fpsGun.HorizProjAdjust = .12f;
@@ -692,9 +704,10 @@ namespace FutureShock
                     fpsGun.ProjPostImpactFade = 2f;
                     break;
                 case FSWeapon.HeavyLaser:
-                    fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON08];
-                    fpsGun.ImpactFrames = impactAnimBank[ImpactAnimation.Laser];
+                    fpsGun.WeaponFrames = GetCfaAnimation(WeaponAnimation.WEAPON08);
+                    fpsGun.ImpactFrames = GetTextureAnimation(ImpactAnimation.Laser);
                     fpsGun.ImpactFrameSize = new Vector2(.7f, .7f);
+                    fpsGun.ProjectileFrames = null;
                     fpsGun.HorizontalOffset = 0f;
                     fpsGun.VerticalOffset = 0f;
                     fpsGun.HorizProjAdjust = .12f;
@@ -726,9 +739,10 @@ namespace FutureShock
                     break;
                 */
                 case FSWeapon.PlasmaRifle:
-                    fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON10];
-                    fpsGun.ImpactFrames = impactAnimBank[ImpactAnimation.Plasma];
+                    fpsGun.WeaponFrames = GetCfaAnimation(WeaponAnimation.WEAPON10);
+                    fpsGun.ImpactFrames = GetTextureAnimation(ImpactAnimation.Plasma);
                     fpsGun.ImpactFrameSize = new Vector2(.5f, .5f);
+                    fpsGun.ProjectileFrames = null;
                     fpsGun.HorizontalOffset = -.1f;
                     fpsGun.VerticalOffset = 0f;
                     fpsGun.HorizProjAdjust = .13f;
@@ -747,9 +761,10 @@ namespace FutureShock
                     fpsGun.ProjPostImpactFade = 1.7f;
                     break;
                 case FSWeapon.HeavyPlasma:
-                    fpsGun.WeaponFrames = weaponAnimBank[WeaponAnimation.WEAPON11];
-                    fpsGun.ImpactFrames = impactAnimBank[ImpactAnimation.Plasma];
+                    fpsGun.WeaponFrames = GetCfaAnimation(WeaponAnimation.WEAPON11);
+                    fpsGun.ImpactFrames = GetTextureAnimation(ImpactAnimation.Plasma);
                     fpsGun.ImpactFrameSize = new Vector2(.5f, .5f);
+                    fpsGun.ProjectileFrames = null;
                     fpsGun.HorizontalOffset = 0f;
                     fpsGun.VerticalOffset = 0f;
                     fpsGun.HorizProjAdjust = .12f;

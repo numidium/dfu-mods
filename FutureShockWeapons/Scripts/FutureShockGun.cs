@@ -1,7 +1,6 @@
 using DaggerfallConnect;
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
-using DaggerfallWorkshop.Game.Entity;
 using DaggerfallWorkshop.Game.Items;
 using DaggerfallWorkshop.Game.Serialization;
 using DaggerfallWorkshop.Utility;
@@ -39,10 +38,46 @@ namespace FutureShock
         private float lastScreenWidth, lastScreenHeight;
         private AudioSource audioSource;
         private Light muzzleFlash;
+        private Texture2D[] weaponFrames;
+        private Texture2D[] impactFrames;
+        private Texture2D[] projectileFrames;
         public DaggerfallUnityItem PairedItem { private get; set; }
-        public Texture2D[] WeaponFrames { private get; set; }
-        public Texture2D[] ImpactFrames { private get; set; }
-        public Texture2D[] ProjectileFrames { private get; set; }
+        public Texture2D[] WeaponFrames
+        {
+            get => weaponFrames;
+            set
+            {
+                if (weaponFrames != null)
+                    foreach (var weaponFrame in weaponFrames)
+                        Destroy(weaponFrame); // Release old textures.
+                weaponFrames = value;
+            }
+        }
+
+        public Texture2D[] ImpactFrames
+        {
+            get => impactFrames;
+            set
+            {
+                if (impactFrames != null)
+                    foreach (var impactFrame in impactFrames)
+                        Destroy(impactFrame); // Release old textures.
+                impactFrames = value;
+            }
+        }
+
+        public Texture2D[] ProjectileFrames
+        {
+            get => projectileFrames;
+            set
+            {
+                if (projectileFrames != null)
+                    foreach (var projectileFrame in projectileFrames)
+                        Destroy(projectileFrame); // Release old textures.
+                projectileFrames = value;
+            }
+        }
+
         public Vector2 ImpactFrameSize { private get; set; }
         public Vector2 ProjectileFrameSize { private get; set; }
         public float HorizontalOffset { private get; set; }
