@@ -204,7 +204,7 @@ namespace FlatReplacer
                 Destroy(billboard);
                 // Use custom billboard
                 var replacementBillboard = go.AddComponent<ReplacementBillboard>();
-                if (chosenReplacement.AnimationFrames != null) // Custom graphics supplied
+                if (chosenReplacement.AnimationFrames.Length != 0) // Custom graphics supplied
                     replacementBillboard.SetMaterial(chosenReplacementRecord.FlatTextureName,
                         new Vector2(chosenReplacement.AnimationFrames[0].width, chosenReplacement.AnimationFrames[0].height),
                         chosenReplacement.AnimationFrames, chosenReplacementRecord.TextureArchive,
