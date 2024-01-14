@@ -1117,6 +1117,7 @@ namespace DynamicMusic
             {
                 if (topWindow is DaggerfallStartWindow ||
                             topWindow is DaggerfallUnitySaveGameWindow ||
+                            (topWindow is DaggerfallPopupWindow && (topWindow as DaggerfallPopupWindow).PreviousWindow is DaggerfallUnitySaveGameWindow) ||
                             topWindow is DaggerfallLoadClassicGameWindow)
                     return MusicPlaylist.MainMenu;
                 else
