@@ -39,8 +39,6 @@ namespace FutureShock
         private AudioSource audioSource;
         private Light muzzleFlash;
         private Texture2D[] weaponFrames;
-        private Texture2D[] impactFrames;
-        private Texture2D[] projectileFrames;
         public DaggerfallUnityItem PairedItem { private get; set; }
         public Texture2D[] WeaponFrames
         {
@@ -54,30 +52,8 @@ namespace FutureShock
             }
         }
 
-        public Texture2D[] ImpactFrames
-        {
-            get => impactFrames;
-            set
-            {
-                if (impactFrames != null)
-                    foreach (var impactFrame in impactFrames)
-                        Destroy(impactFrame); // Release old textures.
-                impactFrames = value;
-            }
-        }
-
-        public Texture2D[] ProjectileFrames
-        {
-            get => projectileFrames;
-            set
-            {
-                if (projectileFrames != null)
-                    foreach (var projectileFrame in projectileFrames)
-                        Destroy(projectileFrame); // Release old textures.
-                projectileFrames = value;
-            }
-        }
-
+        public Texture2D[] ImpactFrames { get; set; }
+        public Texture2D[] ProjectileFrames { get; set; }
         public Vector2 ImpactFrameSize { private get; set; }
         public Vector2 ProjectileFrameSize { private get; set; }
         public float HorizontalOffset { private get; set; }
@@ -202,7 +178,8 @@ namespace FutureShock
 
         private void OnGUI()
         {
-            if (IsHolstered || GameManager.IsGamePaused || SaveLoadManager.Instance.LoadInProgress || gameManager.PlayerSpellCasting.IsPlayingAnim)
+            if (IsHolstered || GameManager.IsGamePaused || SaveLoadManager.Instance.LoadInProgress || gameManager.PlayerSpellCasting.IsPlayingAnim ||
+                    !gameManager.WeaponManager.UsingRightHand || gameManager.PlayerEntity.IsParalyzed || gameManager.ClimbingMotor.IsClimbing)
                 return;
             // Update weapon when resolution changes
             var screenRect = DaggerfallUI.Instance.CustomScreenRect ?? new Rect(0, 0, Screen.width, Screen.height);
@@ -216,7 +193,7 @@ namespace FutureShock
             }
 
             GUI.depth = 0;
-            if (Event.current.type.Equals(EventType.Repaint) && !IsHolstered && gameManager.WeaponManager.UsingRightHand && !gameManager.PlayerEntity.IsParalyzed)
+            if (Event.current.type.Equals(EventType.Repaint))
                 DaggerfallUI.DrawTextureWithTexCoords(weaponPosition, WeaponFrames[currentFrame], DaggerfallUnity.Settings.Handedness == 1 ? leftHanded : rightHanded);
         }
 
