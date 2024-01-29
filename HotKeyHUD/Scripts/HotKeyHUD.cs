@@ -14,11 +14,11 @@ namespace HotKeyHUD
     public sealed class HotKeyHUD : MonoBehaviour, IHasModSaveData
     {
         private static Mod mod;
-        private bool componentAdded;
+        public static string ModTitle => mod.Title;
         private const string modName = "Hot Key HUD";
         public static HotKeyHUD Instance { get; private set; }
         public Type SaveDataType => typeof(HotKeyHUDSaveData);
-        public static string ModTitle => mod.Title;
+        public static string GetLocalizedKey(string key) => mod.Localize(key);
 
         [Invoke(StateManager.StateTypes.Start, 0)]
         public static void Init(InitParams initParams)
@@ -28,58 +28,6 @@ namespace HotKeyHUD
             Instance = go.AddComponent<HotKeyHUD>();
             mod.LoadSettingsCallback = Instance.LoadSettings;
             mod.SaveDataInterface = Instance;
-        }
-
-        // Load settings that can change during runtime.
-        private void LoadSettings(ModSettings settings, ModSettingsChange change)
-        {
-            HotKeyUtil.Visibility = (HotKeyUtil.HUDVisibility)settings.GetValue<int>("Options", "HUD Visibility");
-            var menuKeyText = settings.GetValue<string>("Options", "Hotkey Setup Menu Key");
-            if (Enum.TryParse(menuKeyText, out KeyCode result))
-                HotKeyUtil.SetupMenuKey = result;
-            else
-            {
-                HotKeyUtil.SetupMenuKey = KeyCode.Alpha0;
-                Debug.Log($"{modName}: Invalid setup menu keybind detected. Setting default.");
-            }
-        }
-
-        private void Start()
-        {
-            // Load settings that require a restart.
-            var settings = mod.GetSettings();
-            HotKeyUtil.OverrideMenus = settings.GetValue<bool>("Options", "Override Menus");
-            LoadSettings(settings, new ModSettingsChange());
-            Debug.Log($"{modName} initialized.");
-            mod.IsReady = true;
-            componentAdded = false;
-        }
-
-        private void Update()
-        {
-            var hud = DaggerfallUI.Instance.DaggerfallHUD;
-            var hudDisplay = HotKeyDisplay.Instance;
-            if (!componentAdded && hud != null)
-            {
-                if (HotKeyUtil.OverrideMenus)
-                {
-                    UIWindowFactory.RegisterCustomUIWindow(UIWindowType.Inventory, typeof(HotkeyHUDInventoryMenu));
-                    UIWindowFactory.RegisterCustomUIWindow(UIWindowType.SpellBook, typeof(HotKeyHUDSpellbookWindow));
-                }
-
-                hud.ParentPanel.Components.Add(hudDisplay);
-                componentAdded = true;
-            }
-
-            // Open alternate keying window on user command.
-            if (!HotKeyUtil.OverrideMenus && InputManager.Instance.GetAnyKeyDown() == HotKeyUtil.SetupMenuKey &&
-                !GameManager.IsGamePaused && !SaveLoadManager.Instance.LoadInProgress && DaggerfallUI.UIManager.WindowCount == 0)
-            {
-                var uiManager = DaggerfallUI.Instance.UserInterfaceManager;
-                uiManager.PushWindow(HotKeySetupWindow.Instance);
-            }
-
-            hudDisplay.Enabled = hud.Enabled;
         }
 
         public object NewSaveData()
@@ -132,10 +80,10 @@ namespace HotKeyHUD
             var hotKeyMenuPopup = HotKeyMenuPopup.Instance;
             if (!hotKeyMenuPopup.Initialized)
                 hotKeyMenuPopup.Initialize();
-            var hudDisplay = HotKeyDisplay.Instance;
             // Clear buttons
-            for (var i = 0; i < hudDisplay.HotKeyButtons.Length; i++)
-                hudDisplay.SetItemAtSlot(null, i);
+            var hotKeyDisplay = HotKeyDisplay.Instance;
+            for (var i = 0; i < hotKeyDisplay.HotKeyButtons.Length; i++)
+                hotKeyDisplay.SetItemAtSlot(null, i);
             var data = (HotKeyHUDSaveData)saveData;
             var player = GameManager.Instance.PlayerEntity;
             var itemIndex = 0;
@@ -143,16 +91,65 @@ namespace HotKeyHUD
             for (var i = 0; i < data.payloadTypes.Count; i++)
             {
                 if (data.payloadTypes[i] == PayloadType.None)
-                    hudDisplay.SetItemAtSlot(null, i);
+                    hotKeyDisplay.SetItemAtSlot(null, i);
                 else if (data.payloadTypes[i] == PayloadType.Item)
                 {
                     var item = player.Items.GetItem(data.itemUids[itemIndex++]);
                     if (item != null)
-                        hudDisplay.SetItemAtSlot(item, i, data.forceUseSlots[i]);
+                        hotKeyDisplay.SetItemAtSlot(item, i, data.forceUseSlots[i]);
                 }
                 else if (data.payloadTypes[i] == PayloadType.Spell)
-                    hudDisplay.SetSpellAtSlot(data.spells[spellIndex++], i);
+                    hotKeyDisplay.SetSpellAtSlot(data.spells[spellIndex++], i);
             }
+        }
+
+        // Load settings that can change during runtime.
+        private void LoadSettings(ModSettings settings, ModSettingsChange change)
+        {
+            HotKeyUtil.Visibility = (HotKeyUtil.HUDVisibility)settings.GetValue<int>("Options", "HUD Visibility");
+            var menuKeyText = settings.GetValue<string>("Options", "Hotkey Setup Menu Key");
+            if (Enum.TryParse(menuKeyText, out KeyCode result))
+                HotKeyUtil.SetupMenuKey = result;
+            else
+            {
+                HotKeyUtil.SetupMenuKey = KeyCode.Alpha0;
+                Debug.Log($"{modName}: Invalid setup menu keybind detected. Setting default.");
+            }
+        }
+
+        private void Start()
+        {
+            // Load settings that require a restart.
+            var settings = mod.GetSettings();
+            HotKeyUtil.OverrideMenus = settings.GetValue<bool>("Options", "Override Menus");
+            LoadSettings(settings, new ModSettingsChange());
+            Debug.Log($"{modName} initialized.");
+            mod.IsReady = true;
+            GameManager.Instance.PlayerEntity.OnDeath += OnPlayerDeath;
+            if (HotKeyUtil.OverrideMenus)
+            {
+                UIWindowFactory.RegisterCustomUIWindow(UIWindowType.Inventory, typeof(HotkeyHUDInventoryMenu));
+                UIWindowFactory.RegisterCustomUIWindow(UIWindowType.SpellBook, typeof(HotKeyHUDSpellbookWindow));
+            }
+
+            DaggerfallUI.Instance.DaggerfallHUD.ParentPanel.Components.Add(HotKeyDisplay.Instance);
+        }
+
+        private void Update()
+        {
+            // Open alternate keying window on user command.
+            if (!HotKeyUtil.OverrideMenus && InputManager.Instance.GetAnyKeyDown() == HotKeyUtil.SetupMenuKey &&
+                !GameManager.IsGamePaused && !SaveLoadManager.Instance.LoadInProgress && DaggerfallUI.UIManager.WindowCount == 0)
+            {
+                DaggerfallUI.Instance.UserInterfaceManager.PushWindow(HotKeySetupWindow.Instance);
+            }
+
+            HotKeyDisplay.Instance.Enabled = DaggerfallUI.Instance.DaggerfallHUD.Enabled;
+        }
+
+        private void OnPlayerDeath(DaggerfallWorkshop.Game.Entity.DaggerfallEntity entity)
+        {
+            HotKeyDisplay.Instance.ResetButtons();
         }
     }
 }

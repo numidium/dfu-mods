@@ -45,8 +45,12 @@ namespace HotKeyHUD
 
         protected override void LocalItemListScroller_OnItemClick(DaggerfallUnityItem item, ActionModes actionMode)
         {
-            if (hotKeyMenuPopup.Enabled && HotKeyDisplay.Instance.KeyItem(item, ref slotNum, uiManager, this, hotKeyMenuPopup, ActionSelectDialog_OnButtonClick, ref hotKeyItem))
+            if (hotKeyMenuPopup.Enabled && item.currentCondition > 0 && !HotKeyUtil.GetProhibited(item))
+            {
+                HotKeyDisplay.Instance.KeyItem(item, ref slotNum, uiManager, this, hotKeyMenuPopup, ActionSelectDialog_OnButtonClick, ref hotKeyItem);
                 return;
+            }
+
             base.LocalItemListScroller_OnItemClick(item, actionMode);
         }
 
@@ -57,8 +61,13 @@ namespace HotKeyHUD
                 return;
             var slot = (EquipSlots)equipInd;
             var item = playerEntity.ItemEquipTable.GetItem(slot);
-            if (hotKeyMenuPopup.Enabled && (item == null || HotKeyDisplay.Instance.KeyItem(item, ref slotNum, uiManager, this, hotKeyMenuPopup, ActionSelectDialog_OnButtonClick, ref hotKeyItem)))
+            if (hotKeyMenuPopup.Enabled && item.currentCondition > 0 && !HotKeyUtil.GetProhibited(item))
+            {
+                if (item != null)
+                    HotKeyDisplay.Instance.KeyItem(item, ref slotNum, uiManager, this, hotKeyMenuPopup, ActionSelectDialog_OnButtonClick, ref hotKeyItem);
                 return;
+            }
+
             base.PaperDoll_OnMouseClick(sender, position, actionMode);
         }
 
@@ -66,8 +75,13 @@ namespace HotKeyHUD
         {
             var slot = (EquipSlots)sender.Tag;
             var item = playerEntity.ItemEquipTable.GetItem(slot);
-            if (hotKeyMenuPopup.Enabled && (item == null || HotKeyDisplay.Instance.KeyItem(item, ref slotNum, uiManager, this, hotKeyMenuPopup, ActionSelectDialog_OnButtonClick, ref hotKeyItem)))
+            if (hotKeyMenuPopup.Enabled && item.currentCondition > 0 && !HotKeyUtil.GetProhibited(item))
+            {
+                if (item != null)
+                    HotKeyDisplay.Instance.KeyItem(item, ref slotNum, uiManager, this, hotKeyMenuPopup, ActionSelectDialog_OnButtonClick, ref hotKeyItem);
                 return;
+            }
+
             base.AccessoryItemsButton_OnLeftMouseClick(sender, position);
         }
 

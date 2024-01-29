@@ -151,7 +151,7 @@ namespace HotKeyHUD
             {
                 Position = new Vector2(0f, 3f),
                 HorizontalAlignment = HorizontalAlignment.Center,
-                Text = "Hot Key Assignment"
+                Text = HotKeyHUD.GetLocalizedKey("SetupTitle")
             });
             var exitButton = DaggerfallUI.AddButton(new Rect(exitButtonPanel.Position.x, exitButtonPanel.Position.y,
                 exitButtonCutoutRect.width, exitButtonCutoutRect.height), NativePanel);
@@ -180,6 +180,19 @@ namespace HotKeyHUD
 
         private void ItemListScroller_OnItemClick(DaggerfallUnityItem item)
         {
+            const int forbiddenEquipmentTextId = 1068;
+            const int itemBrokenTextId = 29;
+            if (HotKeyUtil.GetProhibited(item))
+            {
+                PushMessageBox(forbiddenEquipmentTextId);
+                return;
+            }
+            else if (item.currentCondition < 1)
+            {
+                PushMessageBox(itemBrokenTextId);
+                return;
+            }
+
             HotKeyDisplay.Instance.KeyItem(item, ref slotNum, uiManager, this, hotKeyMenuPopup, ActionSelectDialog_OnButtonClick, ref hotKeyItem);
         }
 
@@ -234,6 +247,18 @@ namespace HotKeyHUD
             imgFile.LoadPalette(Path.Combine(dfUnity.Arena2Path, imgFile.PaletteName));
             var dfBitmap = imgFile.GetDFBitmap();
             return ImageReader.GetTexture(dfBitmap.GetColor32(), dfBitmap.Width, dfBitmap.Height);
+        }
+
+        private void PushMessageBox(int tokenId)
+        {
+            var tokens = DaggerfallUnity.Instance.TextProvider.GetRSCTokens(tokenId);
+            if (tokens != null && tokens.Length > 0)
+            {
+                var messageBox = new DaggerfallMessageBox(uiManager, this);
+                messageBox.SetTextTokens(tokens);
+                messageBox.ClickAnywhereToClose = true;
+                messageBox.Show();
+            }
         }
     }
 }

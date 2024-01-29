@@ -145,32 +145,25 @@ namespace HotKeyHUD
             EquippedButton.SetItem(null);
         }
 
-        public bool KeyItem(DaggerfallUnityItem item, ref int slotNum, IUserInterfaceManager uiManager, IUserInterfaceWindow prevWindow, HotKeyMenuPopup hotKeyMenuPopup,
+        public void KeyItem(DaggerfallUnityItem item, ref int slotNum, IUserInterfaceManager uiManager, IUserInterfaceWindow prevWindow, HotKeyMenuPopup hotKeyMenuPopup,
                 DaggerfallMessageBox.OnButtonClickHandler onButtonClickHandler, ref DaggerfallUnityItem hotKeyItem)
         {
-            const string actionTypeSelect = "This item can be either Used or Equipped. Key as Use?";
-            if (!HotKeyUtil.GetProhibited(item) && item.currentCondition > 0) // Item must not be class-restricted or broken.
+            const string actionTypeSelectKey = "KeyAsUse";
+            slotNum = hotKeyMenuPopup.SelectedSlot;
+            hotKeyItem = item;
+            var equipTable = GameManager.Instance.PlayerEntity.ItemEquipTable;
+            // Show prompt if enchanted item can be either equipped or used.
+            if (item != GetItemAtSlot(slotNum) && item.IsEnchanted && equipTable.GetEquipSlot(item) != EquipSlots.None && HotKeyUtil.GetEnchantedItemIsUseable(item))
             {
-                slotNum = hotKeyMenuPopup.SelectedSlot;
-                hotKeyItem = item;
-                var equipTable = GameManager.Instance.PlayerEntity.ItemEquipTable;
-                // Show prompt if enchanted item can be either equipped or used.
-                if (item != GetItemAtSlot(slotNum) && item.IsEnchanted && equipTable.GetEquipSlot(item) != EquipSlots.None && HotKeyUtil.GetEnchantedItemIsUseable(item))
-                {
-                    var actionSelectDialog = new DaggerfallMessageBox(uiManager, DaggerfallMessageBox.CommonMessageBoxButtons.YesNo, actionTypeSelect, prevWindow);
-                    actionSelectDialog.OnButtonClick += onButtonClickHandler;
-                    actionSelectDialog.Show();
-                }
-                else
-                {
-                    DaggerfallUI.Instance.PlayOneShot(SoundClips.ButtonClick);
-                    SetItemAtSlot(hotKeyItem, slotNum);
-                }
-
-                return true;
+                var actionSelectDialog = new DaggerfallMessageBox(uiManager, DaggerfallMessageBox.CommonMessageBoxButtons.YesNo, HotKeyHUD.GetLocalizedKey(actionTypeSelectKey), prevWindow);
+                actionSelectDialog.OnButtonClick += onButtonClickHandler;
+                actionSelectDialog.Show();
             }
-
-            return false;
+            else
+            {
+                DaggerfallUI.Instance.PlayOneShot(SoundClips.ButtonClick);
+                SetItemAtSlot(hotKeyItem, slotNum);
+            }
         }
 
         /// <summary>

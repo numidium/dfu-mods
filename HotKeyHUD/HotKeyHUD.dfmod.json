@@ -1,9 +1,9 @@
 {
     "ModTitle": "Hot Key HUD",
-    "ModVersion": "1.2.10",
+    "ModVersion": "1.2.11",
     "ModAuthor": "numidium3rd",
     "ContactInfo": "forums.dfworkshop.net - Username: numidium3rd",
-    "DFUnity_Version": "0.15.3",
+    "DFUnity_Version": "1.0.0",
     "ModDescription": "Adds a hotkey UI that blends in with Daggerfall's vanilla visual style.",
     "GUID": "1c604516-f19e-4840-a161-77894e2e9c50",
     "Files": [
@@ -17,6 +17,7 @@
         "Assets/Game/Mods/HotKeyHUD/Scripts/HotKeyMenuPopup.cs",
         "Assets/Game/Mods/HotKeyHUD/modsettings.json",
         "Assets/Game/Mods/HotKeyHUD/Scripts/HotKeySetupWindow.cs",
-        "Assets/Game/Mods/HotKeyHUD/Scripts/HotKeyUtil.cs"
+        "Assets/Game/Mods/HotKeyHUD/Scripts/HotKeyUtil.cs",
+        "Assets/Game/Mods/HotKeyHUD/Text/mod_hotkeyhud.txt"
     ]
 }

@@ -1,0 +1,4 @@
+schema: *key,text
+
+SetupTitle,Hot Key Assignment
+KeyAsUse,This item can be either Used or Equipped. Key as Use?
