@@ -17,7 +17,6 @@
         "Assets/Game/Mods/HotKeyHUD/Scripts/HotKeyMenuPopup.cs",
         "Assets/Game/Mods/HotKeyHUD/modsettings.json",
         "Assets/Game/Mods/HotKeyHUD/Scripts/HotKeySetupWindow.cs",
-        "Assets/Game/Mods/HotKeyHUD/Scripts/HotKeyUtil.cs",
-        "Assets/Game/Mods/HotKeyHUD/Text/mod_hotkeyhud.txt"
+        "Assets/Game/Mods/HotKeyHUD/Scripts/HotKeyUtil.cs"
     ]
 }
