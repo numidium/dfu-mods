@@ -149,7 +149,7 @@ namespace FlatReplacer
                 var go = npcTransform.gameObject;
                 if (!go)
                     continue;
-                var billboard = go.GetComponent<DaggerfallBillboard>();
+                var billboard = go.GetComponent<Billboard>();
                 if (!billboard)
                     continue;
                 var archive = billboard.Summary.Archive;
@@ -185,7 +185,7 @@ namespace FlatReplacer
                 }
 
                 if (candidates.Count == 0)
-                    return;
+                    continue;
                 var staticNpc = go.GetComponent<StaticNPC>();
                 // Pick a random replacement from any that match the criteria.
                 var randomNumber = candidates.Count > 1 ? new System.Random(staticNpc.Data.nameSeed).Next() : 0;
@@ -204,7 +204,7 @@ namespace FlatReplacer
                 Destroy(billboard);
                 // Use custom billboard
                 var replacementBillboard = go.AddComponent<ReplacementBillboard>();
-                if (chosenReplacement.AnimationFrames.Length != 0) // Custom graphics supplied
+                if (chosenReplacement.AnimationFrames != null) // Custom graphics supplied
                     replacementBillboard.SetMaterial(chosenReplacementRecord.FlatTextureName,
                         new Vector2(chosenReplacement.AnimationFrames[0].width, chosenReplacement.AnimationFrames[0].height),
                         chosenReplacement.AnimationFrames, chosenReplacementRecord.TextureArchive,
