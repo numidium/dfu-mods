@@ -189,7 +189,7 @@ namespace HotKeyHUD
             }
             else if (item.currentCondition < 1)
             {
-                PushMessageBox(itemBrokenTextId);
+                PushMessageBox(itemBrokenTextId, item);
                 return;
             }
 
@@ -249,13 +249,13 @@ namespace HotKeyHUD
             return ImageReader.GetTexture(dfBitmap.GetColor32(), dfBitmap.Width, dfBitmap.Height);
         }
 
-        private void PushMessageBox(int tokenId)
+        private void PushMessageBox(int tokenId, IMacroContextProvider macroContextProvider = null)
         {
             var tokens = DaggerfallUnity.Instance.TextProvider.GetRSCTokens(tokenId);
             if (tokens != null && tokens.Length > 0)
             {
                 var messageBox = new DaggerfallMessageBox(uiManager, this);
-                messageBox.SetTextTokens(tokens);
+                messageBox.SetTextTokens(tokens, macroContextProvider);
                 messageBox.ClickAnywhereToClose = true;
                 messageBox.Show();
             }
