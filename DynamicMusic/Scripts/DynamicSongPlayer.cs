@@ -80,7 +80,11 @@ namespace DynamicMusic
                         AudioSource.Play();
 
                     clipStarted = true;
-                    Destroy(oldSong);
+                    if (oldSong)
+                    {
+                        oldSong.UnloadAudioData();
+                        Destroy(oldSong);
+                    }
                 }
             }
         }
