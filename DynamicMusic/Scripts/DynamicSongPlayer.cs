@@ -46,6 +46,7 @@ namespace DynamicMusic
         private float oldGain;
         private bool clipStarted;
         private AudioClip streamedSong;
+        private AudioClip oldSong;
 
         void Start()
         {
@@ -79,6 +80,7 @@ namespace DynamicMusic
                         AudioSource.Play();
 
                     clipStarted = true;
+                    Destroy(oldSong);
                 }
             }
         }
@@ -113,8 +115,7 @@ namespace DynamicMusic
         public void Play(string track, float timeSeek = 0f)
         {
             Stop();
-            if (streamedSong)
-                Destroy(streamedSong); // Only keep one clip asset.
+            oldSong = streamedSong;
             if (IsImported = TryLoadSong(track, out streamedSong))
             {
                 AudioSource.clip = streamedSong;
