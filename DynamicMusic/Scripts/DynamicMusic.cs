@@ -698,7 +698,7 @@ namespace DynamicMusic
                     {
                         line = line.Trim(); // Remove whitespace to the left and right.
                         lineCounter++;
-                        if (line[0] == '#') // # = Comment/memo line, ignore.
+                        if (line == string.Empty || line[0] == '#') // # = Comment/memo line, ignore.
                             continue;
                         // Get track names from directory.
                         List<string> trackList;
