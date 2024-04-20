@@ -19,6 +19,13 @@
                     "Description": "Resume last track after combat end (requires combat music enabled).",
                     "$version": "v1",
                     "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
+                },
+                {
+                    "Value": false,
+                    "Name": "Loop Custom Tracks",
+                    "Description": "Loop one random track when a custom playlist is chosen.",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
                 }
             ],
             "$version": "v1"

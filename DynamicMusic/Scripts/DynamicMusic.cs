@@ -544,6 +544,7 @@ namespace DynamicMusic
         private byte combatPlaylistIndex;
         private bool combatMusicIsEnabled;
         private bool resumeEnabled = true;
+        private bool loopCustomTracks;
         private float previousTimeSinceStartup;
         private float deltaTime;
         private float resumeSeeker = 0f;
@@ -592,6 +593,7 @@ namespace DynamicMusic
         {
             combatMusicIsEnabled = settings.GetValue<bool>("Options", "Enable Combat Music");
             resumeEnabled = settings.GetValue<bool>("Options", "Enable Track Resume");
+            loopCustomTracks = settings.GetValue<bool>("Options", "Loop Custom Tracks");
         }
 
         private void Start()
@@ -1072,11 +1074,12 @@ namespace DynamicMusic
             var currentCustomPlaylist = customPlaylists[currentPlaylist] != null ? currentPlaylist : (int)MusicPlaylist.None;
             var isUsingCustomPlaylist = currentCustomPlaylist != (int)MusicPlaylist.None;
             // Plays random tracks continuously as long as custom tracks are available for the current context.
+            // Plays one random custom track on loop if custom track looping is enabled.
             if (isUsingCustomPlaylist &&
                 (currentCustomTrack != customPlaylists[currentPlaylist].CurrentTrack || customTrackQueued)) // Changed to a different custom track.
             {
                 var playlist = customPlaylists[currentCustomPlaylist];
-                var track = resumeSeeker > 0f ? playlist.CurrentTrack : playlist.GetNextTrack();
+                var track = resumeSeeker > 0f || (loopCustomTracks && currentCustomTrack == customPlaylists[currentPlaylist].CurrentTrack) ? playlist.CurrentTrack : playlist.GetNextTrack();
                 dynamicSongPlayer.Play(track, resumeSeeker);
                 resumeSeeker = 0f;
                 currentCustomTrack = playlist.CurrentTrack;
