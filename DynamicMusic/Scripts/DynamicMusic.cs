@@ -701,6 +701,11 @@ namespace DynamicMusic
                         result |= DaggerfallUnity.Instance.WorldTime.DaggerfallDateTime.MonthOfYear == parameter;
                     return negate ? !result : result;
                 },
+                ["startmenu"] = delegate (ref Conditions conditions, bool negate, int[] parameters)
+                {
+                    var result = gameManager.StateManager.CurrentState == StateManager.StateTypes.Start;
+                    return negate ? !result : result;
+                },
                 ["combat"] = delegate (ref Conditions conditions, bool negate, int[] parameters)
                 {
                     return false; // This is a dummy condition - not used like the others.

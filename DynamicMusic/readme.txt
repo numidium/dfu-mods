@@ -93,6 +93,7 @@ DungeonType - Function, True if the player is inside a dungeon of one of the giv
 BuildingQuality - Function, True if the player is inside a building of one of the specified qualities (see 3cviii)
 Season - Function, True if the current in-game season matches the specified season code (see 3cix)
 Month - Function, True if the current in-game month matches the specified month code (see 3cx)
+StartMenu - Boolean, True if the game is on the starting menu
 Combat - Boolean, True if player is in combat
 
 
@@ -206,18 +207,18 @@ ix. Seasons:
 Note: I'm aware that there are only three seasons here instead of four like there should be. That's just how the game is.
 
 x. Months:
-    Morning Star = 0
-    Sun's Dawn = 1,
-    First Seed = 2,
-    Rain's Hand = 3,
-    Second Seed = 4,
-    Midyear = 5,
-    Sun's Height = 6,
-    Last Seed = 7,
-    Hearthfire = 8,
-    Frostfall = 9,
-    Sun's Dusk = 10,
-    Evening Star = 11
+    Morning Star = 1
+    Sun's Dawn = 2,
+    First Seed = 3,
+    Rain's Hand = 4,
+    Second Seed = 5,
+    Midyear = 6,
+    Sun's Height = 7,
+    Last Seed = 8,
+    Hearthfire = 9,
+    Frostfall = 10,
+    Sun's Dusk = 11,
+    Evening Star = 12
 
 
 4. Credits
