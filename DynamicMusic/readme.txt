@@ -87,12 +87,14 @@ LocationType - Function, True if player's outdoor location fits one of the param
 BuildingType - Function, True if player is inside one of the specified building types (see 3cii)
 WeatherType - Function, True if the current weather fits one of the given types (see 3ciii)
 FactionId - Function, True if the faction of the player's current environment fits one of the given values (see 3civ)
-Climate - Function, True if the climate fits one of the given values (see 3cv)
-RegionIndex - Function, True if the player's location is within one of the given regions (see 3cvi)
-DungeonType - Function, True if the player is inside a dungeon of one of the given types (see 3cvii)
-BuildingQuality - Function, True if the player is inside a building of one of the specified qualities (see 3cviii)
-Season - Function, True if the current in-game season matches the specified season code (see 3cix)
-Month - Function, True if the current in-game month matches the specified month code (see 3cx)
+Climate - Function, True if the climate base type fits one of the given values (see 3cv)
+ClimateIndex - Function, True if the climate subtype fits one of the given values. Supersedes  Climate, which is kept for
+    backwards compatibility. (see 3cvi)
+RegionIndex - Function, True if the player's location is within one of the given regions (see 3cvii)
+DungeonType - Function, True if the player is inside a dungeon of one of the given types (see 3cviii)
+BuildingQuality - Function, True if the player is inside a building of one of the specified qualities (see 3cix)
+Season - Function, True if the current in-game season matches the specified season code (see 3cx)
+Month - Function, True if the current in-game month matches the specified month code (see 3cxi)
 StartMenu - Boolean, True if the game is on the starting menu (the screen with new game, load game, and exit game)
 Combat - Boolean, True if player is in combat
 
@@ -168,11 +170,23 @@ v. ClimateTypes:
 	Mountain = 100
 	Temperate = 300
 	Swamp = 400
+    
+vi. ClimateIndices:
+    Ocean = 223
+    Desert = 224
+    Desert2 (Dak'fron) = 225
+    Mountain = 226
+    Rainforest = 227
+    Swamp = 228
+    Subtropical = 229
+    MountainWoods = 230
+    Woodlands = 231
+    HauntedWoodlands = 232
 	
-vi. RegionIndices:
+vii. RegionIndices:
 See https://en.uesp.net/wiki/Daggerfall_Mod:Region_Numbers
 
-vii. DungeonTypes:
+viii. DungeonTypes:
 	Crypt = 0
 	Orc Stronghold = 1
 	Human Stronghold = 2
@@ -193,20 +207,20 @@ vii. DungeonTypes:
 	Scorpion Nest = 17
 	Cemetery = 18
 
-viii. Quality Levels:
-    "Rusty relics...": 1 -> 3,
-    "Sturdy shelves, cobbled together...": 4 -> 7,
-    "The shop is laid on in a practical manner...": 8 -> 13,
-    "The shop is better appointed than many...": 14 -> 17,
+ix. Quality Levels:
+    "Rusty relics...": 1 -> 3
+    "Sturdy shelves, cobbled together...": 4 -> 7
+    "The shop is laid on in a practical manner...": 8 -> 13
+    "The shop is better appointed than many...": 14 -> 17
     "Incense and soft music...": 18 -> 20 
 
-ix. Seasons:
-    Summer = 0,
-    Winter = 1,
+x. Seasons:
+    Summer = 0
+    Winter = 1
     Rain = 2
-Note: I'm aware that there are only three seasons here instead of four like there should be. That's just how the game is.
+Note: "Seasons" govern terrain texture placement. For actual seasons (winter, spring, summer, fall) use Month.
 
-x. Months:
+xi. Months:
     Morning Star = 1
     Sun's Dawn = 2,
     First Seed = 3,

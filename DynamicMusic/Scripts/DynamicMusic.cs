@@ -666,6 +666,13 @@ namespace DynamicMusic
                         result |= localPlayerGPS.ClimateSettings.ClimateType == (DFLocation.ClimateBaseType)parameter;
                     return negate ? !result : result;
                 },
+                ["climateindex"] = delegate (ref Conditions conditions, bool negate, int[] parameters)
+                {
+                    var result = false;
+                    foreach (var parameter in parameters)
+                        result |= localPlayerGPS.CurrentClimateIndex == parameter;
+                    return negate ? !result : result;
+                },
                 ["regionindex"] = delegate (ref Conditions conditions, bool negate, int[] parameters)
                 {
                     var result = false;
