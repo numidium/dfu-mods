@@ -680,6 +680,27 @@ namespace DynamicMusic
                         result |= (playerEnterExit.Dungeon != null) && playerEnterExit.Dungeon.Summary.DungeonType == (DFRegion.DungeonTypes)parameter;
                     return negate ? !result : result;
                 },
+                ["buildingquality"] = delegate (ref Conditions conditions, bool negate, int[] parameters)
+                {
+                    var result = false;
+                    foreach (var parameter in parameters)
+                        result |= playerEnterExit.BuildingDiscoveryData.quality == parameter;
+                    return negate ? !result : result;
+                },
+                ["season"] = delegate (ref Conditions conditions, bool negate, int[] parameters)
+                {
+                    var result = false;
+                    foreach (var parameter in parameters)
+                        result |= gameManager.StreamingWorld.CurrentPlayerLocationObject.CurrentSeason == (ClimateSeason)parameter;
+                    return negate ? !result : result;
+                },
+                ["month"] = delegate (ref Conditions conditions, bool negate, int[] parameters)
+                {
+                    var result = false;
+                    foreach (var parameter in parameters)
+                        result |= DaggerfallUnity.Instance.WorldTime.DaggerfallDateTime.MonthOfYear == parameter;
+                    return negate ? !result : result;
+                },
                 ["combat"] = delegate (ref Conditions conditions, bool negate, int[] parameters)
                 {
                     return false; // This is a dummy condition - not used like the others.

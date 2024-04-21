@@ -90,6 +90,9 @@ FactionId - Function, True if the faction of the player's current environment fi
 Climate - Function, True if the climate fits one of the given values (see 3cv)
 RegionIndex - Function, True if the player's location is within one of the given regions (see 3cvi)
 DungeonType - Function, True if the player is inside a dungeon of one of the given types (see 3cvii)
+BuildingQuality - Function, True if the player is inside a building of one of the specified qualities (see 3cviii)
+Season - Function, True if the current in-game season matches the specified season code (see 3cix)
+Month - Function, True if the current in-game month matches the specified month code (see 3cx)
 Combat - Boolean, True if player is in combat
 
 
@@ -188,6 +191,34 @@ vii. DungeonTypes:
 	Volcanic Caves = 16
 	Scorpion Nest = 17
 	Cemetery = 18
+
+viii. Quality Levels:
+    "Rusty relics...": 1 -> 3,
+    "Sturdy shelves, cobbled together...": 4 -> 7,
+    "The shop is laid on in a practical manner...": 8 -> 13,
+    "The shop is better appointed than many...": 14 -> 17,
+    "Incense and soft music...": 18 -> 20 
+
+ix. Seasons:
+    Summer = 0,
+    Winter = 1,
+    Rain = 2
+Note: I'm aware that there are only three seasons here instead of four like there should be. That's just how the game is.
+
+x. Months:
+    Morning Star = 0
+    Sun's Dawn = 1,
+    First Seed = 2,
+    Rain's Hand = 3,
+    Second Seed = 4,
+    Midyear = 5,
+    Sun's Height = 6,
+    Last Seed = 7,
+    Hearthfire = 8,
+    Frostfall = 9,
+    Sun's Dusk = 10,
+    Evening Star = 11
+
 
 4. Credits
 -------------------------
