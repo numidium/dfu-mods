@@ -93,7 +93,7 @@ DungeonType - Function, True if the player is inside a dungeon of one of the giv
 BuildingQuality - Function, True if the player is inside a building of one of the specified qualities (see 3cviii)
 Season - Function, True if the current in-game season matches the specified season code (see 3cix)
 Month - Function, True if the current in-game month matches the specified month code (see 3cx)
-StartMenu - Boolean, True if the game is on the starting menu
+StartMenu - Boolean, True if the game is on the starting menu (the screen with new game, load game, and exit game)
 Combat - Boolean, True if player is in combat
 
 
