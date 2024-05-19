@@ -1022,14 +1022,18 @@ namespace DynamicMusic
                         {
                             combatPlaylist = customPlaylists[(int)MusicPlaylist.Combat]; // Start with default.
                             var combatKey = GetUserDefinedPlaylistKey(userCombatConditionSets, ref conditions);
+                            var isUserDefined = false;
                             if (combatKey >= 0)
+                            {
                                 combatPlaylist = customPlaylists[combatKey];
+                                isUserDefined = true;
+                            }
 
                             var songFile = defaultCombatSongs[combatPlaylistIndex % defaultCombatSongs.Length];
                             if (combatPlaylist != null) // combat music is not MIDI
                             {
                                 var track = combatPlaylist.GetNextTrack();
-                                GetDebuggingText(track, out debugPlaylistName, out debugSongName);
+                                GetDebuggingText(track, out debugPlaylistName, out debugSongName, isUserDefined);
                                 dynamicSongPlayer.Play(track);
                             }
                             else if (combatPlaylist == null) // combat music is MIDI
@@ -1137,7 +1141,7 @@ namespace DynamicMusic
             {
                 var playlist = customPlaylists[currentCustomPlaylist];
                 var track = resumeSeeker > 0f || (loopCustomTracks && currentCustomTrack == customPlaylists[currentPlaylist].CurrentTrack) ? playlist.CurrentTrack : playlist.GetNextTrack();
-                GetDebuggingText(track, out debugPlaylistName, out debugSongName);
+                GetDebuggingText(track, out debugPlaylistName, out debugSongName, currentPlaylist > (int)MusicPlaylist.None);
                 dynamicSongPlayer.Play(track, resumeSeeker);
                 resumeSeeker = 0f;
                 currentCustomTrack = playlist.CurrentTrack;
@@ -1451,9 +1455,10 @@ namespace DynamicMusic
             return currentPlaylist[index];
         }
 
-        private void GetDebuggingText(string track, out string playlistName, out string songName)
+        private void GetDebuggingText(string track, out string playlistName, out string songName, bool isUserDefined)
         {
-            playlistName = $"{Path.GetFileName(Path.GetDirectoryName(track))} (Custom)";
+            var custom = isUserDefined ? " (User-Defined)" : "";
+            playlistName = $"{Path.GetFileName(Path.GetDirectoryName(track))}{custom}";
             songName = Path.GetFileName(track);
         }
 
