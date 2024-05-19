@@ -12,6 +12,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
+using Wenzil.Console;
 
 namespace DynamicMusic
 {
@@ -554,6 +555,9 @@ namespace DynamicMusic
         private State currentState;
         private State lastState;
         private MusicType currentMusicType;
+        private string debugPlaylistName;
+        private string debugSongName;
+        private GUIStyle guiStyle;
         private const string fileSearchPattern = "*.ogg";
         private const string modSignature = "Dynamic Music";
         private bool IsPlayerDetected
@@ -910,6 +914,8 @@ namespace DynamicMusic
             PlayerEnterExit.OnTransitionDungeonInterior += OnTransitionDungeonInterior;
             PlayerEnterExit.OnTransitionDungeonExterior += OnTransitionDungeonExterior;
             playerEntity.OnDeath += OnDeath;
+            guiStyle = new GUIStyle();
+            guiStyle.normal.textColor = Color.black;
             Debug.Log($"{modSignature} initialized.");
             mod.IsReady = true;
         }
@@ -1021,9 +1027,16 @@ namespace DynamicMusic
 
                             var songFile = defaultCombatSongs[combatPlaylistIndex % defaultCombatSongs.Length];
                             if (combatPlaylist != null) // combat music is not MIDI
-                                dynamicSongPlayer.Play(combatPlaylist.GetNextTrack());
+                            {
+                                var track = combatPlaylist.GetNextTrack();
+                                GetDebuggingText(track, out debugPlaylistName, out debugSongName);
+                                dynamicSongPlayer.Play(track);
+                            }
                             else if (combatPlaylist == null) // combat music is MIDI
+                            {
+                                GetDebuggingText(songFile, out debugPlaylistName, out debugSongName);
                                 dynamicSongPlayer.Play(songFile);
+                            }
 
                             var playlistCount = defaultCombatSongs.Length;
                             dynamicSongPlayer.Song = songFile;
@@ -1065,6 +1078,17 @@ namespace DynamicMusic
             }
 
             detectionCheckDelta = 0f;
+        }
+
+        private void OnGUI()
+        {
+            if (Event.current.type.Equals(EventType.Repaint) && DefaultCommands.showDebugStrings)
+            {
+                var playing = dynamicSongPlayer.IsPlaying ? "Playing" : "Stopped";
+                var text = $"Dynamic Music - {playing} - State: {currentState} - Playlist: {debugPlaylistName} - Song: {debugSongName}";
+                GUI.Label(new Rect(10, 50, 800, 24), text, guiStyle);
+                GUI.Label(new Rect(8, 48, 800, 24), text);
+            }
         }
 
         private int GetUserDefinedPlaylistKey(Dictionary<int, ConditionUsage[]> conditionSets, ref Conditions conditions)
@@ -1113,6 +1137,7 @@ namespace DynamicMusic
             {
                 var playlist = customPlaylists[currentCustomPlaylist];
                 var track = resumeSeeker > 0f || (loopCustomTracks && currentCustomTrack == customPlaylists[currentPlaylist].CurrentTrack) ? playlist.CurrentTrack : playlist.GetNextTrack();
+                GetDebuggingText(track, out debugPlaylistName, out debugSongName);
                 dynamicSongPlayer.Play(track, resumeSeeker);
                 resumeSeeker = 0f;
                 currentCustomTrack = playlist.CurrentTrack;
@@ -1130,6 +1155,7 @@ namespace DynamicMusic
                     var song = GetSong((MusicPlaylist)currentPlaylist);
                     if (song == dynamicSongPlayer.Song)
                         return;
+                    GetDebuggingText(song, out debugPlaylistName, out debugSongName);
                     dynamicSongPlayer.Play(song, resumeSeeker);
                     previousLocationIndex = localPlayerGPS.CurrentLocationIndex;
                 }
@@ -1423,6 +1449,18 @@ namespace DynamicMusic
             }
 
             return currentPlaylist[index];
+        }
+
+        private void GetDebuggingText(string track, out string playlistName, out string songName)
+        {
+            playlistName = $"{Path.GetFileName(Path.GetDirectoryName(track))} (Custom)";
+            songName = Path.GetFileName(track);
+        }
+
+        private void GetDebuggingText(SongFiles song, out string playlistName, out string songName)
+        {
+            playlistName = ((MusicPlaylist)currentPlaylist).ToString();
+            songName = song.ToString();
         }
 
         // Load new location's song player when player moves into it.
