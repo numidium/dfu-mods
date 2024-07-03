@@ -5,6 +5,7 @@ using DaggerfallWorkshop.Game.Items;
 using DaggerfallWorkshop.Game.MagicAndEffects;
 using DaggerfallWorkshop.Game.UserInterface;
 using DaggerfallWorkshop.Game.UserInterfaceWindows;
+using System;
 using UnityEngine;
 
 namespace HotKeyHUD
@@ -17,6 +18,8 @@ namespace HotKeyHUD
         private static HotKeyDisplay instance;
         public HotKeyButton[] HotKeyButtons { get; private set; }
         public HotKeyButton EquippedButton { get; private set; }
+        public HotKeyUtil.HUDVisibility Visibility { private get; set; }
+        public bool EquipDelayDisabled { private get; set; }
         public static HotKeyDisplay Instance
         {
             get
@@ -35,6 +38,8 @@ namespace HotKeyHUD
             AutoSize = AutoSizeModes.ResizeToFill;
             Size = DaggerfallUI.Instance.DaggerfallHUD.NativePanel.Size;
         }
+
+        public Func<string, string> Localize { get; set; }
 
         public override void Update()
         {
@@ -88,13 +93,13 @@ namespace HotKeyHUD
             }
 
             // Update button visibility
-            if (HotKeyUtil.Visibility == HotKeyUtil.HUDVisibility.Equipped && !EquippedButton.Enabled)
+            if (Visibility == HotKeyUtil.HUDVisibility.Equipped && !EquippedButton.Enabled)
             {
                 EquippedButton.Enabled = true;
                 foreach (var button in HotKeyButtons)
                     button.Enabled = false;
             }
-            else if (HotKeyUtil.Visibility == HotKeyUtil.HUDVisibility.Full && EquippedButton.Enabled)
+            else if (Visibility == HotKeyUtil.HUDVisibility.Full && EquippedButton.Enabled)
             {
                 EquippedButton.Enabled = false;
                 foreach (var button in HotKeyButtons)
@@ -104,7 +109,7 @@ namespace HotKeyHUD
 
         public override void Draw()
         {
-            if (!Enabled || HotKeyUtil.Visibility == HotKeyUtil.HUDVisibility.None)
+            if (!Enabled || Visibility == HotKeyUtil.HUDVisibility.None)
                 return;
             base.Draw();
         }
@@ -155,7 +160,7 @@ namespace HotKeyHUD
             // Show prompt if enchanted item can be either equipped or used.
             if (item != GetItemAtSlot(slotNum) && item.IsEnchanted && equipTable.GetEquipSlot(item) != EquipSlots.None && HotKeyUtil.GetEnchantedItemIsUseable(item))
             {
-                var actionSelectDialog = new DaggerfallMessageBox(uiManager, DaggerfallMessageBox.CommonMessageBoxButtons.YesNo, HotKeyHUD.GetLocalizedKey(actionTypeSelectKey), prevWindow);
+                var actionSelectDialog = new DaggerfallMessageBox(uiManager, DaggerfallMessageBox.CommonMessageBoxButtons.YesNo, Localize(actionTypeSelectKey), prevWindow);
                 actionSelectDialog.OnButtonClick += onButtonClickHandler;
                 actionSelectDialog.Show();
             }
@@ -215,7 +220,7 @@ namespace HotKeyHUD
             var lastLeftHandItem = playerEntity.ItemEquipTable.GetItem(EquipSlots.LeftHand);
             HotKeyButtons[index].HandleItemHotkeyPress(item);
             // Do equip delay for weapons.
-            if (item.ItemGroup == ItemGroups.Weapons || item.IsShield)
+            if (!EquipDelayDisabled && item.ItemGroup == ItemGroups.Weapons || item.IsShield)
             {
                 SetEquipDelayTime(lastRightHandItem, lastLeftHandItem);
                 var weaponManager = GameManager.Instance.WeaponManager;

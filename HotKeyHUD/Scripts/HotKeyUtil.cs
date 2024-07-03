@@ -10,10 +10,6 @@ namespace HotKeyHUD
     public sealed class HotKeyUtil
     {
         public enum HUDVisibility { Equipped, Full, None }
-        public static HUDVisibility Visibility { get; set; }
-        public static bool OverrideMenus { get; set; }
-        public static KeyCode SetupMenuKey { get; set; }
-
         public const byte IconCount = 9;
         private const float iconWidth = 23f;
         private const float iconHeight = 22f;

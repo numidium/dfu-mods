@@ -9,6 +9,7 @@ using DaggerfallWorkshop.Utility;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
+using System;
 
 namespace HotKeyHUD
 {
@@ -57,6 +58,8 @@ namespace HotKeyHUD
             spellsListScrollBarRect = new Rect(spellsListRect.x + spellsListRect.width + 1f, topMarginHeight + 27f, 8f, spellsListCutoutRect.height - 43f);
             exitButtonCutoutRect = new Rect(216f, 149f, 43f, 15f);
         }
+
+        public Func<string, string> Localize { get; set; }
 
         public override void OnPush()
         {
@@ -151,7 +154,7 @@ namespace HotKeyHUD
             {
                 Position = new Vector2(0f, 3f),
                 HorizontalAlignment = HorizontalAlignment.Center,
-                Text = HotKeyHUD.GetLocalizedKey("SetupTitle")
+                Text = Localize("SetupTitle")
             });
             var exitButton = DaggerfallUI.AddButton(new Rect(exitButtonPanel.Position.x, exitButtonPanel.Position.y,
                 exitButtonCutoutRect.width, exitButtonCutoutRect.height), NativePanel);
@@ -231,7 +234,7 @@ namespace HotKeyHUD
             HotKeyDisplay.Instance.SetItemAtSlot(hotKeyItem, slotNum, forceUse);
         }
 
-        private Texture2D[] MagicItemForegroundAnimationHander(DaggerfallUnityItem item) => (item.IsEnchanted) ? magicAnimation.animatedTextures : null;
+        private Texture2D[] MagicItemForegroundAnimationHander(DaggerfallUnityItem item) => item.IsEnchanted ? magicAnimation.animatedTextures : null;
 
         private void UpdateSpellScroller()
         {

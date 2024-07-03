@@ -6,6 +6,7 @@ namespace HotKeyHUD
 {
     public sealed class HotKeyMenuPopup : Panel
     {
+        public static bool OverrideMenus { get; set; }
         private const float overrideXOffset = 222f;
         private const float overrideYOffset = 9f;
         private const float nonOverrideXOffset = 21f;
@@ -23,7 +24,7 @@ namespace HotKeyHUD
             get
             {
                 if (instance == null)
-                    instance = new HotKeyMenuPopup(!HotKeyUtil.OverrideMenus);
+                    instance = new HotKeyMenuPopup(!OverrideMenus);
                 return instance;
             }
         }
