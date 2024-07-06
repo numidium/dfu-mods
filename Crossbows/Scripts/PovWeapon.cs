@@ -104,7 +104,7 @@ namespace Crossbows
 
             GUI.depth = 0;
             if ((cooldownRemaining <= 0f || currentFrame != 0) && Event.current.type.Equals(EventType.Repaint) && gameManager.WeaponManager.UsingRightHand && !playerEntity.IsParalyzed)
-                DaggerfallUI.DrawTextureWithTexCoords(weaponPosition, WeaponFrames[currentFrame], DaggerfallUnity.Settings.Handedness == 1 ? leftHanded : rightHanded);
+                DaggerfallUI.DrawTextureWithTexCoords(weaponPosition, WeaponFrames[currentFrame], DaggerfallUnity.Settings.Handedness == 1 ? leftHanded : rightHanded, true, gameManager.WeaponManager.ScreenWeapon.Tint);
         }
 
         private void UpdateWeapon()

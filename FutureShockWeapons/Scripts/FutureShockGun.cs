@@ -194,7 +194,7 @@ namespace FutureShock
 
             GUI.depth = 0;
             if (Event.current.type.Equals(EventType.Repaint))
-                DaggerfallUI.DrawTextureWithTexCoords(weaponPosition, WeaponFrames[currentFrame], DaggerfallUnity.Settings.Handedness == 1 ? leftHanded : rightHanded);
+                DaggerfallUI.DrawTextureWithTexCoords(weaponPosition, WeaponFrames[currentFrame], DaggerfallUnity.Settings.Handedness == 1 ? leftHanded : rightHanded, true, gameManager.WeaponManager.ScreenWeapon.Tint);
         }
 
         private void UpdateWeapon()
