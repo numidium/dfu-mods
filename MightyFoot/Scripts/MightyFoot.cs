@@ -83,6 +83,8 @@ namespace MightyFoot
             // Prevent kicking while in menus or paralyzed. Thanks, |3lessed.
             if (consoleController.ui.isConsoleOpen || GameManager.IsGamePaused || SaveLoadManager.Instance.LoadInProgress || DaggerfallUI.UIManager.WindowCount != 0 || gameManager.PlayerEntity.IsParalyzed)
                 return;
+            // Match tint of screen weapon in case something modifies it.
+            kicker.Tint = gameManager.WeaponManager.ScreenWeapon.Tint;
             // Perform forward kick on keypress and hide weapon from HUD when attack finishes.
             if (InputManager.Instance.GetKey(kickKey) &&
                 !kicker.IsAttacking() &&
