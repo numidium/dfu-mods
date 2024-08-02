@@ -12,6 +12,7 @@ namespace FlatReplacer
 {
     public sealed class FlatReplacer : MonoBehaviour
     {
+        private const string modSignature = "Flat Replacer";
         public static FlatReplacer Instance { get; private set; }
         private static Mod mod;
         private Dictionary<uint, List<FlatReplacement>> flatReplacements;
@@ -76,10 +77,11 @@ namespace FlatReplacer
                     var key = ((uint)record.TextureArchive << 16) + (uint)record.TextureRecord; // Pack archive and record into single unsigned 32-bit integer
                     if (!flatReplacements.ContainsKey(key))
                         flatReplacements[key] = new List<FlatReplacement>();
-                    var isValidVanillaFlat = record.ReplaceTextureArchive > -1 && record.ReplaceTextureRecord > -1;
+                    var isValidVanillaFlat = record.ReplaceTextureArchive > 0 && record.ReplaceTextureRecord > -1;
                     var isValidCustomFlat = true;
                     var animationFrames = new List<Texture2D>();
-                    if (record.FlatTextureName != string.Empty && record.FlatTextureName != null)
+                    var textureHasCustomName = record.FlatTextureName != string.Empty && record.FlatTextureName != null;
+                    if (!isValidVanillaFlat && textureHasCustomName)
                     {
                         while (TryGetTexture($"{record.FlatTextureName}{animationFrames.Count}", textureCache, out var texture))
                         {
@@ -89,21 +91,22 @@ namespace FlatReplacer
 
                         if (animationFrames.Count < 1)
                         {
-                            Debug.Log($"FlatReplacer: Failed to load custom texture: {record.FlatTextureName}.");
+                            PrintLogText($"Failed to load custom texture: {record.FlatTextureName}.");
                             isValidCustomFlat = false;
                         }
                     }
 
-                    var customAnimation = isValidCustomFlat ? animationFrames.ToArray() : null;
+                    var customAnimation = isValidCustomFlat && !isValidVanillaFlat && textureHasCustomName ? animationFrames.ToArray() : null;
                     if (isValidCustomFlat || isValidVanillaFlat)
                         flatReplacements[key].Add(new FlatReplacement() { Record = record, AnimationFrames = customAnimation });
                     else
-                        Debug.Log($"FlatReplacer: Failed to add replacement for {record.TextureArchive}-{record.TextureRecord} -> '{record.FlatTextureName}', ({record.ReplaceTextureArchive}-{record.ReplaceTextureRecord})");
+                        PrintLogText($"Failed to add replacement for {record.TextureArchive}-{record.TextureRecord} -> '{record.FlatTextureName}', ({record.ReplaceTextureArchive}-{record.ReplaceTextureRecord})");
                 }
             }
 
             PlayerEnterExit.OnTransitionInterior += OnTransitionInterior;
             DaggerfallUI.UIManager.OnWindowChange += OnWindowChange;
+            Debug.Log($"{modSignature} initalized");
         }
 
         private bool TryGetTexture(string name, Dictionary<string, Texture2D> textureCache, out Texture2D texture)
@@ -194,23 +197,38 @@ namespace FlatReplacer
                 var chosenReplacementRecord = chosenReplacement.Record;
 #if UNITY_EDITOR
                 var logText = $"Replacement for flat {chosenReplacementRecord.TextureArchive}-{chosenReplacementRecord.TextureRecord} ";
-                if (chosenReplacementRecord.FlatTextureName == string.Empty || chosenReplacementRecord.FlatTextureName == null)
-                    logText += $"(Vanilla Texture: {chosenReplacementRecord.ReplaceTextureArchive}-{chosenReplacementRecord.ReplaceTextureRecord}) detected.";
+                if (chosenReplacementRecord.ReplaceTextureArchive > 0 || chosenReplacementRecord.ReplaceTextureRecord > -1)
+                    logText += $"(Vanilla Texture: {chosenReplacementRecord.ReplaceTextureArchive}-{chosenReplacementRecord.ReplaceTextureRecord}) detected. ";
                 else
                     logText += $"(Custom Texture: {chosenReplacementRecord.FlatTextureName}) detected. ";
                 logText += $"Building type: {buildingData.buildingType}, quality: {buildingData.quality}.";
-                Debug.Log(logText);
+                PrintLogText(logText);
 #endif
-                Destroy(billboard);
+                //Destroy(billboard);
                 // Use custom billboard
+                Material replacementMaterial = null;
                 var replacementBillboard = go.AddComponent<ReplacementBillboard>();
                 if (chosenReplacement.AnimationFrames != null) // Custom graphics supplied
-                    replacementBillboard.SetMaterial(chosenReplacementRecord.FlatTextureName,
+                    replacementMaterial = replacementBillboard.SetMaterial(chosenReplacementRecord.FlatTextureName,
                         new Vector2(chosenReplacement.AnimationFrames[0].width, chosenReplacement.AnimationFrames[0].height),
                         chosenReplacement.AnimationFrames, chosenReplacementRecord.TextureArchive,
                         chosenReplacementRecord.TextureRecord, chosenReplacementRecord.UseExactDimensions);
-                else // Vanilla graphics swap
-                    replacementBillboard.SetMaterial(chosenReplacementRecord.ReplaceTextureArchive, chosenReplacementRecord.ReplaceTextureRecord);
+                else // Vanilla/Expanded graphics swap
+                    replacementMaterial = replacementBillboard.SetMaterial(chosenReplacementRecord.ReplaceTextureArchive, chosenReplacementRecord.ReplaceTextureRecord);
+                if (!replacementMaterial)
+                {
+                    var errorText = $"The replacement flat for {chosenReplacementRecord.TextureArchive}-{chosenReplacementRecord.TextureRecord} -> ";
+                    if (chosenReplacementRecord.ReplaceTextureArchive > 0 || chosenReplacementRecord.ReplaceTextureRecord > -1)
+                        errorText += $"{chosenReplacementRecord.ReplaceTextureArchive}-{chosenReplacementRecord.ReplaceTextureRecord}";
+                    else
+                        errorText += $"{chosenReplacementRecord.FlatTextureName}";
+                    errorText += " was not found. Ignoring...";
+                    PrintLogText(errorText);
+                    Destroy(replacementBillboard);
+                    continue;
+                }
+
+                Destroy(billboard);
                 var collider = go.GetComponent<BoxCollider>();
                 var boundsResize = new Vector3(replacementBillboard.Summary.Size.x, replacementBillboard.Summary.Size.y, 0f);
                 collider.size = boundsResize; // Resize collider to fit new graphics dimensions.
@@ -224,6 +242,11 @@ namespace FlatReplacer
                     replacementBillboard.CustomPortraitRecord = chosenReplacementRecord.FlatPortrait;
                 }
             }
+        }
+
+        private void PrintLogText(string text)
+        {
+            Debug.Log($"{modSignature}: {text}");
         }
     }
 }

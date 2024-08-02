@@ -84,6 +84,8 @@ namespace FlatReplacer
                 // Original Daggerfall textures
                 if (!summary.ImportedTextures.HasImportedTextures)
                 {
+                    if (summary.AtlasIndices.Length == 0)
+                        return; // Can't do anything if atlas failed to load.
                     if (summary.CurrentFrame >= summary.AtlasIndices[summary.Record].frameCount)
                     {
                         summary.CurrentFrame = 0;
@@ -390,8 +392,7 @@ namespace FlatReplacer
                     true);
                 if (record >= summary.AtlasIndices.Length)
                 {
-                    Debug.Log($"FlatReplacer: Error - Invalid texture record for vanilla replacement | Archive: {archive} Record: {record}.");
-                    return material; // Invalid record specified.
+                    return null; // Invalid record specified.
                 }
 
                 mesh = dfUnity.MeshReader.GetBillboardMesh(
