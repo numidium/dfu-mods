@@ -27,6 +27,7 @@ namespace DynamicMusic
 
         [Range(0.0f, 10.0f)]
         public float Gain = 5.0f;
+        public string ModSignature { private get; set; }
         public string SongFolder = "Songs/";
         public SongFiles Song = SongFiles.song_none;
         public AudioSource AudioSource { get; private set; }
@@ -57,6 +58,8 @@ namespace DynamicMusic
             DaggerfallVidPlayerWindow.OnVideoEnd += DaggerfallVidPlayerWindow_OnVideoEnd;
         }
 
+        [System.Runtime.ExceptionServices.HandleProcessCorruptedStateExceptions]
+        [System.Security.SecurityCritical]
         void Update()
         {
             // MIDI
@@ -83,7 +86,14 @@ namespace DynamicMusic
                     if (oldSong)
                     {
                         oldSong.UnloadAudioData();
-                        Destroy(oldSong);
+                        try
+                        {
+                            Destroy(oldSong);
+                        }
+                        catch (AccessViolationException)
+                        {
+                            Debug.Log($"{ModSignature}: Caught/ignored access violation when destroying old audio clip.");
+                        }
                     }
                 }
             }
