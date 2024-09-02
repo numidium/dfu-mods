@@ -204,17 +204,23 @@ namespace FlatReplacer
                 logText += $"Building type: {buildingData.buildingType}, quality: {buildingData.quality}.";
                 PrintLogText(logText);
 #endif
-                //Destroy(billboard);
                 // Use custom billboard
                 Material replacementMaterial = null;
                 var replacementBillboard = go.AddComponent<ReplacementBillboard>();
-                if (chosenReplacement.AnimationFrames != null) // Custom graphics supplied
+                var oldSummary = billboard.Summary;
+                if (chosenReplacement.AnimationFrames != null) // Custom graphics supplied with custom file name
+                {
                     replacementMaterial = replacementBillboard.SetMaterial(chosenReplacementRecord.FlatTextureName,
                         new Vector2(chosenReplacement.AnimationFrames[0].width, chosenReplacement.AnimationFrames[0].height),
                         chosenReplacement.AnimationFrames, chosenReplacementRecord.TextureArchive,
                         chosenReplacementRecord.TextureRecord, chosenReplacementRecord.UseExactDimensions);
-                else // Vanilla/Expanded graphics swap
-                    replacementMaterial = replacementBillboard.SetMaterial(chosenReplacementRecord.ReplaceTextureArchive, chosenReplacementRecord.ReplaceTextureRecord);
+                }
+                else // Custom or vanilla graphics with vanilla filename
+                {
+                    replacementMaterial = replacementBillboard.SetMaterial(in oldSummary,
+                        chosenReplacementRecord.ReplaceTextureArchive, chosenReplacementRecord.ReplaceTextureRecord, chosenReplacementRecord.UseExactDimensions);
+                }
+
                 if (!replacementMaterial)
                 {
                     var errorText = $"The replacement flat for {chosenReplacementRecord.TextureArchive}-{chosenReplacementRecord.TextureRecord} -> ";
@@ -232,10 +238,8 @@ namespace FlatReplacer
                 var collider = go.GetComponent<BoxCollider>();
                 var boundsResize = new Vector3(replacementBillboard.Summary.Size.x, replacementBillboard.Summary.Size.y, 0f);
                 collider.size = boundsResize; // Resize collider to fit new graphics dimensions.
-                // Is supposed to align billboard to floor but sends it into the air by half its height. Works well for getting feet out of the floor.
-                // TODO: Do this in a way that doesn't require moving the billboard twice and raycasting downward.
-                replacementBillboard.AlignToBase();
-                GameObjectHelper.AlignBillboardToGround(go, collider.size, 4f);
+                var transformScale = go.GetComponent<Transform>().localScale;
+                GameObjectHelper.AlignBillboardToGround(go, collider.size * new Vector2(transformScale.x, transformScale.y), 8f);
                 if (chosenReplacementRecord.FlatPortrait > -1)
                 {
                     replacementBillboard.HasCustomPortrait = true;

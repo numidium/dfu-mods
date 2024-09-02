@@ -7,6 +7,7 @@ using DaggerfallWorkshop.Game;
 using DaggerfallConnect.Arena2;
 using System.Linq;
 using UnityEngine.Rendering;
+using UnityEditor;
 
 namespace FlatReplacer
 {
@@ -84,7 +85,7 @@ namespace FlatReplacer
                 // Original Daggerfall textures
                 if (!summary.ImportedTextures.HasImportedTextures)
                 {
-                    if (summary.AtlasIndices.Length == 0)
+                    if (summary.AtlasIndices == null || summary.AtlasIndices.Length == 0)
                         return; // Can't do anything if atlas failed to load.
                     if (summary.CurrentFrame >= summary.AtlasIndices[summary.Record].frameCount)
                     {
@@ -129,6 +130,16 @@ namespace FlatReplacer
                 frameTimeRemaining -= Time.deltaTime;
         }
 
+        // Taken from DaggerfallBillboard.cs and modified slightly
+        void OnDrawGizmosSelected()
+        {
+#if UNITY_EDITOR
+            var scaledSize = summary.Size * transform.localScale;
+            var sizeHalf = scaledSize * 0.5f;
+            Handles.DrawWireDisc(transform.position - new Vector3(0, sizeHalf.y, 0), Vector3.up, sizeHalf.x);
+#endif
+        }
+
         // Adapted from DaggerfallBillboard.cs
         public Material SetMaterial(string namePrefix, Vector2 dimensions, Texture2D[] textures, int archive, int record, bool useExactDimensions)
         {
@@ -142,12 +153,10 @@ namespace FlatReplacer
 
             Vector2 size = dimensions;
             Mesh mesh = null;
-            var material = GetStaticBillboardMaterial(gameObject, namePrefix, ref summary, out Vector2 scale, textures);
             if (useExactDimensions)
                 mesh = CreateBillboardMesh(summary.Rect, size, Vector2.one, out size);
             else
                 mesh = dfUnity.MeshReader.GetBillboardMesh(summary.Rect, archive, record, out size);
-            size *= scale;
             summary.AtlasedMaterial = false;
             summary.AnimatedMaterial = summary.ImportedTextures.FrameCount > 1;
 
@@ -166,6 +175,7 @@ namespace FlatReplacer
             // Assign mesh and material
             MeshFilter meshFilter = GetComponent<MeshFilter>();
             Mesh oldMesh = meshFilter.sharedMesh;
+            var material = GetStaticBillboardMaterial(gameObject, namePrefix, ref summary, out Vector2 scale, textures);
             if (mesh)
             {
                 meshFilter.sharedMesh = mesh;
@@ -371,8 +381,7 @@ namespace FlatReplacer
             Material material = null;
             if (material = TextureReplacement.GetStaticBillboardMaterial(gameObject, archive, record, ref summary, out scale))
             {
-                mesh = dfUnity.MeshReader.GetBillboardMesh(summary.Rect, archive, record, out size);
-                size *= scale;
+                mesh = dfUnity.MeshReader.GetBillboardMesh(summary.Rect, summary.Archive, summary.Record, out size);
                 summary.AtlasedMaterial = false;
                 summary.AnimatedMaterial = summary.ImportedTextures.FrameCount > 1;
             }
@@ -474,9 +483,121 @@ namespace FlatReplacer
             return material;
         }
 
+        public Material SetMaterial(in BillboardSummary oldSummary, int archive, int record, bool useExactDimensions, int frame = 0)
+        {
+            // Get DaggerfallUnity
+            DaggerfallUnity dfUnity = DaggerfallUnity.Instance;
+            if (!dfUnity.IsReady)
+                return null;
+
+            // Assign mesh and material
+            var meshArchive = useExactDimensions ? archive : oldSummary.Archive;
+            var meshRecord = useExactDimensions ? record : oldSummary.Record;
+            MeshFilter meshFilter = GetComponent<MeshFilter>();
+            Mesh oldMesh = meshFilter.sharedMesh;
+            Mesh mesh = null;
+            Vector2 size;
+            Material material = null;
+            if (material = TextureReplacement.GetStaticBillboardMaterial(gameObject, archive, record, ref summary, out Vector2 scale))
+            {
+                mesh = dfUnity.MeshReader.GetBillboardMesh(summary.Rect, meshArchive, meshRecord, out size);
+                summary.AtlasedMaterial = false;
+                summary.AnimatedMaterial = summary.ImportedTextures.FrameCount > 1;
+            }
+            else if (dfUnity.MaterialReader.AtlasTextures)
+            {
+                material = dfUnity.MaterialReader.GetMaterialAtlas(
+                    archive,
+                    0,
+                    4,
+                    2048,
+                    out summary.AtlasRects,
+                    out summary.AtlasIndices,
+                    4,
+                    true,
+                    0,
+                    false,
+                    true);
+                if (record >= summary.AtlasIndices.Length)
+                {
+                    return null; // Invalid record specified.
+                }
+
+                mesh = dfUnity.MeshReader.GetBillboardMesh(
+                    summary.AtlasRects[summary.AtlasIndices[record].startIndex],
+                    meshArchive,
+                    meshRecord,
+                    out size);
+                summary.AtlasedMaterial = true;
+                if (summary.AtlasIndices[record].frameCount > 1)
+                    summary.AnimatedMaterial = true;
+                else
+                    summary.AnimatedMaterial = false;
+            }
+            else
+            {
+                material = dfUnity.MaterialReader.GetMaterial(
+                    meshArchive,
+                    meshRecord,
+                    frame,
+                    0,
+                    out summary.Rect,
+                    4,
+                    true,
+                    true);
+                mesh = dfUnity.MeshReader.GetBillboardMesh(
+                    summary.Rect,
+                    meshArchive,
+                    meshRecord,
+                    out size);
+                summary.AtlasedMaterial = false;
+                summary.AnimatedMaterial = false;
+            }
+
+            // Get references
+            meshRenderer = GetComponent<MeshRenderer>();
+            summary.Archive = archive;
+            summary.Record = record;
+            summary.Size = size;
+
+            // Set summary
+            summary.Archive = archive;
+            summary.Record = record;
+
+            if (mesh)
+            {
+                meshFilter.sharedMesh = mesh;
+                meshRenderer.sharedMaterial = material;
+            }
+            if (oldMesh)
+            {
+                // The old mesh is no longer required
+#if UNITY_EDITOR
+                DestroyImmediate(oldMesh);
+#else
+                Destroy(oldMesh);
+#endif
+            }
+
+            // Add NPC trigger collider
+            if (summary.FlatType == FlatTypes.NPC)
+            {
+                var col = gameObject.GetComponent<BoxCollider>();
+                if (col)
+                    col.isTrigger = true;
+            }
+
+            return material;
+        }
+
         public override Material SetMaterial(Texture2D texture, Vector2 size, bool isLightArchive = false)
         {
             throw new System.NotImplementedException();
+        }
+
+        public void SetSummary(BillboardSummary billboardSummary)
+        {
+            summary = billboardSummary;
         }
     }
 }
