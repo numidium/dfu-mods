@@ -39,6 +39,9 @@ namespace FutureShock
         private AudioSource audioSource;
         private Light muzzleFlash;
         private Texture2D[] weaponFrames;
+        private bool isMuzzleFlashing;
+        private int lastMuzzleFrame;
+        private Color lastMuzzleColor;
         public DaggerfallUnityItem PairedItem { private get; set; }
         public Texture2D[] WeaponFrames
         {
@@ -126,6 +129,10 @@ namespace FutureShock
                     muzzleFlash.enabled = false;
             }
 
+            // Keep muzzle at its flashing state for the length of time it takes First Person Lighting mod to re-gather nearby lights.
+            if (isMuzzleFlashing && Time.frameCount - lastMuzzleFrame >= 20)
+                isMuzzleFlashing = false;
+
             // Update firing animation.
             if (frameTimeRemaining <= 0f)
             {
@@ -194,7 +201,11 @@ namespace FutureShock
 
             GUI.depth = 0;
             if (Event.current.type.Equals(EventType.Repaint))
-                DaggerfallUI.DrawTextureWithTexCoords(weaponPosition, WeaponFrames[currentFrame], DaggerfallUnity.Settings.Handedness == 1 ? leftHanded : rightHanded, true, gameManager.WeaponManager.ScreenWeapon.Tint);
+                DaggerfallUI.DrawTextureWithTexCoords(weaponPosition,
+                    WeaponFrames[currentFrame],
+                    DaggerfallUnity.Settings.Handedness == 1 ? leftHanded : rightHanded,
+                    true,
+                    isMuzzleFlashing ? lastMuzzleColor : gameManager.WeaponManager.ScreenWeapon.Tint);
         }
 
         private void UpdateWeapon()
@@ -289,6 +300,14 @@ namespace FutureShock
         {
             muzzleFlash.enabled = true;
             muzzleFlash.intensity = muzzleFlashIntensity;
+            StartMuzzleTint(muzzleFlash.color);
+        }
+
+        private void StartMuzzleTint(Color color)
+        {
+            isMuzzleFlashing = true;
+            lastMuzzleFrame = Time.frameCount;
+            lastMuzzleColor = color;
         }
     }
 }
