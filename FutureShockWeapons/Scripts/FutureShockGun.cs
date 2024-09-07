@@ -285,6 +285,14 @@ namespace FutureShock
             projectile.Velocity = ProjVelocity;
             projectile.LightColor = ProjLightColor;
             projectile.PostImpactFade = ProjPostImpactFade;
+            var muzzleColor = Color.white;
+            const float projectileBlend = .7f;
+            if (ProjLightColor == Color.red)
+                muzzleColor.g = muzzleColor.b = projectileBlend;
+            else if (ProjLightColor == Color.cyan)
+                muzzleColor.r = projectileBlend;
+
+            StartMuzzleTint(muzzleColor);
         }
 
         private void CreateImpactBillboard(Vector3 point)
