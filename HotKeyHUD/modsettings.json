@@ -12,16 +12,16 @@
 						"Full",
 						"None"
 					],
-					"Value": "false",
+					"Value": "1",
                     "Name": "HUD Visibility",
                     "Description": "Which HUD elements to display.",
                     "$version": "v1",
                     "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.MultipleChoiceKey"
 				},
 				{
-					"Value": "true",
+					"Value": "True",
                     "Name": "Override Menus",
-                    "Description": "Allow setting hotkeys from inventory/spellbook menus. Disable if there are mod conflicts. Changing ingame requires a restart.",
+                    "Description": "Allow setting hotkeys from inventory/spellbook menus. Disable if there are mod conflicts. Requires restart.",
                     "$version": "v1",
                     "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
 				},
@@ -31,6 +31,13 @@
                     "Description": "Which key opens the hotkey setup menu. Only takes effect if Override Menus is set.",
                     "$version": "v1",
                     "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.TextKey"
+                },
+                {
+                    "Value": "True",
+                    "Name": "Disable Equip Delay",
+                    "Description": "Disable vanilla equip delay when using hot keys."
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
                 }
             ],
             "$version": "v1"

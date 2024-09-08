@@ -3,7 +3,7 @@
 by numidium3rd
 
 Setup:
-1. Place .dfmod into DaggerfallUnity_Data\StreamingAssets\Mods directory.
+1. Place the StreamingAssets folder from the .zip into your DaggerfallUnity_Data\ directory and overwrite if applicable.
 2. Ensure that no key binds are set to the number row.
 
 How To Use:
