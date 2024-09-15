@@ -153,6 +153,8 @@ namespace FlatReplacer
 
             Vector2 size = dimensions;
             Mesh mesh = null;
+            summary.Rect.width = 1.0f;
+            summary.Rect.height = 1.0f;
             if (useExactDimensions)
                 mesh = CreateBillboardMesh(summary.Rect, size, Vector2.one, out size);
             else
@@ -202,7 +204,7 @@ namespace FlatReplacer
             return material;
         }
 
-        // Adapted from DaggerfallBillboard.cs
+        // Adapted from TextureReplacement.cs
         public static Material GetStaticBillboardMaterial(GameObject go, string namePrefix, ref BillboardSummary summary, out Vector2 scale, Texture2D[] textures)
         {
             scale = Vector2.one;
@@ -231,7 +233,7 @@ namespace FlatReplacer
 
             // Set textures on material; emission is always overriden, with actual texture or null.
             material.SetTexture(Uniforms.MainTex, albedo);
-            material.SetTexture(Uniforms.EmissionMap, albedo); // just use albedo for emission
+            //material.SetTexture(Uniforms.EmissionMap, albedo); // just use albedo for emission
 
             // Save results
             summary.ImportedTextures.FrameCount = textures.Length;
@@ -556,13 +558,11 @@ namespace FlatReplacer
 
             // Get references
             meshRenderer = GetComponent<MeshRenderer>();
-            summary.Archive = archive;
-            summary.Record = record;
-            summary.Size = size;
 
             // Set summary
             summary.Archive = archive;
             summary.Record = record;
+            summary.Size = size;
 
             if (mesh)
             {
