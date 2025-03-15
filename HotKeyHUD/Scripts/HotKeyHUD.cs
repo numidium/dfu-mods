@@ -47,6 +47,9 @@ namespace HotKeyHUD
 
         public object GetSaveData()
         {
+            var buttons = HotKeyDisplay.Instance.HotKeyButtons;
+            if (buttons == null)
+                return null;
             var data = new HotKeyHUDSaveData
             {
                 payloadTypes = new List<PayloadType>(),
@@ -55,7 +58,7 @@ namespace HotKeyHUD
                 spells = new List<EffectBundleSettings>()
             };
 
-            foreach (var button in HotKeyDisplay.Instance.HotKeyButtons)
+            foreach (var button in buttons)
             {
                 if (button.Payload is DaggerfallUnityItem item)
                 {

@@ -333,10 +333,15 @@ namespace HotKeyHUD
 
         public void SetScale(Vector2 scale)
         {
-            var position = new Vector2((float)Math.Round((160f - iconsWidth / 2f + originalPosition.x + 0.5f) * scale.x) + .5f, (float)Math.Round(iconsY * scale.y) + .5f);
-            var buttonSize = new Vector2((float)Math.Round(buttonWidth * scale.x + .5f), (float)Math.Round(buttonHeight * scale.y) + .5f);
-            Position = position;
-            Size = buttonSize;
+            Scale = scale;
+            Position = new Vector2((float)Math.Round((160f - iconsWidth / 2f + originalPosition.x + 0.5f) * scale.x) + .5f, (float)Math.Round(iconsY * scale.y) + .5f);
+            Size = new Vector2((float)Math.Round(buttonWidth * scale.x + .5f), (float)Math.Round(buttonHeight * scale.y) + .5f);
+            if (Payload is DaggerfallUnityItem item)
+            {
+                var image = DaggerfallUnity.Instance.ItemHelper.GetInventoryImage(item);
+                Icon.Size = new Vector2(image.width == 0 ? image.texture.width : image.width, image.height == 0 ? image.texture.height : image.height);
+            }
+            
             KeyLabel.Scale = scale;
             KeyLabel.Position = new Vector2((float)Math.Round(KeyLabelOriginalPos.x * scale.x + .5f), (float)Math.Round(KeyLabelOriginalPos.y * scale.y + .5f));
             KeyLabel.TextScale = scale.x;
