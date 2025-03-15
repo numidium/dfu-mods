@@ -242,8 +242,8 @@ namespace HotKeyHUD
             {
                 var position = new Vector2 { x = xPosition, y = iconsY };
                 HotKeyButtons[i] = new HotKeyButton(itemBackdrops[i], position, i + 1);
-                xPosition += HotKeyButton.buttonWidth;
                 Components.Add(HotKeyButtons[i]);
+                xPosition += HotKeyButton.buttonWidth;
             }
 
             EquippedButton = new HotKeyButton(itemBackdrops[0], new Vector2 { x = 0f, y = iconsY }, 0);

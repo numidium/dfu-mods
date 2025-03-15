@@ -333,8 +333,9 @@ namespace HotKeyHUD
 
         public void SetScale(Vector2 scale)
         {
+            var xStart = DaggerfallUnity.Settings.RetroModeAspectCorrection == (int)RetroModeAspects.Off ? 180f : 160f;
             Scale = scale;
-            Position = new Vector2((float)Math.Round((160f - iconsWidth / 2f + originalPosition.x + 0.5f) * scale.x) + .5f, (float)Math.Round(iconsY * scale.y) + .5f);
+            Position = new Vector2((float)Math.Round((xStart - iconsWidth / 2f + originalPosition.x + 0.5f) * scale.x) + .5f, (float)Math.Round(iconsY * scale.y) + .5f);
             Size = new Vector2((float)Math.Round(buttonWidth * scale.x + .5f), (float)Math.Round(buttonHeight * scale.y) + .5f);
             if (Payload is DaggerfallUnityItem item)
             {
