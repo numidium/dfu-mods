@@ -29,6 +29,8 @@ namespace HotKeyHUD
         private const float condBarHeight = 1f;
         private const float iconsWidth = buttonWidth * 10f;
         private const float iconsY = 177f;
+        private const float buttonXStart = 180f;
+        private const float retroButtonXStart = 160f;
         private readonly Vector2 originalPosition;
         public bool ForceUse { get; set; }
         public object Payload { get; set; }
@@ -333,7 +335,7 @@ namespace HotKeyHUD
 
         public void SetScale(Vector2 scale)
         {
-            var xStart = DaggerfallUnity.Settings.RetroModeAspectCorrection == (int)RetroModeAspects.Off ? 180f : 160f;
+            var xStart = DaggerfallUnity.Settings.RetroModeAspectCorrection != (int)RetroModeAspects.Off && DaggerfallUnity.Settings.RetroRenderingMode != 0 ? retroButtonXStart : buttonXStart;
             Scale = scale;
             Position = new Vector2((float)Math.Round((xStart - iconsWidth / 2f + originalPosition.x + 0.5f) * scale.x) + .5f, (float)Math.Round(iconsY * scale.y) + .5f);
             Size = new Vector2((float)Math.Round(buttonWidth * scale.x + .5f), (float)Math.Round(buttonHeight * scale.y) + .5f);

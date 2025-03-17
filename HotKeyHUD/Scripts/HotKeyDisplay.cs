@@ -12,12 +12,17 @@ namespace HotKeyHUD
 {
     public sealed class HotKeyDisplay : Panel
     {
+        private const float iconsY = 177f;
+        private const float leftX = 70f;
+        private const float retroLeftX = 50f;
         private bool initialized = false;
         private readonly PlayerEntity playerEntity;
         private readonly HotKeyMenuPopup hotKeyMenuPopup;
         private static HotKeyDisplay instance;
+        private float textTime;
         public HotKeyButton[] HotKeyButtons { get; private set; }
         public HotKeyButton EquippedButton { get; private set; }
+        public TextLabel NameLabel { get; private set; }
         public HotKeyUtil.HUDVisibility Visibility { private get; set; }
         public bool EquipDelayDisabled { private get; set; }
         public static HotKeyDisplay Instance
@@ -29,7 +34,7 @@ namespace HotKeyHUD
                 return instance;
             }
         }
-        
+
         private HotKeyDisplay() : base()
         {
             Enabled = false;
@@ -52,6 +57,13 @@ namespace HotKeyHUD
             var hud = DaggerfallUI.Instance.DaggerfallHUD;
             if (Scale != hud.NativePanel.LocalScale)
                 SetScale(hud.NativePanel.LocalScale);
+            if (NameLabel.Enabled)
+            {
+                textTime -= Time.deltaTime;
+                if (textTime <= 0f)
+                    NameLabel.Enabled = false;
+            }
+
             var keyDown = InputManager.Instance.GetAnyKeyDown();
             if (keyDown >= KeyCode.Alpha1 && keyDown <= KeyCode.Alpha9)
                 OnHotKeyPress(keyDown);
@@ -202,16 +214,30 @@ namespace HotKeyHUD
 
         private void OnHotKeyPress(KeyCode keyCode)
         {
+            const string emptyKeyText = "NullSlot";
+            const float textTimeout = 2.5f;
+            textTime = textTimeout;
+            NameLabel.Enabled = true;
             var index = keyCode - KeyCode.Alpha1;
             var slot = HotKeyButtons[index].Payload;
             if (slot == null)
+            {
+                NameLabel.Text = Localize(emptyKeyText);
                 return;
+            }
+
             var racialOverride = GameManager.Instance.PlayerEffectManager.GetRacialOverrideEffect();
             var suppressInventory = racialOverride != null && racialOverride.GetSuppressInventory(out _);
             if (slot is EffectBundleSettings spell)
+            {
                 HotKeyButtons[index].HandleSpellHotkeyPress(ref spell);
+                NameLabel.Text = spell.Name;
+            }
             else if (slot is DaggerfallUnityItem item && !suppressInventory)
+            {
                 HandleItemHotkeyPress(item, index);
+                NameLabel.Text = item.LongName;
+            }
         }
 
         private void HandleItemHotkeyPress(DaggerfallUnityItem item, int index)
@@ -233,7 +259,6 @@ namespace HotKeyHUD
         private void Initialize()
         {
             // Init buttons/icons.
-            const float iconsY = 177f;
             Components.Clear();
             HotKeyButtons = new HotKeyButton[HotKeyUtil.IconCount];
             float xPosition = 0f;
@@ -250,6 +275,21 @@ namespace HotKeyHUD
             EquippedButton.KeyLabel.Enabled = false;
             EquippedButton.Enabled = false;
             Components.Add(EquippedButton);
+            var hudNativePanel = DaggerfallUI.Instance.DaggerfallHUD.NativePanel;
+            var localScale = hudNativePanel.LocalScale;
+            NameLabel = new TextLabel
+            {
+                Scale = localScale,
+                HorizontalAlignment = HorizontalAlignment.None,
+                VerticalAlignment = VerticalAlignment.None,
+                Enabled = false,
+                Text = string.Empty,
+                ShadowColor = DaggerfallUI.DaggerfallDefaultShadowColor,
+                ShadowPosition = DaggerfallUI.DaggerfallDefaultShadowPos
+            };
+
+            Components.Add(NameLabel);
+            SetScale(hudNativePanel.LocalScale);
             initialized = true;
         }
 
@@ -259,6 +299,9 @@ namespace HotKeyHUD
             for (var i = 0; i < HotKeyButtons.Length; i++)
                 HotKeyButtons[i].SetScale(scale);
             EquippedButton.SetScale(scale);
+            NameLabel.Scale = scale;
+            NameLabel.TextScale = scale.x;
+            NameLabel.Position = new Vector2(DaggerfallUnity.Settings.RetroModeAspectCorrection != (int)RetroModeAspects.Off && DaggerfallUnity.Settings.RetroRenderingMode != 0 ? retroLeftX * scale.x : leftX * scale.x, (iconsY - 7f) * scale.y);
         }
 
         private void SetEquipDelayTime(DaggerfallUnityItem lastRightHandItem, DaggerfallUnityItem lastLeftHandItem)
