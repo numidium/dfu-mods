@@ -17,22 +17,6 @@ namespace FlatReplacer
         private static Mod mod;
         private Dictionary<uint, List<FlatReplacement>> flatReplacements;
 
-        private class FlatReplacementRecord
-        {
-            public int[] Regions;
-            public int FactionId;
-            public int BuildingType;
-            public int QualityMin;
-            public int QualityMax;
-            public int TextureArchive;
-            public int TextureRecord;
-            public int ReplaceTextureArchive;
-            public int ReplaceTextureRecord;
-            public string FlatTextureName;
-            public bool UseExactDimensions;
-            public int FlatPortrait;
-        }
-
         private class FlatReplacement
         {
             public FlatReplacementRecord Record;
@@ -157,6 +141,7 @@ namespace FlatReplacer
                     continue;
                 var archive = billboard.Summary.Archive;
                 var record = billboard.Summary.Record;
+                var npcFactionId = billboard.Summary.FactionOrMobileID;
                 var key = ((uint)archive << 16) + (uint)record;
                 if (!flatReplacements.ContainsKey(key))
                     continue; // Nothing to replace this with.
@@ -179,9 +164,11 @@ namespace FlatReplacer
 
                     if (!regionFound)
                         continue; // Don't replace if outside specified regions.
+                    gameManager.PlayerEntity.FactionData.GetFactionData(npcFactionId, out var factionData);
                     // -1 = wildcard value
                     if ((replacementRecord.FactionId != -1 && replacementRecord.FactionId != buildingData.factionID) || // Don't replace if faction-specific.
                         (replacementRecord.BuildingType != -1 && replacementRecord.BuildingType != (int)buildingData.buildingType) || // Don't replace if building type does not match.
+                        (replacementRecord.SocialGroup != -1 && replacementRecord.SocialGroup != factionData.sgroup) ||
                         (buildingData.quality < replacementRecord.QualityMin || buildingData.quality > replacementRecord.QualityMax)) // Don't replace if outside building quality range.
                         continue;
                     candidates.Add(i);
