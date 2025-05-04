@@ -1,5 +1,6 @@
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
+using DaggerfallWorkshop.Game.Utility;
 using DaggerfallWorkshop.Game.Utility.ModSupport;
 using DaggerfallWorkshop.Utility;
 using DaggerfallWorkshop.Utility.AssetInjection;
@@ -16,6 +17,8 @@ namespace FlatReplacer
         public static FlatReplacer Instance { get; private set; }
         private static Mod mod;
         private Dictionary<uint, List<FlatReplacement>> flatReplacements;
+        private bool replacementsRequested;
+        private StaticDoor lastDoor;
 
         private class FlatReplacement
         {
@@ -58,6 +61,12 @@ namespace FlatReplacer
                 // Load flat graphics
                 foreach (var record in replacementRecords)
                 {
+                    if (record.TextureArchive == -1 || record.TextureRecord == -1)
+                    {
+                        PrintLogText($"Undefined texture lookup.");
+                        continue;
+                    }
+
                     var key = ((uint)record.TextureArchive << 16) + (uint)record.TextureRecord; // Pack archive and record into single unsigned 32-bit integer
                     if (!flatReplacements.ContainsKey(key))
                         flatReplacements[key] = new List<FlatReplacement>();
@@ -93,41 +102,13 @@ namespace FlatReplacer
             Debug.Log($"{modSignature} initalized");
         }
 
-        private bool TryGetTexture(string name, Dictionary<string, Texture2D> textureCache, out Texture2D texture)
+        private void LateUpdate()
         {
-            // Use cached reference to prevent duplication.
-            if (textureCache.ContainsKey(name))
-            {
-                texture = textureCache[name];
-                return true;
-            }
-
-            // Pull from mods/loose files.
-            var success = TextureReplacement.TryImportTexture(name, true, out texture);
-            if (success)
-                textureCache.Add(name, texture);
-            return success;
-        }
-
-        private void OnWindowChange(object sender, System.EventArgs e)
-        {
-            if (DaggerfallUI.UIManager.TopWindow != DaggerfallUI.Instance.TalkWindow || !TalkManager.Instance.StaticNPC)
+            if (!replacementsRequested)
                 return;
-            // The last vanilla portrait ID is 502
-            var replacementBillboard = TalkManager.Instance.StaticNPC.gameObject.GetComponent<ReplacementBillboard>();
-            var facePortraitArchive = DaggerfallWorkshop.Game.UserInterface.DaggerfallTalkWindow.FacePortraitArchive.CommonFaces;
-            GameManager.Instance.PlayerEntity.FactionData.GetFactionData(TalkManager.Instance.StaticNPC.Data.factionID, out var factionData);
-            if (factionData.type == 4 && factionData.face <= 60)
-                facePortraitArchive = DaggerfallWorkshop.Game.UserInterface.DaggerfallTalkWindow.FacePortraitArchive.SpecialFaces;
-            if (replacementBillboard && replacementBillboard.HasCustomPortrait)
-                DaggerfallUI.Instance.TalkWindow.SetNPCPortrait(facePortraitArchive, replacementBillboard.CustomPortraitRecord);
-        }
-
-        private void OnTransitionInterior(PlayerEnterExit.TransitionEventArgs args)
-        {
             var gameManager = GameManager.Instance;
             var playerGps = gameManager.PlayerGPS;
-            var scene = gameManager.InteriorParent.transform.Find(DaggerfallInterior.GetSceneName(playerGps.CurrentLocation, args.StaticDoor));
+            var scene = gameManager.InteriorParent.transform.Find(DaggerfallInterior.GetSceneName(playerGps.CurrentLocation, lastDoor));
             var npcTransforms = scene.transform.Find("People Flats");
             var buildingData = gameManager.PlayerEnterExit.BuildingDiscoveryData;
             foreach (Transform npcTransform in npcTransforms)
@@ -182,6 +163,13 @@ namespace FlatReplacer
                 var chosenIndex = candidates[randomNumber % candidates.Count];
                 var chosenReplacement = flatReplacements[key][chosenIndex];
                 var chosenReplacementRecord = chosenReplacement.Record;
+                if (chosenReplacement.Record.NameBank != -1)
+                {
+                    if (System.Enum.IsDefined(typeof(NameHelper.BankTypes), chosenReplacementRecord.NameBank))
+                        staticNpc.NameBank = (NameHelper.BankTypes)chosenReplacementRecord.NameBank;
+                    else
+                        PrintLogText($"Invalid name bank index: {chosenReplacementRecord.NameBank}");
+                }
 #if UNITY_EDITOR
                 var logText = $"Replacement for flat {chosenReplacementRecord.TextureArchive}-{chosenReplacementRecord.TextureRecord} ";
                 if (chosenReplacementRecord.ReplaceTextureArchive > 0 || chosenReplacementRecord.ReplaceTextureRecord > -1)
@@ -233,6 +221,44 @@ namespace FlatReplacer
                     replacementBillboard.CustomPortraitRecord = chosenReplacementRecord.FlatPortrait;
                 }
             }
+
+            replacementsRequested = false;
+        }
+
+        private bool TryGetTexture(string name, Dictionary<string, Texture2D> textureCache, out Texture2D texture)
+        {
+            // Use cached reference to prevent duplication.
+            if (textureCache.ContainsKey(name))
+            {
+                texture = textureCache[name];
+                return true;
+            }
+
+            // Pull from mods/loose files.
+            var success = TextureReplacement.TryImportTexture(name, true, out texture);
+            if (success)
+                textureCache.Add(name, texture);
+            return success;
+        }
+
+        private void OnWindowChange(object sender, System.EventArgs e)
+        {
+            if (DaggerfallUI.UIManager.TopWindow != DaggerfallUI.Instance.TalkWindow || !TalkManager.Instance.StaticNPC)
+                return;
+            // The last vanilla portrait ID is 502
+            var replacementBillboard = TalkManager.Instance.StaticNPC.gameObject.GetComponent<ReplacementBillboard>();
+            var facePortraitArchive = DaggerfallWorkshop.Game.UserInterface.DaggerfallTalkWindow.FacePortraitArchive.CommonFaces;
+            GameManager.Instance.PlayerEntity.FactionData.GetFactionData(TalkManager.Instance.StaticNPC.Data.factionID, out var factionData);
+            if (factionData.type == 4 && factionData.face <= 60)
+                facePortraitArchive = DaggerfallWorkshop.Game.UserInterface.DaggerfallTalkWindow.FacePortraitArchive.SpecialFaces;
+            if (replacementBillboard && replacementBillboard.HasCustomPortrait)
+                DaggerfallUI.Instance.TalkWindow.SetNPCPortrait(facePortraitArchive, replacementBillboard.CustomPortraitRecord);
+        }
+
+        private void OnTransitionInterior(PlayerEnterExit.TransitionEventArgs args)
+        {
+            lastDoor = args.StaticDoor;
+            replacementsRequested = true;
         }
 
         private void PrintLogText(string text)

@@ -50,6 +50,7 @@ however. Below is an example JSON file containing two replacements that you may 
 		"Regions": [01, 52],
 		"FactionId": -1,
         "BuildingType": -1,
+        "SocialGroup": 1,
 		"QualityMin": 1,
 		"QualityMax": 20,
 		"TextureArchive": 182,
@@ -66,6 +67,7 @@ however. Below is an example JSON file containing two replacements that you may 
         "BuildingType": -1,
 		"QualityMin": 1,
 		"QualityMax": 20,
+        "NameBank": 6,
 		"TextureArchive": 182,
 		"TextureRecord": 0,
         "ReplaceTextureArchive": -1,
@@ -81,7 +83,7 @@ however. Below is an example JSON file containing two replacements that you may 
 -------------------------
 Each individual JSON object defines a replacement. Objects begin with a "{", end with a "}", and are separated with a ",". Object property
 definitions begin with the property name enclosed in quotes, are separated from their value by a ":", and are separated by other property definitions
-by a ",". The following describes each property definition:
+by a ",". Omitted values will be set to their defaults or wildcard values. The following describes each property definition:
 
 Regions - Integer Array - Region IDs that the replacement should appear in. The supplied values must be enclosed in square brackets ([]) and each value
 must be separated by a ",". Supply a -1 in the first position to make the replacement apply to all regions. Subsequent values will be ignored.
@@ -94,12 +96,35 @@ Use the numerical value under FactionIDs in conditions.
 
 BuildingType - Integer - The code of the town building which houses the static NPC. Use -1 for any building type.
 See https://en.uesp.net/wiki/Daggerfall_Mod:Building_types for building type IDs. NOTE: You must supply these numbers in DECIMAL format. If you are
-not familiar with hexidecimal-decimal conversion then use the "programmer" mode on Windows calculator and enter the hex values to see their decimal 
+not familiar with hexidecimal->decimal conversion then use the "programmer" mode on Windows calculator and enter the hex values to see their decimal 
 equivalents.
+
+SocialGroup - Integer - The index of the social group the NPC belongs to. If the target NPC does not belong to the given social group then its flat
+will not be replaced. The social group IDs are as follows:
+0 = Commoners
+1 = Merchants
+2 = Scholars
+3 = Nobility
+4 = Underworld
 
 QualityMin/QualityMax - Integer - The minimum/maximum quality values of the interior for the replacement to take place. Use these to have your new
 NPC flat only appear in interiors that are a certain degree of upscale or impoverished. The values range from 1 to 20 with 1 being lowest quality
 and 20 being highest. To ignore this set QualityMin to 1 and QualityMax to 20.
+
+NameBank - Integer - The index of the name bank to substitute for the replaced NPC. If omitted (or an invalid index is chosen) then the current 
+region's name bank will be used.
+The name bank IDs are as follows:
+Breton = 0
+Redguard = 1
+Nord = 2
+DarkElf = 3
+HighElf = 4
+WoodElf = 5
+Khajiit = 6
+Argonian/Imperial = 7 (Argonians have Imperial names in Daggerfall.)
+Monster1 = 8 (Monster names are used in quests where a non-humanoid creature needs to be slain, typically.)
+Monster2 = 9
+Monster3 = 10
 
 TextureArchive - Integer - The index of the archive file of the original flat graphic which will be replaced.
 

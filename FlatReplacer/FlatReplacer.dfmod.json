@@ -1,6 +1,6 @@
 {
     "ModTitle": "Flat Replacer",
-    "ModVersion": "0.1.10",
+    "ModVersion": "0.1.11",
     "ModAuthor": "numidium3rd",
     "ContactInfo": "https://forums.dfworkshop.net/ - User: numidium3rd",
     "DFUnity_Version": "1.1.1",
@@ -9,6 +9,8 @@
     "Files": [
         "Assets/Game/Mods/FlatReplacer/FlatReplacer.cs",
         "Assets/Game/Mods/FlatReplacer/ReplacementBillboard.cs",
-        "Assets/Game/Mods/FlatReplacer/FlatReplacer.dfmod.json"
+        "Assets/Game/Mods/FlatReplacer/FlatReplacer.dfmod.json",
+        "Assets/Game/Mods/FlatReplacer/ReplacementConverter.cs",
+        "Assets/Game/Mods/FlatReplacer/FlatReplacementRecord.cs"
     ]
 }

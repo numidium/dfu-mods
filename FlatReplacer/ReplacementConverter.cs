@@ -23,8 +23,9 @@ namespace FlatReplacer
             SetIntValue(data, "FactionId", ref model.FactionId);
             SetIntValue(data, "BuildingType", ref model.BuildingType);
             SetIntValue(data, "SocialGroup", ref model.SocialGroup);
-            SetIntValue(data, "QualityMin", ref model.QualityMin);
-            SetIntValue(data, "QualityMax", ref model.QualityMax);
+            SetIntValue(data, "NameBank", ref model.NameBank);
+            SetIntValue(data, "QualityMin", ref model.QualityMin, 1);
+            SetIntValue(data, "QualityMax", ref model.QualityMax, 20);
             SetIntValue(data, "TextureArchive", ref model.TextureArchive);
             SetIntValue(data, "TextureRecord", ref model.TextureRecord);
             SetIntValue(data, "ReplaceTextureArchive", ref model.ReplaceTextureArchive);
@@ -36,9 +37,8 @@ namespace FlatReplacer
             return fsResult.Success;
         }
 
-        private void SetIntValue(Dictionary<string, fsData> data, string key, ref int modelValue)
+        private void SetIntValue(Dictionary<string, fsData> data, string key, ref int modelValue, int defaultValue = -1)
         {
-            const int defaultValue = -1;
             if (!data.TryGetValue(key, out var value))
                 modelValue = defaultValue;
             else
@@ -66,13 +66,15 @@ namespace FlatReplacer
         {
             if (!data.TryGetValue(key, out var regions))
             {
+                modelValue = new int[1] { -1 };
+            }
+            else
+            {
                 var regionList = regions.AsList;
                 modelValue = new int[regionList.Count];
                 for (var i = 0; i < regionList.Count; i++)
                     modelValue[i] = (int)regionList[i].AsInt64;
             }
-            else
-                modelValue = new int[1] { -1 };
         }
     }
 }

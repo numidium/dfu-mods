@@ -8,6 +8,7 @@ namespace FlatReplacer
         public int[] Regions;
         public int FactionId;
         public int SocialGroup;
+        public int NameBank;
         public int BuildingType;
         public int QualityMin;
         public int QualityMax;
