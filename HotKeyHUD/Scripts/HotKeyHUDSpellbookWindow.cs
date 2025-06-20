@@ -1,6 +1,7 @@
 using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.UserInterface;
 using DaggerfallWorkshop.Game.UserInterfaceWindows;
+using System;
 
 namespace HotKeyHUD
 {
@@ -8,6 +9,7 @@ namespace HotKeyHUD
     {
         private int lastSelectedSlot = -1;
         private readonly HotKeyMenuPopup hotKeyMenuPopup;
+        public event EventHandler<KeyItemEventArgs> OnKeyItem;
 
         public HotKeyHUDSpellbookWindow(IUserInterfaceManager uiManager, DaggerfallBaseWindow previous = null, bool buyMode = false) : base(uiManager, previous, buyMode)
         {
@@ -33,9 +35,14 @@ namespace HotKeyHUD
             {
                 var spellBook = GameManager.Instance.PlayerEntity.GetSpells();
                 var spell = spellBook[spellsListBox.SelectedIndex];
-                HotKeyDisplay.Instance.SetSpellAtSlot(in spell, hotKeyMenuPopup.SelectedSlot);
+                RaiseKeyItemEvent(new KeyItemEventArgs(spell, hotKeyMenuPopup.SelectedSlot, PreviousWindow, hotKeyMenuPopup));
                 DaggerfallUI.Instance.PlayOneShot(DaggerfallWorkshop.SoundClips.ButtonClick);
             }
+        }
+
+        private void RaiseKeyItemEvent(KeyItemEventArgs args)
+        {
+            OnKeyItem?.Invoke(this, args);
         }
     }
 }

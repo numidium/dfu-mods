@@ -1,4 +1,5 @@
 using DaggerfallConnect.Utility;
+using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.Items;
 using DaggerfallWorkshop.Game.MagicAndEffects;
@@ -10,7 +11,8 @@ namespace HotKeyHUD
     public sealed class HotKeyUtil
     {
         public enum HUDVisibility { Equipped, Full, None }
-        public const byte IconCount = 9;
+        public const int IconCount = 9;
+        public const int EquippedButtonIndex = IconCount;
         private const float iconWidth = 23f;
         private const float iconHeight = 22f;
         private const string baseInvTextureName = "INVE00I0.IMG";
@@ -114,6 +116,11 @@ namespace HotKeyHUD
             }
 
             return false;
+        }
+
+        public static bool IsBow(DaggerfallUnityItem item)
+        {
+            return item.ItemGroup == ItemGroups.Weapons && DaggerfallUnity.Instance.ItemHelper.ConvertItemToAPIWeaponType(item) == WeaponTypes.Bow;
         }
     }
 }

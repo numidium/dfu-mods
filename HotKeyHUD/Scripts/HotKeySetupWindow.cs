@@ -49,6 +49,8 @@ namespace HotKeyHUD
             }
         }
 
+        public EventHandler<KeyItemEventArgs> OnKeyItem;
+
         private HotKeySetupWindow(IUserInterfaceManager uiManager) : base(uiManager)
         {
             menuPopupRect = new Rect(menuPopupLeft, topMarginHeight, HotKeyButton.buttonWidth * 3f, HotKeyButton.buttonHeight * 3f);
@@ -196,14 +198,14 @@ namespace HotKeyHUD
                 return;
             }
 
-            HotKeyDisplay.Instance.KeyItem(item, ref slotNum, uiManager, this, hotKeyMenuPopup, ActionSelectDialog_OnButtonClick, ref hotKeyItem);
+            RaiseKeyItemEvent(new KeyItemEventArgs(item, hotKeyMenuPopup.SelectedSlot, PreviousWindow, hotKeyMenuPopup));
         }
 
         private void SpellsList_OnSelectItem()
         {
             var spellBook = GameManager.Instance.PlayerEntity.GetSpells();
             var spell = spellBook[spellsList.SelectedIndex];
-            HotKeyDisplay.Instance.SetSpellAtSlot(in spell, hotKeyMenuPopup.SelectedSlot);
+            RaiseKeyItemEvent(new KeyItemEventArgs(spell, hotKeyMenuPopup.SelectedSlot, PreviousWindow, hotKeyMenuPopup));
             UpdateSpellScroller();
             DaggerfallUI.Instance.PlayOneShot(SoundClips.ButtonClick);
         }
@@ -223,15 +225,6 @@ namespace HotKeyHUD
             var spellbook = GameManager.Instance.PlayerEntity.GetSpells();
             foreach (var spell in spellbook)
                 spellsList.AddItem(spell.Name);
-        }
-
-        private void ActionSelectDialog_OnButtonClick(DaggerfallMessageBox sender, DaggerfallMessageBox.MessageBoxButtons messageBoxButton)
-        {
-            sender.CloseWindow();
-            var forceUse = false;
-            if (sender.SelectedButton == DaggerfallMessageBox.MessageBoxButtons.Yes)
-                forceUse = true;
-            HotKeyDisplay.Instance.SetItemAtSlot(hotKeyItem, slotNum, forceUse);
         }
 
         private Texture2D[] MagicItemForegroundAnimationHander(DaggerfallUnityItem item) => item.IsEnchanted ? magicAnimation.animatedTextures : null;
@@ -262,6 +255,11 @@ namespace HotKeyHUD
                 messageBox.ClickAnywhereToClose = true;
                 messageBox.Show();
             }
+        }
+
+        private void RaiseKeyItemEvent(KeyItemEventArgs args)
+        {
+            OnKeyItem?.Invoke(this, args);
         }
     }
 }

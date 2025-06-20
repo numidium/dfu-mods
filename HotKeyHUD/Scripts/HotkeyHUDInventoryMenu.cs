@@ -1,16 +1,18 @@
 using DaggerfallWorkshop.Game.Items;
 using DaggerfallWorkshop.Game.UserInterface;
 using DaggerfallWorkshop.Game.UserInterfaceWindows;
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace HotKeyHUD
 {
     public sealed class HotkeyHUDInventoryMenu : DaggerfallInventoryWindow
     {
-        private int slotNum;
         private int lastSelectedSlot = -1;
-        private DaggerfallUnityItem hotKeyItem;
         private readonly HotKeyMenuPopup hotKeyMenuPopup;
+        public EventHandler<KeyItemEventArgs> OnKeyItem;
+        public EventHandler<List<DaggerfallUnityItem>> OnInventoryClose;
 
         public HotkeyHUDInventoryMenu(IUserInterfaceManager uiManager, DaggerfallBaseWindow previous = null) : base(uiManager, previous)
         {
@@ -25,15 +27,7 @@ namespace HotKeyHUD
 
         public override void OnPop()
         {
-            // Remove discarded items from keyed buttons.
-            var hotKeyDisplay = HotKeyDisplay.Instance;
-            var hotKeyButtons = hotKeyDisplay.HotKeyButtons;
-            for (var i = 0; i < hotKeyButtons.Length; i++)
-            {
-                if (hotKeyButtons[i].Payload is DaggerfallUnityItem item && remoteItemListScroller.Items.Contains(item))
-                    hotKeyDisplay.SetItemAtSlot(null, i);
-            }
-
+            RaiseOnInventoryClose(remoteItemListScroller.Items);
             base.OnPop();
         }
 
@@ -47,7 +41,7 @@ namespace HotKeyHUD
         {
             if (hotKeyMenuPopup.Enabled && item.currentCondition > 0 && !HotKeyUtil.GetProhibited(item))
             {
-                HotKeyDisplay.Instance.KeyItem(item, ref slotNum, uiManager, this, hotKeyMenuPopup, ActionSelectDialog_OnButtonClick, ref hotKeyItem);
+                RaiseKeyItemEvent(new KeyItemEventArgs(item, hotKeyMenuPopup.SelectedSlot, PreviousWindow, hotKeyMenuPopup));
                 return;
             }
 
@@ -61,10 +55,9 @@ namespace HotKeyHUD
                 return;
             var slot = (EquipSlots)equipInd;
             var item = playerEntity.ItemEquipTable.GetItem(slot);
-            if (hotKeyMenuPopup.Enabled && item.currentCondition > 0 && !HotKeyUtil.GetProhibited(item))
+            if (item != null && hotKeyMenuPopup.Enabled && item.currentCondition > 0 && !HotKeyUtil.GetProhibited(item))
             {
-                if (item != null)
-                    HotKeyDisplay.Instance.KeyItem(item, ref slotNum, uiManager, this, hotKeyMenuPopup, ActionSelectDialog_OnButtonClick, ref hotKeyItem);
+                RaiseKeyItemEvent(new KeyItemEventArgs(item, hotKeyMenuPopup.SelectedSlot, PreviousWindow, hotKeyMenuPopup));
                 return;
             }
 
@@ -75,23 +68,23 @@ namespace HotKeyHUD
         {
             var slot = (EquipSlots)sender.Tag;
             var item = playerEntity.ItemEquipTable.GetItem(slot);
-            if (hotKeyMenuPopup.Enabled && item.currentCondition > 0 && !HotKeyUtil.GetProhibited(item))
+            if (item != null && hotKeyMenuPopup.Enabled && item.currentCondition > 0 && !HotKeyUtil.GetProhibited(item))
             {
-                if (item != null)
-                    HotKeyDisplay.Instance.KeyItem(item, ref slotNum, uiManager, this, hotKeyMenuPopup, ActionSelectDialog_OnButtonClick, ref hotKeyItem);
+                RaiseKeyItemEvent(new KeyItemEventArgs(item, hotKeyMenuPopup.SelectedSlot, PreviousWindow, hotKeyMenuPopup));
                 return;
             }
 
             base.AccessoryItemsButton_OnLeftMouseClick(sender, position);
         }
 
-        private void ActionSelectDialog_OnButtonClick(DaggerfallMessageBox sender, DaggerfallMessageBox.MessageBoxButtons messageBoxButton)
+        private void RaiseKeyItemEvent(KeyItemEventArgs args)
         {
-            sender.CloseWindow();
-            var forceUse = false;
-            if (sender.SelectedButton == DaggerfallMessageBox.MessageBoxButtons.Yes)
-                forceUse = true;
-            HotKeyDisplay.Instance.SetItemAtSlot(hotKeyItem, slotNum, forceUse);
+            OnKeyItem?.Invoke(this, args);
+        }
+
+        private void RaiseOnInventoryClose(List<DaggerfallUnityItem> items)
+        {
+            OnInventoryClose?.Invoke(this, items);
         }
     }
 }
