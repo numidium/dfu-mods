@@ -1,5 +1,9 @@
 using DaggerfallWorkshop.Game;
+using DaggerfallWorkshop.Game.Items;
+using DaggerfallWorkshop.Game.MagicAndEffects;
+using DaggerfallWorkshop.Game.Questing;
 using DaggerfallWorkshop.Game.UserInterface;
+using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 
 namespace HotKeyHUD
@@ -111,6 +115,16 @@ namespace HotKeyHUD
             // If overriding inventory window, show hotkey popup when hotkey is pressed and hide when released.
             else if (!clickable)
                 Enabled = false;
+        }
+
+        public void HandleItemSet(object sender, ItemSetEventArgs args)
+        {
+            if (args.Index == HotKeyUtil.EquippedButtonIndex)
+                return;
+            if (args.Item is EffectBundleSettings spell)
+                HotKeyButtons[args.Index].SetSpell(spell);
+            else
+                HotKeyButtons[args.Index].SetItem((DaggerfallUnityItem)args.Item);
         }
 
         private void HotKeyMenuPopup_OnMouseClick(BaseScreenComponent sender, Vector2 position)

@@ -1,13 +1,9 @@
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
-using DaggerfallWorkshop.Game.Entity;
-using DaggerfallWorkshop.Game.Formulas;
 using DaggerfallWorkshop.Game.Items;
 using DaggerfallWorkshop.Game.MagicAndEffects;
-using DaggerfallWorkshop.Game.Questing;
 using DaggerfallWorkshop.Game.UserInterface;
 using System;
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace HotKeyHUD

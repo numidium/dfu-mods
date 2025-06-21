@@ -193,6 +193,7 @@ namespace HotKeyHUD
             // Set up events
             OnResetKeyItems += hotKeyDisplay.ResetItemsHandler;
             OnSetKeyItem += hotKeyDisplay.HandleItemSet;
+            OnSetKeyItem += HotKeyMenuPopup.Instance.HandleItemSet;
             OnActivateKeyItem += hotKeyDisplay.HandleItemActivate;
             OnEquipDelay += hotKeyDisplay.HandleEquipDelay;
         }
@@ -313,24 +314,32 @@ namespace HotKeyHUD
 
         private void SetKeyItem(int index, object item, bool forceUse = false)
         {
+            var keySetRaised = false;
             for (var i = 0; i < itemCount; i++)
             {
-                if (i == index)
+                var itemsAreEqual = (item is EffectBundleSettings spell1 && keyItems[i].Item is EffectBundleSettings spell2 && HotKeyUtil.CompareSpells(spell1, spell2)) ||
+                    (item is DaggerfallUnityItem && item == keyItems[i].Item);
+                if (i == index && !itemsAreEqual)
+                {
+                    keyItems[index].Item = item;
+                    keyItems[index].ForceUse = forceUse;
                     continue;
-                if (RemoveDuplicateIfAt(index, i,
-                    (item is EffectBundleSettings spell1 && keyItems[i].Item is EffectBundleSettings spell2 && HotKeyUtil.CompareSpells(spell1, spell2)) ||
-                    (item is DaggerfallUnityItem && item == keyItems[i].Item)))
-                    break;
-                keyItems[index].Item = item;
-                keyItems[index].ForceUse = forceUse;
+                }
+
+                if (RemoveDuplicateIfAt(index, i, itemsAreEqual))
+                {
+                    RaiseKeyItemSet(new ItemSetEventArgs(i, null, false));
+                    keySetRaised = i == index;
+                }
             }
 
-            RaiseKeyItemSet(new ItemSetEventArgs(index, item, forceUse));
+            if (!keySetRaised)
+                RaiseKeyItemSet(new ItemSetEventArgs(index, item, forceUse));
         }
 
         private bool RemoveDuplicateIfAt(int index, int i, bool condition)
         {
-            if (i != index && condition)
+            if (condition)
             {
                 keyItems[i].Item = null;
                 keyItems[i].ForceUse = false;

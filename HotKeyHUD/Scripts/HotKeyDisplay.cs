@@ -15,7 +15,6 @@ namespace HotKeyHUD
         private const float leftX = 70f;
         private const float retroLeftX = 50f;
         private readonly PlayerEntity playerEntity;
-        private readonly HotKeyMenuPopup hotKeyMenuPopup;
         private static HotKeyDisplay instance;
         private float textTime;
         public bool Initialized { get; set; }
@@ -39,7 +38,6 @@ namespace HotKeyHUD
         {
             Enabled = false;
             playerEntity = GameManager.Instance.PlayerEntity;
-            hotKeyMenuPopup = HotKeyMenuPopup.Instance;
             AutoSize = AutoSizeModes.ResizeToFill;
             Size = DaggerfallUI.Instance.DaggerfallHUD.NativePanel.Size;
         }
@@ -86,11 +84,6 @@ namespace HotKeyHUD
             base.Draw();
         }
 
-        public void SetItemAtSlot(DaggerfallUnityItem item, int index)
-        {
-            SetButtonItem(index, item);
-        }
-
         public void SetSpellAtSlot(in EffectBundleSettings spell, int index)
         {
             SetButtonSpell(index, spell);
@@ -116,7 +109,7 @@ namespace HotKeyHUD
             if (args.Item is EffectBundleSettings spell)
                 SetSpellAtSlot(spell, args.Index);
             else
-                SetItemAtSlot((DaggerfallUnityItem)args.Item, args.Index);
+                SetButtonItem(args.Index, (DaggerfallUnityItem)args.Item);
         }
 
         public void HandleItemActivate(object sender, ItemUseEventArgs args)
@@ -177,13 +170,11 @@ namespace HotKeyHUD
             }
 
             HotKeyButtons[index].SetItem(item);
-            hotKeyMenuPopup.HotKeyButtons[index].SetItem(item);
         }
 
         private void SetButtonSpell(int index, EffectBundleSettings spell)
         {
             HotKeyButtons[index].SetSpell(spell);
-            hotKeyMenuPopup.HotKeyButtons[index].SetSpell(spell);
         }
 
         private void Initialize()
