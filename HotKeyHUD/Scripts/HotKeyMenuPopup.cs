@@ -1,9 +1,7 @@
 using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.Items;
 using DaggerfallWorkshop.Game.MagicAndEffects;
-using DaggerfallWorkshop.Game.Questing;
 using DaggerfallWorkshop.Game.UserInterface;
-using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 
 namespace HotKeyHUD
@@ -117,7 +115,7 @@ namespace HotKeyHUD
                 Enabled = false;
         }
 
-        public void HandleItemSet(object sender, ItemSetEventArgs args)
+        public void HandleItemSet(HotKeyUtil.ItemSetEventArgs args)
         {
             if (args.Index == HotKeyUtil.EquippedButtonIndex)
                 return;

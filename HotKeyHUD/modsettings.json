@@ -38,7 +38,14 @@
                     "Description": "Disable vanilla equip delay when using hot keys."
                     "$version": "v1",
                     "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
-                }
+                },
+                {
+                    "Value": "False",
+                    "Name": "Auto Recast",
+                    "Description": "Ready on-target spells after initial cast."
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
+                }                
             ],
             "$version": "v1"
         }

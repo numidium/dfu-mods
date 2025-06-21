@@ -26,13 +26,17 @@ namespace HotKeyHUD
         public Type SaveDataType => typeof(HotKeyHUDSaveData);
         private KeyCode setupMenuKey;
         private KeyItem[] keyItems;
+        private DaggerfallHUD daggerfallHud;
         private HotKeyDisplay hotKeyDisplay;
         private DaggerfallUnityItem equippedItem;
         private bool equipDelayDisabled;
-        private EventHandler OnResetKeyItems { get; set; }
-        private EventHandler<ItemSetEventArgs> OnSetKeyItem { get; set; }
-        private EventHandler<ItemUseEventArgs> OnActivateKeyItem { get; set; }
-        private EventHandler OnEquipDelay { get; set; }
+        private HotKeyUtil.BlankHandler OnResetKeyItems { get; set; }
+        private HotKeyUtil.ItemSetHandler OnSetKeyItem { get; set; }
+        private HotKeyUtil.ItemUseHandler OnActivateKeyItem { get; set; }
+        private HotKeyUtil.BlankHandler OnEquipDelay { get; set; }
+        private EntityEffectManager playerEffectManager;
+        private bool autoRecastEnabled;
+        private EntityEffectBundle autoSpell;
 
         private struct KeyItem
         {
@@ -141,7 +145,7 @@ namespace HotKeyHUD
         {
             hotKeyDisplay = HotKeyDisplay.Instance;
             hotKeyDisplay.Visibility = (HotKeyUtil.HUDVisibility)settings.GetValue<int>("Options", "HUD Visibility");
-            hotKeyDisplay.AutoRecastEnabled = settings.GetValue<bool>("Options", "Auto Recast");
+            autoRecastEnabled = settings.GetValue<bool>("Options", "Auto Recast");
             var menuKeyText = settings.GetValue<string>("Options", "Hotkey Setup Menu Key");
             if (Enum.TryParse(menuKeyText, out KeyCode result))
                 setupMenuKey = result;
@@ -165,6 +169,7 @@ namespace HotKeyHUD
             }
 
             input.KeyDownHandler += HandleKeyDown;
+            input.SpellAbortHandler += HandleSpellAbort;
             // Load settings that require a restart.
             var settings = mod.GetSettings();
             HotKeyMenuPopup.OverrideMenus = settings.GetValue<bool>("Options", "Override Menus");
@@ -188,8 +193,10 @@ namespace HotKeyHUD
 
             hotKeyDisplay = HotKeyDisplay.Instance;
             hotKeyDisplay.Localize = mod.Localize;
-            DaggerfallUI.Instance.DaggerfallHUD.ParentPanel.Components.Add(HotKeyDisplay.Instance);
+            daggerfallHud = DaggerfallUI.Instance.DaggerfallHUD;
+            daggerfallHud.ParentPanel.Components.Add(HotKeyDisplay.Instance);
             keyItems = new KeyItem[itemCount];
+            playerEffectManager = GameManager.Instance.PlayerEffectManager;
             // Set up events
             OnResetKeyItems += hotKeyDisplay.ResetItemsHandler;
             OnSetKeyItem += hotKeyDisplay.HandleItemSet;
@@ -200,7 +207,7 @@ namespace HotKeyHUD
 
         private void Update()
         {
-            hotKeyDisplay.Enabled = DaggerfallUI.Instance.DaggerfallHUD.Enabled;
+            hotKeyDisplay.Enabled = daggerfallHud.Enabled;
             if (!hotKeyDisplay.Initialized || !hotKeyDisplay.Enabled)
                 return;
             // Item polling/updating
@@ -222,7 +229,7 @@ namespace HotKeyHUD
                                 {
                                     keyItems[i].Item = null;
                                     keyItems[i].ForceUse = false;
-                                    RaiseKeyItemSet(new ItemSetEventArgs(i, null, false));
+                                    RaiseKeyItemSet(new HotKeyUtil.ItemSetEventArgs(i, null, false));
                                 }
                                 /*
                                 // Scaling fix. Scaling seems to break if the parent panel height > width.
@@ -234,7 +241,7 @@ namespace HotKeyHUD
                             {
                                 keyItems[i].Item = null;
                                 keyItems[i].ForceUse = false;
-                                RaiseKeyItemSet(new ItemSetEventArgs(i, null, false));
+                                RaiseKeyItemSet(new HotKeyUtil.ItemSetEventArgs(i, null, false));
                             }
 
                             hotKeyDisplay.UpdateItemDisplay(i, dfuItem);
@@ -246,7 +253,7 @@ namespace HotKeyHUD
                     var item = GameManager.Instance.PlayerEntity.ItemEquipTable.GetItem(weaponManager.UsingRightHand ? EquipSlots.RightHand : EquipSlots.LeftHand);
                     if (item != equippedItem)
                     {
-                        RaiseKeyItemSet(new ItemSetEventArgs(HotKeyUtil.EquippedButtonIndex, item, false));
+                        RaiseKeyItemSet(new HotKeyUtil.ItemSetEventArgs(HotKeyUtil.EquippedButtonIndex, item, false));
                         equippedItem = item;
                     }
                     if (equippedItem != null)
@@ -255,6 +262,9 @@ namespace HotKeyHUD
                 default:
                     break;
             }
+
+            if (autoRecastEnabled && autoSpell != null && !playerEffectManager.HasReadySpell && !GameManager.Instance.PlayerSpellCasting.IsPlayingAnim)
+                playerEffectManager.SetReadySpell(autoSpell);
         }
 
         private void OnPlayerDeath(DaggerfallEntity entity)
@@ -326,23 +336,21 @@ namespace HotKeyHUD
                     continue;
                 }
 
-                if (RemoveDuplicateIfAt(index, i, itemsAreEqual))
-                {
-                    RaiseKeyItemSet(new ItemSetEventArgs(i, null, false));
+                if (RemoveDuplicateIfAt(i, itemsAreEqual))
                     keySetRaised = i == index;
-                }
             }
 
             if (!keySetRaised)
-                RaiseKeyItemSet(new ItemSetEventArgs(index, item, forceUse));
+                RaiseKeyItemSet(new HotKeyUtil.ItemSetEventArgs(index, item, forceUse));
         }
 
-        private bool RemoveDuplicateIfAt(int index, int i, bool condition)
+        private bool RemoveDuplicateIfAt(int i, bool condition)
         {
             if (condition)
             {
                 keyItems[i].Item = null;
                 keyItems[i].ForceUse = false;
+                RaiseKeyItemSet(new HotKeyUtil.ItemSetEventArgs(i, null, false));
                 return true;
             }
 
@@ -352,10 +360,10 @@ namespace HotKeyHUD
         private void ActivateHotkeyItem(DaggerfallUnityItem item, bool forceUse)
         {
             // Do equip delay for weapons.
-            var lastRightHandItem = GameManager.Instance.PlayerEntity.ItemEquipTable.GetItem(EquipSlots.RightHand);
-            var lastLeftHandItem = GameManager.Instance.PlayerEntity.ItemEquipTable.GetItem(EquipSlots.LeftHand);
-            var equipTable = GameManager.Instance.PlayerEntity.ItemEquipTable;
             var player = GameManager.Instance.PlayerEntity;
+            var lastRightHandItem = player.ItemEquipTable.GetItem(EquipSlots.RightHand);
+            var lastLeftHandItem = player.ItemEquipTable.GetItem(EquipSlots.LeftHand);
+            var equipTable = player.ItemEquipTable;
             List<DaggerfallUnityItem> unequippedList = null;
 
             // Handle quest items
@@ -514,16 +522,23 @@ namespace HotKeyHUD
             // Assign to player effect manager as ready spell
             var playerEffectManager = GameManager.Instance.PlayerEffectManager;
             if (playerEffectManager && !GameManager.Instance.PlayerSpellCasting.IsPlayingAnim)
-                playerEffectManager.SetReadySpell(new EntityEffectBundle(spell, GameManager.Instance.PlayerEntityBehaviour), noSpellPointCost);
+            {
+                var readySpell = new EntityEffectBundle(spell, GameManager.Instance.PlayerEntityBehaviour);
+                if (playerEffectManager.SetReadySpell(readySpell, noSpellPointCost) && spell.TargetType != TargetTypes.CasterOnly)
+                    autoSpell = readySpell;
+            }
         }
 
         private void ActivateHotkeyItem(int index, object item, bool forceUse = false)
         {
+            autoSpell = null;
+            if (autoRecastEnabled)
+                playerEffectManager.AbortReadySpell();
             if (item is DaggerfallUnityItem dfuItem)
                 ActivateHotkeyItem(dfuItem, forceUse);
             else if (item is EffectBundleSettings spell)
                 ActivateHotkeyItem(ref spell);
-            RaiseItemActivate(new ItemUseEventArgs(index, item));
+            RaiseItemActivate(new HotKeyUtil.ItemUseEventArgs(index, item));
         }
 
         private void SetEquipDelayTime(DaggerfallUnityItem lastRightHandItem, DaggerfallUnityItem lastLeftHandItem)
@@ -560,7 +575,7 @@ namespace HotKeyHUD
             GameManager.Instance.WeaponManager.EquipCountdownLeftHand += delayTimeLeft;
         }
 
-        private void HandleKeyDown(object sender, KeyCode key)
+        private void HandleKeyDown(KeyCode key)
         {
             if (key >= KeyCode.Alpha1 && key <= KeyCode.Alpha9)
             {
@@ -575,24 +590,30 @@ namespace HotKeyHUD
             }
         }
 
+        private void HandleSpellAbort()
+        {
+            autoSpell = null;
+            playerEffectManager.AbortReadySpell();
+        }
+
         private void RaiseResetKeyItems()
         {
-            OnResetKeyItems?.Invoke(this, null);
+            OnResetKeyItems?.Invoke();
         }
 
-        private void RaiseKeyItemSet(ItemSetEventArgs args)
+        private void RaiseKeyItemSet(HotKeyUtil.ItemSetEventArgs args)
         {
-            OnSetKeyItem?.Invoke(this, args);
+            OnSetKeyItem?.Invoke(args);
         }
 
-        private void RaiseItemActivate(ItemUseEventArgs args)
+        private void RaiseItemActivate(HotKeyUtil.ItemUseEventArgs args)
         {
-            OnActivateKeyItem?.Invoke(this, args);
+            OnActivateKeyItem?.Invoke(args);
         }
 
         private void RaiseEquipDelay()
         {
-            OnEquipDelay?.Invoke(this, null);
+            OnEquipDelay?.Invoke();
         }
     }
 }

@@ -35,9 +35,7 @@ namespace HotKeyHUD
         private Panel spellsListPanel;
         private Panel spellsListScrollBarPanel;
         private Panel exitButtonPanel;
-        private DaggerfallUnityItem hotKeyItem;
         private int lastSelectedSlot = -1;
-        private int slotNum;
         private static HotKeySetupWindow hotKeySetupWindow;
         public static HotKeySetupWindow Instance
         {

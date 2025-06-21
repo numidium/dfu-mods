@@ -10,9 +10,37 @@ namespace HotKeyHUD
 {
     public sealed class HotKeyUtil
     {
+        public struct ItemUseEventArgs
+        {
+            public int Index { get; private set; }
+            public object Item { get; private set; }
+            public ItemUseEventArgs(int index, object item)
+            {
+                Index = index;
+                Item = item;
+            }
+        }
+
+        public struct ItemSetEventArgs
+        {
+            public int Index { get; private set; }
+            public object Item { get; private set; }
+            public bool ForceUse { get; private set; }
+            public ItemSetEventArgs(int index, object item, bool forceUse)
+            {
+                Index = index;
+                Item = item;
+                ForceUse = forceUse;
+            }
+        }
+
         public enum HUDVisibility { Equipped, Full, None }
         public const int IconCount = 9;
         public const int EquippedButtonIndex = IconCount;
+        public delegate void BlankHandler();
+        public delegate void KeyCodeHandler(KeyCode keyCode);
+        public delegate void ItemUseHandler(ItemUseEventArgs args);
+        public delegate void ItemSetHandler(ItemSetEventArgs args);
         private const float iconWidth = 23f;
         private const float iconHeight = 22f;
         private const string baseInvTextureName = "INVE00I0.IMG";

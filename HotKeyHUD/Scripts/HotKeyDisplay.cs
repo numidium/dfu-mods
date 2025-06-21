@@ -23,7 +23,6 @@ namespace HotKeyHUD
         public TextLabel NameLabel { get; private set; }
         public HotKeyUtil.HUDVisibility Visibility { get; set; }
         public bool EquipDelayDisabled { private get; set; }
-        public bool AutoRecastEnabled { private get; set; }
         public static HotKeyDisplay Instance
         {
             get
@@ -84,11 +83,6 @@ namespace HotKeyHUD
             base.Draw();
         }
 
-        public void SetSpellAtSlot(in EffectBundleSettings spell, int index)
-        {
-            SetButtonSpell(index, spell);
-        }
-
         public void ResetButtons()
         {
             if (!Initialized)
@@ -99,20 +93,20 @@ namespace HotKeyHUD
             EquippedButton.SetItem(null);
         }
 
-        public void ResetItemsHandler(object sender, EventArgs e)
+        public void ResetItemsHandler()
         {
             ResetButtons();
         }
 
-        public void HandleItemSet(object sender, ItemSetEventArgs args)
+        public void HandleItemSet(HotKeyUtil.ItemSetEventArgs args)
         {
             if (args.Item is EffectBundleSettings spell)
-                SetSpellAtSlot(spell, args.Index);
+                SetButtonSpell(args.Index, spell);
             else
                 SetButtonItem(args.Index, (DaggerfallUnityItem)args.Item);
         }
 
-        public void HandleItemActivate(object sender, ItemUseEventArgs args)
+        public void HandleItemActivate(HotKeyUtil.ItemUseEventArgs args)
         {
             const string emptyKeyText = "NullSlot";
             const float textTimeout = 2.5f;
@@ -139,7 +133,7 @@ namespace HotKeyHUD
             }
         }
 
-        public void HandleEquipDelay(object sender, EventArgs args)
+        public void HandleEquipDelay()
         {
             var weaponManager = GameManager.Instance.WeaponManager;
             // Show "equipping" message if a delay was added.

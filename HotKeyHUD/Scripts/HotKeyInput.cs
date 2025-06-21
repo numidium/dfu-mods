@@ -6,18 +6,32 @@ namespace HotKeyHUD
 {
     public sealed class HotKeyInput : MonoBehaviour
     {
-        public EventHandler<KeyCode> KeyDownHandler;
+        public HotKeyUtil.KeyCodeHandler KeyDownHandler;
+        public HotKeyUtil.BlankHandler SpellAbortHandler;
+        private InputManager inputManager;
+
+        private void Start()
+        {
+            inputManager = InputManager.Instance;
+        }
 
         private void Update()
         {
-            var keyDown = InputManager.Instance.GetAnyKeyDown();
+            var keyDown = inputManager.GetAnyKeyDown();
             if (keyDown != KeyCode.None)
                 RaiseKeyDownHandler(keyDown);
+            if (inputManager.ActionStarted(InputManager.Actions.AbortSpell))
+                RaiseSpellAbortHandler();
         }
 
-        private void RaiseKeyDownHandler(KeyCode key)
+        private void RaiseKeyDownHandler(KeyCode keyCode)
         {
-            KeyDownHandler?.Invoke(this, key);
+            KeyDownHandler?.Invoke(keyCode);
+        }
+
+        private void RaiseSpellAbortHandler()
+        {
+            SpellAbortHandler?.Invoke();
         }
     }
 }
