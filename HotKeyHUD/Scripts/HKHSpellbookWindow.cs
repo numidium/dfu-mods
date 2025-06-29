@@ -5,15 +5,15 @@ using System;
 
 namespace HotKeyHUD
 {
-    public sealed class HotKeyHUDSpellbookWindow : DaggerfallSpellBookWindow
+    public sealed class HKHSpellbookWindow : DaggerfallSpellBookWindow
     {
         private int lastSelectedSlot = -1;
-        private readonly HotKeyMenuPopup hotKeyMenuPopup;
-        public event EventHandler<KeyItemEventArgs> OnKeyItem;
+        private readonly HKHMenuPopup hotKeyMenuPopup;
+        public event EventHandler<HKHUtil.KeyItemEventArgs> OnKeyItem;
 
-        public HotKeyHUDSpellbookWindow(IUserInterfaceManager uiManager, DaggerfallBaseWindow previous = null, bool buyMode = false) : base(uiManager, previous, buyMode)
+        public HKHSpellbookWindow(IUserInterfaceManager uiManager, DaggerfallBaseWindow previous = null, bool buyMode = false) : base(uiManager, previous, buyMode)
         {
-            hotKeyMenuPopup = HotKeyMenuPopup.Instance;
+            hotKeyMenuPopup = HKHMenuPopup.Instance;
         }
 
         public override void Update()
@@ -26,6 +26,8 @@ namespace HotKeyHUD
         {
             base.Setup();
             NativePanel.Components.Add(hotKeyMenuPopup);
+            // This is a circular dependency and I hate it. My hand was forced because there's no way to retrieve a reference to this from DaggerfallUI.
+            OnKeyItem += HotKeyHUD.Instance.DisgustingProxyForHandleKeyItem;
         }
 
         protected override void SpellsListBox_OnSelectItem()
@@ -35,12 +37,12 @@ namespace HotKeyHUD
             {
                 var spellBook = GameManager.Instance.PlayerEntity.GetSpells();
                 var spell = spellBook[spellsListBox.SelectedIndex];
-                RaiseKeyItemEvent(new KeyItemEventArgs(spell, hotKeyMenuPopup.SelectedSlot, PreviousWindow, hotKeyMenuPopup));
+                RaiseKeyItemEvent(new HKHUtil.KeyItemEventArgs(spell, hotKeyMenuPopup.SelectedSlot, PreviousWindow, hotKeyMenuPopup));
                 DaggerfallUI.Instance.PlayOneShot(DaggerfallWorkshop.SoundClips.ButtonClick);
             }
         }
 
-        private void RaiseKeyItemEvent(KeyItemEventArgs args)
+        private void RaiseKeyItemEvent(HKHUtil.KeyItemEventArgs args)
         {
             OnKeyItem?.Invoke(this, args);
         }

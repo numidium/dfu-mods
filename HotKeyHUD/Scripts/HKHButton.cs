@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace HotKeyHUD
 {
-    public sealed class HotKeyButton : Panel
+    public sealed class HKHButton : Panel
     {
         private enum ComponentSlot
         {
@@ -39,7 +39,7 @@ namespace HotKeyHUD
         private static Vector2 StackLabelOriginalPos = new Vector2(1f, 14f);
         private static Vector2 CondBarOriginalPos = new Vector2(2f, buttonHeight - 3f);
 
-        public HotKeyButton(Texture2D backdrop, Vector2 position, int keyIndex)
+        public HKHButton(Texture2D backdrop, Vector2 position, int keyIndex)
         {
             // Button Backdrop
             BackgroundColor = Color.black;
@@ -106,7 +106,7 @@ namespace HotKeyHUD
         {
             // Update stack count.
             if (StackLabel.Enabled)
-                StackLabel.Text = HotKeyUtil.IsBow(dfuItem) ? GetArrowCount().ToString() : dfuItem.stackCount.ToString();
+                StackLabel.Text = HKHUtil.IsBow(dfuItem) ? GetArrowCount().ToString() : dfuItem.stackCount.ToString();
             // Update condition bar.
             ConditionBar.Size = new Vector2(dfuItem.ConditionPercentage / 100f * (maxCondBarWidth * Parent.Scale.x), condBarHeight * Parent.Scale.y);
             if (dfuItem.ConditionPercentage >= 70)
@@ -133,9 +133,9 @@ namespace HotKeyHUD
                 itemBgHeight = image.height;
                 Icon.BackgroundTexture = image.texture;
                 Icon.Size = new Vector2(image.width == 0 ? image.texture.width : itemBgWidth, itemBgHeight == 0 ? image.texture.height : itemBgHeight);
-                StackLabel.Enabled = item.IsStackable() || HotKeyUtil.IsBow(item);
+                StackLabel.Enabled = item.IsStackable() || HKHUtil.IsBow(item);
                 // I'm assuming there aren't any stackables with condition worth tracking.
-                ConditionBar.Enabled = !StackLabel.Enabled || HotKeyUtil.IsBow(item);
+                ConditionBar.Enabled = !StackLabel.Enabled || HKHUtil.IsBow(item);
                 ConditionBarBackground.Enabled = ConditionBar.Enabled;
             }
         }

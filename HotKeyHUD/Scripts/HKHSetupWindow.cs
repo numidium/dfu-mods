@@ -13,7 +13,7 @@ using System;
 
 namespace HotKeyHUD
 {
-    public sealed class HotKeySetupWindow : DaggerfallPopupWindow
+    public sealed class HKHSetupWindow : DaggerfallPopupWindow
     {
         private const float paddingWidth = 21f;
         private const float magicAnimationDelay = 0.15f;
@@ -27,7 +27,7 @@ namespace HotKeyHUD
         private readonly Rect spellsListRect;
         private readonly Rect spellsListScrollBarRect;
         private readonly Rect exitButtonCutoutRect;
-        private HotKeyMenuPopup hotKeyMenuPopup;
+        private HKHMenuPopup hotKeyMenuPopup;
         private ItemListScroller itemListScroller;
         private VerticalScrollBar spellsListScrollBar;
         private ListBox spellsList;
@@ -36,22 +36,22 @@ namespace HotKeyHUD
         private Panel spellsListScrollBarPanel;
         private Panel exitButtonPanel;
         private int lastSelectedSlot = -1;
-        private static HotKeySetupWindow hotKeySetupWindow;
-        public static HotKeySetupWindow Instance
+        private static HKHSetupWindow hotKeySetupWindow;
+        public static HKHSetupWindow Instance
         {
             get
             {
                 if (hotKeySetupWindow == null)
-                    hotKeySetupWindow = new HotKeySetupWindow(DaggerfallUI.Instance.UserInterfaceManager);
+                    hotKeySetupWindow = new HKHSetupWindow(DaggerfallUI.Instance.UserInterfaceManager);
                 return hotKeySetupWindow;
             }
         }
 
-        public EventHandler<KeyItemEventArgs> OnKeyItem;
+        public EventHandler<HKHUtil.KeyItemEventArgs> OnKeyItem;
 
-        private HotKeySetupWindow(IUserInterfaceManager uiManager) : base(uiManager)
+        private HKHSetupWindow(IUserInterfaceManager uiManager) : base(uiManager)
         {
-            menuPopupRect = new Rect(menuPopupLeft, topMarginHeight, HotKeyButton.buttonWidth * 3f, HotKeyButton.buttonHeight * 3f);
+            menuPopupRect = new Rect(menuPopupLeft, topMarginHeight, HKHButton.buttonWidth * 3f, HKHButton.buttonHeight * 3f);
             itemListScrollerRect = new Rect(menuPopupRect.x + menuPopupRect.width + paddingWidth, topMarginHeight, 59f, 152f);
             spellsListCutoutRect = new Rect(0f, 0f, 120f, 147f);
             spellsListRect = new Rect(itemListScrollerRect.x + itemListScrollerRect.width + paddingWidth, topMarginHeight, spellsListCutoutRect.width, spellsListCutoutRect.height);
@@ -139,7 +139,7 @@ namespace HotKeyHUD
                 BackgroundTexture = ImageReader.GetSubTexture(spellbookTexture, exitButtonCutoutRect)
             };
 
-            hotKeyMenuPopup = HotKeyMenuPopup.Instance;
+            hotKeyMenuPopup = HKHMenuPopup.Instance;
             ResetItemsList();
             ResetSpellsList();
             ParentPanel.BackgroundColor = Color.clear;
@@ -185,7 +185,7 @@ namespace HotKeyHUD
         {
             const int forbiddenEquipmentTextId = 1068;
             const int itemBrokenTextId = 29;
-            if (HotKeyUtil.GetProhibited(item))
+            if (HKHUtil.GetProhibited(item))
             {
                 PushMessageBox(forbiddenEquipmentTextId);
                 return;
@@ -196,14 +196,14 @@ namespace HotKeyHUD
                 return;
             }
 
-            RaiseKeyItemEvent(new KeyItemEventArgs(item, hotKeyMenuPopup.SelectedSlot, PreviousWindow, hotKeyMenuPopup));
+            RaiseKeyItemEvent(new HKHUtil.KeyItemEventArgs(item, hotKeyMenuPopup.SelectedSlot, PreviousWindow, hotKeyMenuPopup));
         }
 
         private void SpellsList_OnSelectItem()
         {
             var spellBook = GameManager.Instance.PlayerEntity.GetSpells();
             var spell = spellBook[spellsList.SelectedIndex];
-            RaiseKeyItemEvent(new KeyItemEventArgs(spell, hotKeyMenuPopup.SelectedSlot, PreviousWindow, hotKeyMenuPopup));
+            RaiseKeyItemEvent(new HKHUtil.KeyItemEventArgs(spell, hotKeyMenuPopup.SelectedSlot, PreviousWindow, hotKeyMenuPopup));
             UpdateSpellScroller();
             DaggerfallUI.Instance.PlayOneShot(SoundClips.ButtonClick);
         }
@@ -255,9 +255,19 @@ namespace HotKeyHUD
             }
         }
 
-        private void RaiseKeyItemEvent(KeyItemEventArgs args)
+        private void RaiseKeyItemEvent(HKHUtil.KeyItemEventArgs args)
         {
             OnKeyItem?.Invoke(this, args);
+        }
+
+        public void HandleKeyDown(KeyCode key)
+        {
+
+        }
+
+        public void HandleKeyUp(KeyCode key)
+        {
+
         }
     }
 }

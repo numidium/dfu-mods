@@ -3,13 +3,31 @@ using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.Items;
 using DaggerfallWorkshop.Game.MagicAndEffects;
+using DaggerfallWorkshop.Game.UserInterface;
 using DaggerfallWorkshop.Utility;
+using System;
 using UnityEngine;
 
 namespace HotKeyHUD
 {
-    public sealed class HotKeyUtil
+    public sealed class HKHUtil
     {
+        public sealed class KeyItemEventArgs : EventArgs
+        {
+            public object Item { get; private set; }
+            public int Slot { get; private set; }
+            public IUserInterfaceWindow PreviousWindow { get; private set; }
+            public HKHMenuPopup Popup { get; private set; }
+
+            public KeyItemEventArgs(object item, int slot, IUserInterfaceWindow previousWindow, HKHMenuPopup popup)
+            {
+                Item = item;
+                Slot = slot;
+                PreviousWindow = previousWindow;
+                Popup = popup;
+            }
+        }
+
         public struct ItemUseEventArgs
         {
             public int Index { get; private set; }

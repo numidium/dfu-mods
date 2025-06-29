@@ -1,13 +1,13 @@
 using DaggerfallWorkshop.Game;
-using System;
 using UnityEngine;
 
 namespace HotKeyHUD
 {
-    public sealed class HotKeyInput : MonoBehaviour
+    public sealed class HKHInput : MonoBehaviour
     {
-        public HotKeyUtil.KeyCodeHandler KeyDownHandler;
-        public HotKeyUtil.BlankHandler SpellAbortHandler;
+        public HKHUtil.KeyCodeHandler KeyDownHandler;
+        public HKHUtil.KeyCodeHandler KeyUpHandler;
+        public HKHUtil.BlankHandler SpellAbortHandler;
         private InputManager inputManager;
 
         private void Start()
@@ -20,6 +20,9 @@ namespace HotKeyHUD
             var keyDown = inputManager.GetAnyKeyDown();
             if (keyDown != KeyCode.None)
                 RaiseKeyDownHandler(keyDown);
+            var keyUp = inputManager.GetAnyKeyUp();
+            if (keyUp != KeyCode.None)
+                RaiseKeyUpHandler(keyUp);
             if (inputManager.ActionStarted(InputManager.Actions.AbortSpell))
                 RaiseSpellAbortHandler();
         }
@@ -27,6 +30,11 @@ namespace HotKeyHUD
         private void RaiseKeyDownHandler(KeyCode keyCode)
         {
             KeyDownHandler?.Invoke(keyCode);
+        }
+
+        private void RaiseKeyUpHandler(KeyCode keyCode)
+        {
+            KeyUpHandler?.Invoke(keyCode);
         }
 
         private void RaiseSpellAbortHandler()

@@ -7,16 +7,16 @@ using UnityEngine;
 
 namespace HotKeyHUD
 {
-    public sealed class HotkeyHUDInventoryMenu : DaggerfallInventoryWindow
+    public sealed class HKHInventoryMenu : DaggerfallInventoryWindow
     {
         private int lastSelectedSlot = -1;
-        private readonly HotKeyMenuPopup hotKeyMenuPopup;
-        public EventHandler<KeyItemEventArgs> OnKeyItem;
+        private readonly HKHMenuPopup hotKeyMenuPopup;
+        public EventHandler<HKHUtil.KeyItemEventArgs> OnKeyItem;
         public EventHandler<List<DaggerfallUnityItem>> OnInventoryClose;
 
-        public HotkeyHUDInventoryMenu(IUserInterfaceManager uiManager, DaggerfallBaseWindow previous = null) : base(uiManager, previous)
+        public HKHInventoryMenu(IUserInterfaceManager uiManager, DaggerfallBaseWindow previous = null) : base(uiManager, previous)
         {
-            hotKeyMenuPopup = HotKeyMenuPopup.Instance;
+            hotKeyMenuPopup = HKHMenuPopup.Instance;
         }
 
         public override void Update()
@@ -35,13 +35,17 @@ namespace HotKeyHUD
         {
             base.Setup();
             NativePanel.Components.Add(hotKeyMenuPopup);
+            // This is a circular dependency and I hate it. It's not easy to get a reference to this object from the other class so this is actually the most elegant way to
+            // do it unfortunately.
+            OnKeyItem += HotKeyHUD.Instance.DisgustingProxyForHandleKeyItem;
+            OnInventoryClose += HotKeyHUD.Instance.DisgustingProxyForHandleInventoryClose;
         }
 
         protected override void LocalItemListScroller_OnItemClick(DaggerfallUnityItem item, ActionModes actionMode)
         {
-            if (hotKeyMenuPopup.Enabled && item.currentCondition > 0 && !HotKeyUtil.GetProhibited(item))
+            if (hotKeyMenuPopup.Enabled && item.currentCondition > 0 && !HKHUtil.GetProhibited(item))
             {
-                RaiseKeyItemEvent(new KeyItemEventArgs(item, hotKeyMenuPopup.SelectedSlot, PreviousWindow, hotKeyMenuPopup));
+                RaiseKeyItemEvent(new HKHUtil.KeyItemEventArgs(item, hotKeyMenuPopup.SelectedSlot, PreviousWindow, hotKeyMenuPopup));
                 return;
             }
 
@@ -55,9 +59,9 @@ namespace HotKeyHUD
                 return;
             var slot = (EquipSlots)equipInd;
             var item = playerEntity.ItemEquipTable.GetItem(slot);
-            if (item != null && hotKeyMenuPopup.Enabled && item.currentCondition > 0 && !HotKeyUtil.GetProhibited(item))
+            if (item != null && hotKeyMenuPopup.Enabled && item.currentCondition > 0 && !HKHUtil.GetProhibited(item))
             {
-                RaiseKeyItemEvent(new KeyItemEventArgs(item, hotKeyMenuPopup.SelectedSlot, PreviousWindow, hotKeyMenuPopup));
+                RaiseKeyItemEvent(new HKHUtil.KeyItemEventArgs(item, hotKeyMenuPopup.SelectedSlot, PreviousWindow, hotKeyMenuPopup));
                 return;
             }
 
@@ -68,16 +72,26 @@ namespace HotKeyHUD
         {
             var slot = (EquipSlots)sender.Tag;
             var item = playerEntity.ItemEquipTable.GetItem(slot);
-            if (item != null && hotKeyMenuPopup.Enabled && item.currentCondition > 0 && !HotKeyUtil.GetProhibited(item))
+            if (item != null && hotKeyMenuPopup.Enabled && item.currentCondition > 0 && !HKHUtil.GetProhibited(item))
             {
-                RaiseKeyItemEvent(new KeyItemEventArgs(item, hotKeyMenuPopup.SelectedSlot, PreviousWindow, hotKeyMenuPopup));
+                RaiseKeyItemEvent(new HKHUtil.KeyItemEventArgs(item, hotKeyMenuPopup.SelectedSlot, PreviousWindow, hotKeyMenuPopup));
                 return;
             }
 
             base.AccessoryItemsButton_OnLeftMouseClick(sender, position);
         }
 
-        private void RaiseKeyItemEvent(KeyItemEventArgs args)
+        public void HandleKeyDown(KeyCode keyCode)
+        {
+
+        }
+
+        public void HandleKeyUp(KeyCode keyCode)
+        {
+
+        }
+
+        private void RaiseKeyItemEvent(HKHUtil.KeyItemEventArgs args)
         {
             OnKeyItem?.Invoke(this, args);
         }

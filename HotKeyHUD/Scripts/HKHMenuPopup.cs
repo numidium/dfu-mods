@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace HotKeyHUD
 {
-    public sealed class HotKeyMenuPopup : Panel
+    public sealed class HKHMenuPopup : Panel
     {
         public static bool OverrideMenus { get; set; }
         private const float overrideXOffset = 222f;
@@ -16,22 +16,22 @@ namespace HotKeyHUD
         private readonly float xOffset;
         private readonly float yOffset;
         private readonly bool clickable;
-        private static HotKeyMenuPopup instance;
-        public HotKeyButton[] HotKeyButtons { get; private set; }
+        private static HKHMenuPopup instance;
+        public HKHButton[] HotKeyButtons { get; private set; }
         public bool Initialized { get; private set; }
         public int SelectedSlot { get; private set; }
 
-        public static HotKeyMenuPopup Instance
+        public static HKHMenuPopup Instance
         {
             get
             {
                 if (instance == null)
-                    instance = new HotKeyMenuPopup(!OverrideMenus);
+                    instance = new HKHMenuPopup(!OverrideMenus);
                 return instance;
             }
         }
 
-        private HotKeyMenuPopup(bool clickable) : base()
+        private HKHMenuPopup(bool clickable) : base()
         {
             if (!clickable)
             {
@@ -50,12 +50,12 @@ namespace HotKeyHUD
 
         public void Initialize()
         {
-            HotKeyButtons = new HotKeyButton[HotKeyUtil.IconCount];
-            var itemBackdrops = HotKeyUtil.ItemBackdrops;
+            HotKeyButtons = new HKHButton[HKHUtil.IconCount];
+            var itemBackdrops = HKHUtil.ItemBackdrops;
             for (var i = 0; i < HotKeyButtons.Length; i++)
             {
-                HotKeyButtons[i] = new HotKeyButton(itemBackdrops[i],
-                    new Vector2(xOffset + (float)((i % 3) * HotKeyButton.buttonWidth), yOffset + (i / 3) * HotKeyButton.buttonHeight + .5f), i + 1);
+                HotKeyButtons[i] = new HKHButton(itemBackdrops[i],
+                    new Vector2(xOffset + (float)((i % 3) * HKHButton.buttonWidth), yOffset + (i / 3) * HKHButton.buttonHeight + .5f), i + 1);
                 if (clickable)
                     HotKeyButtons[i].OnMouseClick += HotKeyMenuPopup_OnMouseClick;
                 Components.Add(HotKeyButtons[i]);
@@ -115,9 +115,9 @@ namespace HotKeyHUD
                 Enabled = false;
         }
 
-        public void HandleItemSet(HotKeyUtil.ItemSetEventArgs args)
+        public void HandleItemSet(HKHUtil.ItemSetEventArgs args)
         {
-            if (args.Index == HotKeyUtil.EquippedButtonIndex)
+            if (args.Index == HKHUtil.EquippedButtonIndex)
                 return;
             if (args.Item is EffectBundleSettings spell)
                 HotKeyButtons[args.Index].SetSpell(spell);
@@ -127,7 +127,7 @@ namespace HotKeyHUD
 
         private void HotKeyMenuPopup_OnMouseClick(BaseScreenComponent sender, Vector2 position)
         {
-            var button = sender as HotKeyButton;
+            var button = sender as HKHButton;
             SetSelectedSlot(button.PositionIndex);
             DaggerfallUI.Instance.PlayOneShot(DaggerfallWorkshop.SoundClips.ButtonClick);
         }

@@ -9,31 +9,31 @@ using UnityEngine;
 
 namespace HotKeyHUD
 {
-    public sealed class HotKeyDisplay : Panel
+    public sealed class HKHDisplay : Panel
     {
         private const float iconsY = 177f;
         private const float leftX = 70f;
         private const float retroLeftX = 50f;
         private readonly PlayerEntity playerEntity;
-        private static HotKeyDisplay instance;
+        private static HKHDisplay instance;
         private float textTime;
         public bool Initialized { get; set; }
-        public HotKeyButton[] HotKeyButtons { get; private set; }
-        public HotKeyButton EquippedButton { get; private set; }
+        public HKHButton[] HotKeyButtons { get; private set; }
+        public HKHButton EquippedButton { get; private set; }
         public TextLabel NameLabel { get; private set; }
-        public HotKeyUtil.HUDVisibility Visibility { get; set; }
+        public HKHUtil.HUDVisibility Visibility { get; set; }
         public bool EquipDelayDisabled { private get; set; }
-        public static HotKeyDisplay Instance
+        public static HKHDisplay Instance
         {
             get
             {
                 if (instance == null)
-                    instance = new HotKeyDisplay();
+                    instance = new HKHDisplay();
                 return instance;
             }
         }
 
-        private HotKeyDisplay() : base()
+        private HKHDisplay() : base()
         {
             Enabled = false;
             playerEntity = GameManager.Instance.PlayerEntity;
@@ -62,13 +62,13 @@ namespace HotKeyHUD
             }
 
             // Update button visibility
-            if (Visibility == HotKeyUtil.HUDVisibility.Equipped && !EquippedButton.Enabled)
+            if (Visibility == HKHUtil.HUDVisibility.Equipped && !EquippedButton.Enabled)
             {
                 EquippedButton.Enabled = true;
                 foreach (var button in HotKeyButtons)
                     button.Enabled = false;
             }
-            else if (Visibility == HotKeyUtil.HUDVisibility.Full && EquippedButton.Enabled)
+            else if (Visibility == HKHUtil.HUDVisibility.Full && EquippedButton.Enabled)
             {
                 EquippedButton.Enabled = false;
                 foreach (var button in HotKeyButtons)
@@ -78,7 +78,7 @@ namespace HotKeyHUD
 
         public override void Draw()
         {
-            if (!Enabled || Visibility == HotKeyUtil.HUDVisibility.None)
+            if (!Enabled || Visibility == HKHUtil.HUDVisibility.None)
                 return;
             base.Draw();
         }
@@ -98,7 +98,7 @@ namespace HotKeyHUD
             ResetButtons();
         }
 
-        public void HandleItemSet(HotKeyUtil.ItemSetEventArgs args)
+        public void HandleItemSet(HKHUtil.ItemSetEventArgs args)
         {
             if (args.Item is EffectBundleSettings spell)
                 SetButtonSpell(args.Index, spell);
@@ -106,7 +106,7 @@ namespace HotKeyHUD
                 SetButtonItem(args.Index, (DaggerfallUnityItem)args.Item);
         }
 
-        public void HandleItemActivate(HotKeyUtil.ItemUseEventArgs args)
+        public void HandleItemActivate(HKHUtil.ItemUseEventArgs args)
         {
             const string emptyKeyText = "NullSlot";
             const float textTimeout = 2.5f;
@@ -143,7 +143,7 @@ namespace HotKeyHUD
 
         public void UpdateItemDisplay(int index, DaggerfallUnityItem dfuItem)
         {
-            if (index == HotKeyUtil.EquippedButtonIndex)
+            if (index == HKHUtil.EquippedButtonIndex)
                 EquippedButton.UpdateItemDisplay(dfuItem);
             else
                 HotKeyButtons[index].UpdateItemDisplay(dfuItem);
@@ -157,7 +157,7 @@ namespace HotKeyHUD
         /// <param name="forceUse">Whether or not to "Use" the item on activation.</param>
         private void SetButtonItem(int index, DaggerfallUnityItem item)
         {
-            if (index == HotKeyUtil.EquippedButtonIndex)
+            if (index == HKHUtil.EquippedButtonIndex)
             {
                 EquippedButton.SetItem(item);
                 return;
@@ -175,18 +175,18 @@ namespace HotKeyHUD
         {
             // Init buttons/icons.
             Components.Clear();
-            HotKeyButtons = new HotKeyButton[HotKeyUtil.IconCount];
+            HotKeyButtons = new HKHButton[HKHUtil.IconCount];
             float xPosition = 0f;
-            var itemBackdrops = HotKeyUtil.ItemBackdrops;
+            var itemBackdrops = HKHUtil.ItemBackdrops;
             for (var i = 0; i < HotKeyButtons.Length; i++)
             {
                 var position = new Vector2 { x = xPosition, y = iconsY };
-                HotKeyButtons[i] = new HotKeyButton(itemBackdrops[i], position, i + 1);
+                HotKeyButtons[i] = new HKHButton(itemBackdrops[i], position, i + 1);
                 Components.Add(HotKeyButtons[i]);
-                xPosition += HotKeyButton.buttonWidth;
+                xPosition += HKHButton.buttonWidth;
             }
 
-            EquippedButton = new HotKeyButton(itemBackdrops[0], new Vector2 { x = 0f, y = iconsY }, 0);
+            EquippedButton = new HKHButton(itemBackdrops[0], new Vector2 { x = 0f, y = iconsY }, 0);
             EquippedButton.KeyLabel.Enabled = false;
             EquippedButton.Enabled = false;
             Components.Add(EquippedButton);
