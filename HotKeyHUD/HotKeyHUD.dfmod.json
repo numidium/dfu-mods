@@ -16,7 +16,6 @@
         "Assets/Game/Mods/HotKeyHUD/Scripts/HKHSpellbookWindow.cs",
         "Assets/Game/Mods/HotKeyHUD/Scripts/HKHMenuPopup.cs",
         "Assets/Game/Mods/HotKeyHUD/Scripts/HKHUtil.cs",
-        "Assets/Game/Mods/HotKeyHUD/Scripts/HKHMessageBroker.cs",
         "Assets/Game/Mods/HotKeyHUD/Scripts/HKHButton.cs",
         "Assets/Game/Mods/HotKeyHUD/modsettings.json",
         "Assets/Game/Mods/HotKeyHUD/textdatabase.txt"

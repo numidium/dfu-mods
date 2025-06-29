@@ -8,6 +8,7 @@ namespace HotKeyHUD
         public HKHUtil.KeyCodeHandler KeyDownHandler;
         public HKHUtil.KeyCodeHandler KeyUpHandler;
         public HKHUtil.BlankHandler SpellAbortHandler;
+        public HKHUtil.BlankHandler ReadyWeaponHandler;
         private InputManager inputManager;
 
         private void Start()
@@ -25,6 +26,8 @@ namespace HotKeyHUD
                 RaiseKeyUpHandler(keyUp);
             if (inputManager.ActionStarted(InputManager.Actions.AbortSpell))
                 RaiseSpellAbortHandler();
+            if (inputManager.ActionStarted(InputManager.Actions.ReadyWeapon))
+                RaiseReadyWeaponHandler();
         }
 
         private void RaiseKeyDownHandler(KeyCode keyCode)
@@ -40,6 +43,11 @@ namespace HotKeyHUD
         private void RaiseSpellAbortHandler()
         {
             SpellAbortHandler?.Invoke();
+        }
+
+        private void RaiseReadyWeaponHandler()
+        {
+            ReadyWeaponHandler?.Invoke();
         }
     }
 }

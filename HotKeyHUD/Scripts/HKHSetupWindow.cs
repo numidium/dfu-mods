@@ -48,6 +48,8 @@ namespace HotKeyHUD
         }
 
         public EventHandler<HKHUtil.KeyItemEventArgs> OnKeyItem;
+        public HKHUtil.BlankHandler OnOpen;
+        public HKHUtil.BlankHandler OnSetupClose;
 
         private HKHSetupWindow(IUserInterfaceManager uiManager) : base(uiManager)
         {
@@ -70,12 +72,19 @@ namespace HotKeyHUD
                 ResetSpellsList();
                 UpdateSpellScroller();
             }
+
+            RaiseOnOpenEvent();
+        }
+
+        public override void OnPop()
+        {
+            base.OnPop();
+            RaiseOnSetupCloseHandler();
         }
 
         public override void Update()
         {
             base.Update();
-            hotKeyMenuPopup.HandleSlotSelect(ref lastSelectedSlot);
         }
 
         protected override void Setup()
@@ -260,14 +269,26 @@ namespace HotKeyHUD
             OnKeyItem?.Invoke(this, args);
         }
 
+        private void RaiseOnOpenEvent()
+        {
+            OnOpen?.Invoke();
+        }
+
+        private void RaiseOnSetupCloseHandler()
+        {
+            OnSetupClose?.Invoke();
+        }
+
         public void HandleKeyDown(KeyCode key)
         {
-
+            if (key > KeyCode.Alpha0 && key <= KeyCode.Alpha9)
+                hotKeyMenuPopup.SelectSlot(key - KeyCode.Alpha1, ref lastSelectedSlot);
         }
 
         public void HandleKeyUp(KeyCode key)
         {
-
+            if (key > KeyCode.Alpha0 && key <= KeyCode.Alpha9)
+                hotKeyMenuPopup.UnselectSlot();
         }
     }
 }

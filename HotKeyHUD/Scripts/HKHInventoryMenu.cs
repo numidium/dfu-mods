@@ -13,32 +13,29 @@ namespace HotKeyHUD
         private readonly HKHMenuPopup hotKeyMenuPopup;
         public EventHandler<HKHUtil.KeyItemEventArgs> OnKeyItem;
         public EventHandler<List<DaggerfallUnityItem>> OnInventoryClose;
+        public HKHUtil.SenderHandler OnOpen;
 
         public HKHInventoryMenu(IUserInterfaceManager uiManager, DaggerfallBaseWindow previous = null) : base(uiManager, previous)
         {
             hotKeyMenuPopup = HKHMenuPopup.Instance;
         }
 
-        public override void Update()
+        public override void OnPush()
         {
-            base.Update();
-            hotKeyMenuPopup.HandleSlotSelect(ref lastSelectedSlot);
+            base.OnPush();
+            RaiseOnInventoryOpenEvent(this);
         }
 
         public override void OnPop()
         {
-            RaiseOnInventoryClose(remoteItemListScroller.Items);
             base.OnPop();
+            RaiseOnInventoryClose(remoteItemListScroller.Items);
         }
 
         protected override void Setup()
         {
             base.Setup();
             NativePanel.Components.Add(hotKeyMenuPopup);
-            // This is a circular dependency and I hate it. It's not easy to get a reference to this object from the other class so this is actually the most elegant way to
-            // do it unfortunately.
-            OnKeyItem += HotKeyHUD.Instance.DisgustingProxyForHandleKeyItem;
-            OnInventoryClose += HotKeyHUD.Instance.DisgustingProxyForHandleInventoryClose;
         }
 
         protected override void LocalItemListScroller_OnItemClick(DaggerfallUnityItem item, ActionModes actionMode)
@@ -83,12 +80,14 @@ namespace HotKeyHUD
 
         public void HandleKeyDown(KeyCode keyCode)
         {
-
+            if (keyCode > KeyCode.Alpha0 && keyCode <= KeyCode.Alpha9)
+                hotKeyMenuPopup.SelectSlot(keyCode - KeyCode.Alpha1, ref lastSelectedSlot);
         }
 
         public void HandleKeyUp(KeyCode keyCode)
         {
-
+            if (keyCode > KeyCode.Alpha0 && keyCode <= KeyCode.Alpha9 && keyCode - KeyCode.Alpha1 == lastSelectedSlot)
+                hotKeyMenuPopup.UnselectSlot();
         }
 
         private void RaiseKeyItemEvent(HKHUtil.KeyItemEventArgs args)
@@ -99,6 +98,11 @@ namespace HotKeyHUD
         private void RaiseOnInventoryClose(List<DaggerfallUnityItem> items)
         {
             OnInventoryClose?.Invoke(this, items);
+        }
+
+        private void RaiseOnInventoryOpenEvent(object sender)
+        {
+            OnOpen?.Invoke(this);
         }
     }
 }

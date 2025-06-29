@@ -2,6 +2,7 @@ using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.UserInterface;
 using DaggerfallWorkshop.Game.UserInterfaceWindows;
 using System;
+using UnityEngine;
 
 namespace HotKeyHUD
 {
@@ -10,24 +11,30 @@ namespace HotKeyHUD
         private int lastSelectedSlot = -1;
         private readonly HKHMenuPopup hotKeyMenuPopup;
         public event EventHandler<HKHUtil.KeyItemEventArgs> OnKeyItem;
+        public HKHUtil.SenderHandler OnOpen;
+        public HKHUtil.SenderHandler OnSpellbookClose;
 
         public HKHSpellbookWindow(IUserInterfaceManager uiManager, DaggerfallBaseWindow previous = null, bool buyMode = false) : base(uiManager, previous, buyMode)
         {
             hotKeyMenuPopup = HKHMenuPopup.Instance;
         }
 
-        public override void Update()
-        {
-            base.Update();
-            hotKeyMenuPopup.HandleSlotSelect(ref lastSelectedSlot);
-        }
-
         protected override void Setup()
         {
             base.Setup();
             NativePanel.Components.Add(hotKeyMenuPopup);
-            // This is a circular dependency and I hate it. My hand was forced because there's no way to retrieve a reference to this from DaggerfallUI.
-            OnKeyItem += HotKeyHUD.Instance.DisgustingProxyForHandleKeyItem;
+        }
+
+        public override void OnPush()
+        {
+            base.OnPush();
+            RaiseOnOpenEvent();
+        }
+
+        public override void OnPop()
+        {
+            base.OnPop();
+            RaiseSpellbookCloseEvent();
         }
 
         protected override void SpellsListBox_OnSelectItem()
@@ -45,6 +52,28 @@ namespace HotKeyHUD
         private void RaiseKeyItemEvent(HKHUtil.KeyItemEventArgs args)
         {
             OnKeyItem?.Invoke(this, args);
+        }
+
+        private void RaiseOnOpenEvent()
+        {
+            OnOpen?.Invoke(this);
+        }
+
+        private void RaiseSpellbookCloseEvent()
+        {
+            OnSpellbookClose?.Invoke(this);
+        }
+
+        public void HandleKeyDown(KeyCode keyCode)
+        {
+            if (keyCode > KeyCode.Alpha0 && keyCode <= KeyCode.Alpha9)
+                hotKeyMenuPopup.SelectSlot(keyCode - KeyCode.Alpha1, ref lastSelectedSlot);
+        }
+
+        public void HandleKeyUp(KeyCode keyCode)
+        {
+            if (keyCode > KeyCode.Alpha0 && keyCode <= KeyCode.Alpha9 && keyCode - KeyCode.Alpha1 == lastSelectedSlot)
+                hotKeyMenuPopup.UnselectSlot();
         }
     }
 }

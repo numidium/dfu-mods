@@ -115,6 +115,24 @@ namespace HotKeyHUD
                 Enabled = false;
         }
 
+        public void SelectSlot(int slotNum, ref int lastSelectedSlot)
+        {
+            if (!Initialized)
+                Initialize();
+            if (slotNum != lastSelectedSlot)
+                SetSelectedSlot(slotNum);
+            lastSelectedSlot = slotNum;
+            if (!clickable && Enabled == false)
+                Enabled = true;
+        }
+
+        public void UnselectSlot()
+        {
+            // If overriding inventory window, show hotkey popup when hotkey is pressed and hide when released.
+            if (!clickable)
+                Enabled = false;
+        }
+
         public void HandleItemSet(HKHUtil.ItemSetEventArgs args)
         {
             if (args.Index == HKHUtil.EquippedButtonIndex)

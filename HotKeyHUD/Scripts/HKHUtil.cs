@@ -56,6 +56,7 @@ namespace HotKeyHUD
         public const int IconCount = 9;
         public const int EquippedButtonIndex = IconCount;
         public delegate void BlankHandler();
+        public delegate void SenderHandler(object sender);
         public delegate void KeyCodeHandler(KeyCode keyCode);
         public delegate void ItemUseHandler(ItemUseEventArgs args);
         public delegate void ItemSetHandler(ItemSetEventArgs args);

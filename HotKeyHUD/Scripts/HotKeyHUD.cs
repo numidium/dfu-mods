@@ -26,6 +26,7 @@ namespace HotKeyHUD
         public Type SaveDataType => typeof(HKHSaveData);
         private KeyCode setupMenuKey;
         private KeyItem[] keyItems;
+        private HKHInput hkhInput;
         private DaggerfallHUD daggerfallHud;
         private HKHDisplay hotKeyDisplay;
         private DaggerfallUnityItem equippedItem;
@@ -37,6 +38,7 @@ namespace HotKeyHUD
         private EntityEffectManager playerEffectManager;
         private bool autoRecastEnabled;
         private EntityEffectBundle autoSpell;
+        private bool inventoryEventsSet, spellbookEventsSet;
 
         private struct KeyItem
         {
@@ -140,16 +142,6 @@ namespace HotKeyHUD
             return keyItems[slot].Item;
         }
 
-        public void DisgustingProxyForHandleKeyItem(object sender, HKHUtil.KeyItemEventArgs args)
-        {
-            HandleKeyItem(sender, args);
-        }
-
-        public void DisgustingProxyForHandleInventoryClose(object sender, List<DaggerfallUnityItem> remoteItems)
-        {
-            HandleInventoryClose(sender, remoteItems);
-        }
-
         // Load settings that can change during runtime.
         private void LoadSettings(ModSettings settings, ModSettingsChange change)
         {
@@ -170,8 +162,8 @@ namespace HotKeyHUD
 
         private void Start()
         {
-            var input = gameObject.AddComponent<HKHInput>();
-            if (!input)
+            hkhInput = gameObject.AddComponent<HKHInput>();
+            if (!hkhInput)
             {
                 Debug.Log($"{modName}: Fatal error - could not add input handler component.");
                 Destroy(this);
@@ -194,8 +186,8 @@ namespace HotKeyHUD
             {
                 HKHSetupWindow.Instance.Localize = mod.Localize;
                 HKHSetupWindow.Instance.OnKeyItem += HandleKeyItem;
-                input.KeyDownHandler += HKHSetupWindow.Instance.HandleKeyDown;
-                input.KeyUpHandler += HKHSetupWindow.Instance.HandleKeyUp;
+                HKHSetupWindow.Instance.OnOpen += HandleSetupOpen;
+                HKHSetupWindow.Instance.OnSetupClose += HandleSetupClose;
             }
 
             hotKeyDisplay = HKHDisplay.Instance;
@@ -205,8 +197,9 @@ namespace HotKeyHUD
             keyItems = new KeyItem[itemCount];
             playerEffectManager = GameManager.Instance.PlayerEffectManager;
             // Set up events
-            input.KeyDownHandler += HandleKeyDown;
-            input.SpellAbortHandler += HandleSpellAbort;
+            hkhInput.KeyDownHandler += HandleKeyDown;
+            hkhInput.SpellAbortHandler += HandleSpellAbort;
+            hkhInput.ReadyWeaponHandler += HandleReadyWeapon;
             OnResetKeyItems += hotKeyDisplay.ResetItemsHandler;
             OnSetKeyItem += hotKeyDisplay.HandleItemSet;
             OnSetKeyItem += HKHMenuPopup.Instance.HandleItemSet;
@@ -274,6 +267,26 @@ namespace HotKeyHUD
 
             if (autoRecastEnabled && autoSpell != null && !playerEffectManager.HasReadySpell && !GameManager.Instance.PlayerSpellCasting.IsPlayingAnim)
                 playerEffectManager.SetReadySpell(autoSpell);
+
+            if (!HKHMenuPopup.OverrideMenus)
+                return;
+            if (!inventoryEventsSet && DaggerfallUI.UIManager.TopWindow is HKHInventoryMenu hkhInventoryMenu)
+            {
+                hkhInventoryMenu.OnOpen += HandleInventoryMenuOpen;
+                HandleInventoryMenuOpen(hkhInventoryMenu); // events need to be setup on first open
+                hkhInventoryMenu.OnKeyItem += HandleKeyItem;
+                hkhInventoryMenu.OnInventoryClose += HandleInventoryClose;
+                inventoryEventsSet = true;
+            }
+
+            if (!spellbookEventsSet && DaggerfallUI.UIManager.TopWindow is HKHSpellbookWindow hkhSpellbookWindow)
+            {
+                hkhSpellbookWindow.OnOpen += HandleSpellbookOpen;
+                HandleSpellbookOpen(hkhSpellbookWindow);
+                hkhSpellbookWindow.OnSpellbookClose += HandleSpellbookClose;
+                hkhSpellbookWindow.OnKeyItem += HandleKeyItem;
+                spellbookEventsSet = true;
+            }
         }
 
         private void OnPlayerDeath(DaggerfallEntity entity)
@@ -303,6 +316,14 @@ namespace HotKeyHUD
             }
         }
 
+
+        private void HandleInventoryMenuOpen(object sender)
+        {
+            var hkhInventoryMenu = sender as HKHInventoryMenu;
+            hkhInput.KeyDownHandler += hkhInventoryMenu.HandleKeyDown;
+            hkhInput.KeyUpHandler += hkhInventoryMenu.HandleKeyUp;
+        }
+
         private void HandleInventoryClose(object sender, List<DaggerfallUnityItem> remoteItems)
         {
             // Remove discarded items from keyed buttons.
@@ -311,6 +332,36 @@ namespace HotKeyHUD
                 if (keyItems[i].Item is DaggerfallUnityItem item && remoteItems.Contains(item))
                     SetKeyItem(i, null);
             }
+
+            var hkhInventoryMenu = sender as HKHInventoryMenu;
+            hkhInput.KeyDownHandler -= hkhInventoryMenu.HandleKeyDown;
+            hkhInput.KeyUpHandler -= hkhInventoryMenu.HandleKeyUp;
+        }
+
+        private void HandleSpellbookOpen(object sender)
+        {
+            var hkhSpellbookWindow = sender as HKHSpellbookWindow;
+            hkhInput.KeyDownHandler += hkhSpellbookWindow.HandleKeyDown;
+            hkhInput.KeyUpHandler += hkhSpellbookWindow.HandleKeyUp;
+        }
+
+        private void HandleSpellbookClose(object sender)
+        {
+            var hkhSpellbookWindow = sender as HKHSpellbookWindow;
+            hkhInput.KeyDownHandler -= hkhSpellbookWindow.HandleKeyDown;
+            hkhInput.KeyUpHandler -= hkhSpellbookWindow.HandleKeyUp;
+        }
+
+        private void HandleSetupOpen()
+        {
+            hkhInput.KeyDownHandler += HKHSetupWindow.Instance.HandleKeyDown;
+            hkhInput.KeyUpHandler += HKHSetupWindow.Instance.HandleKeyUp;
+        }
+
+        private void HandleSetupClose()
+        {
+            hkhInput.KeyDownHandler -= HKHSetupWindow.Instance.HandleKeyDown;
+            hkhInput.KeyUpHandler -= HKHSetupWindow.Instance.HandleKeyUp;
         }
 
         private void ActionSelectDialog_OnButtonClick(DaggerfallMessageBox sender, DaggerfallMessageBox.MessageBoxButtons messageBoxButton)
@@ -602,6 +653,11 @@ namespace HotKeyHUD
         {
             autoSpell = null;
             playerEffectManager.AbortReadySpell();
+        }
+
+        private void HandleReadyWeapon()
+        {
+            autoSpell = null;
         }
 
         private void RaiseResetKeyItems()
