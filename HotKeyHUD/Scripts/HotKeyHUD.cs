@@ -307,7 +307,7 @@ namespace HotKeyHUD
             ResetItems();
         }
 
-        private void HandleKeyItem(object sender, HKHUtil.KeyItemEventArgs args)
+        private void HandleKeyItem(HKHUtil.KeyItemEventArgs args)
         {
             const string actionTypeSelectKey = "KeyAsUse";
             var equipTable = GameManager.Instance.PlayerEntity.ItemEquipTable;

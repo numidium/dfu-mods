@@ -60,6 +60,7 @@ namespace HotKeyHUD
         public delegate void KeyCodeHandler(KeyCode keyCode);
         public delegate void ItemUseHandler(ItemUseEventArgs args);
         public delegate void ItemSetHandler(ItemSetEventArgs args);
+        public delegate void KeyItemHandler(KeyItemEventArgs args);
         private const float iconWidth = 23f;
         private const float iconHeight = 22f;
         private const string baseInvTextureName = "INVE00I0.IMG";

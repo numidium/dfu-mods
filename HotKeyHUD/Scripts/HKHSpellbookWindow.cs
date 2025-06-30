@@ -10,7 +10,7 @@ namespace HotKeyHUD
     {
         private int lastSelectedSlot = -1;
         private readonly HKHMenuPopup hotKeyMenuPopup;
-        public event EventHandler<HKHUtil.KeyItemEventArgs> OnKeyItem;
+        public event HKHUtil.KeyItemHandler OnKeyItem;
         public HKHUtil.SenderHandler OnOpen;
         public HKHUtil.SenderHandler OnSpellbookClose;
 
@@ -51,7 +51,7 @@ namespace HotKeyHUD
 
         private void RaiseKeyItemEvent(HKHUtil.KeyItemEventArgs args)
         {
-            OnKeyItem?.Invoke(this, args);
+            OnKeyItem?.Invoke(args);
         }
 
         private void RaiseOnOpenEvent()

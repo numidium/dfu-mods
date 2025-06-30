@@ -11,7 +11,7 @@ namespace HotKeyHUD
     {
         private int lastSelectedSlot = -1;
         private readonly HKHMenuPopup hotKeyMenuPopup;
-        public EventHandler<HKHUtil.KeyItemEventArgs> OnKeyItem;
+        public HKHUtil.KeyItemHandler OnKeyItem;
         public EventHandler<List<DaggerfallUnityItem>> OnInventoryClose;
         public HKHUtil.SenderHandler OnOpen;
 
@@ -92,7 +92,7 @@ namespace HotKeyHUD
 
         private void RaiseKeyItemEvent(HKHUtil.KeyItemEventArgs args)
         {
-            OnKeyItem?.Invoke(this, args);
+            OnKeyItem?.Invoke(args);
         }
 
         private void RaiseOnInventoryClose(List<DaggerfallUnityItem> items)

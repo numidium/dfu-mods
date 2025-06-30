@@ -47,7 +47,7 @@ namespace HotKeyHUD
             }
         }
 
-        public EventHandler<HKHUtil.KeyItemEventArgs> OnKeyItem;
+        public HKHUtil.KeyItemHandler OnKeyItem;
         public HKHUtil.BlankHandler OnOpen;
         public HKHUtil.BlankHandler OnSetupClose;
 
@@ -266,7 +266,7 @@ namespace HotKeyHUD
 
         private void RaiseKeyItemEvent(HKHUtil.KeyItemEventArgs args)
         {
-            OnKeyItem?.Invoke(this, args);
+            OnKeyItem?.Invoke(args);
         }
 
         private void RaiseOnOpenEvent()
