@@ -27,6 +27,7 @@ namespace HotKeyHUD
         private const float iconsY = 177f;
         private const float buttonXStart = 180f;
         private const float retroButtonXStart = 160f;
+        const float spellIconScale = .8f;
         private readonly Vector2 originalPosition;
         public byte PositionIndex { get; set; }
         public Panel Icon => (Panel)Components[(int)ComponentSlot.IconPanel];
@@ -34,7 +35,7 @@ namespace HotKeyHUD
         public TextLabel StackLabel => (TextLabel)Components[(int)ComponentSlot.ButtonStackLabel];
         public Panel ConditionBarBackground => (Panel)Components[(int)ComponentSlot.ButtonConditionBarBackground];
         public Panel ConditionBar => (Panel)Components[(int)ComponentSlot.ButtonConditionBar];
-        private int itemBgWidth, itemBgHeight;
+        private Vector2 itemBgSize, itemBgTexSize;
         private static Vector2 KeyLabelOriginalPos = new Vector2(1f, 1f);
         private static Vector2 StackLabelOriginalPos = new Vector2(1f, 14f);
         private static Vector2 CondBarOriginalPos = new Vector2(2f, buttonHeight - 3f);
@@ -129,10 +130,10 @@ namespace HotKeyHUD
             else
             {
                 var image = DaggerfallUnity.Instance.ItemHelper.GetInventoryImage(item);
-                itemBgWidth = image.width;
-                itemBgHeight = image.height;
+                itemBgSize = new Vector2(image.width, image.height);
+                itemBgTexSize = new Vector2(image.texture.width, image.texture.height);
                 Icon.BackgroundTexture = image.texture;
-                Icon.Size = new Vector2(image.width == 0 ? image.texture.width : itemBgWidth, itemBgHeight == 0 ? image.texture.height : itemBgHeight);
+                Icon.Size = new Vector2(image.width == 0 ? itemBgTexSize.x : itemBgSize.x, itemBgSize.y == 0 ? itemBgTexSize.y : itemBgSize.y);
                 StackLabel.Enabled = item.IsStackable() || HKHUtil.IsBow(item);
                 // I'm assuming there aren't any stackables with condition worth tracking.
                 ConditionBar.Enabled = !StackLabel.Enabled || HKHUtil.IsBow(item);
@@ -142,7 +143,6 @@ namespace HotKeyHUD
 
         public void SetSpell(in EffectBundleSettings spell)
         {
-            const float spellIconScale = .8f;
             Icon.BackgroundTexture = DaggerfallUI.Instance.SpellIconCollection.GetSpellIcon(spell.Icon);
             Icon.Size = new Vector2(Icon.Parent.Size.x * spellIconScale, Icon.Parent.Size.y * spellIconScale);
             StackLabel.Enabled = false;
@@ -162,15 +162,10 @@ namespace HotKeyHUD
             Scale = scale;
             Position = new Vector2((float)Math.Round((xStart - iconsWidth / 2f + originalPosition.x + 0.5f) * scale.x) + .5f, (float)Math.Round(iconsY * scale.y) + .5f);
             Size = new Vector2((float)Math.Round(buttonWidth * scale.x + .5f), (float)Math.Round(buttonHeight * scale.y) + .5f);
-
-            /*
             if (ConditionBar.Enabled)
-            {
-                var image = DaggerfallUnity.Instance.ItemHelper.GetInventoryImage(item);
-                Icon.Size = new Vector2(image.width == 0 ? image.texture.width : image.width, image.height == 0 ? image.texture.height : image.height);
-            }
-            */
-            
+                Icon.Size = new Vector2(itemBgSize.x == 0 ? itemBgTexSize.x : itemBgSize.x, itemBgSize.y == 0 ? itemBgTexSize.y : itemBgSize.y);
+            else
+                Icon.Size = new Vector2(Icon.Parent.Size.x * spellIconScale, Icon.Parent.Size.y * spellIconScale);
             KeyLabel.Scale = scale;
             KeyLabel.Position = new Vector2((float)Math.Round(KeyLabelOriginalPos.x * scale.x + .5f), (float)Math.Round(KeyLabelOriginalPos.y * scale.y + .5f));
             KeyLabel.TextScale = scale.x;

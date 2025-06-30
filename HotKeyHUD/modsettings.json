@@ -18,6 +18,18 @@
                     "$version": "v1",
                     "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.MultipleChoiceKey"
 				},
+                {
+                    "Options": [
+                        "50 percent",
+                        "75 percent",
+                        "Full"
+                    ],
+                    "Value": "2",
+                    "Name": "HUD Scale",
+                    "Description": "Size of element on HUD."
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.MultipleChoiceKey"
+                },
 				{
 					"Value": "True",
                     "Name": "Override Menus",
@@ -45,7 +57,7 @@
                     "Description": "Ready on-target spells after initial cast."
                     "$version": "v1",
                     "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
-                }                
+                }
             ],
             "$version": "v1"
         }

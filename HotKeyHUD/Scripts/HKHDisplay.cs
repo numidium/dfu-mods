@@ -23,6 +23,7 @@ namespace HotKeyHUD
         public TextLabel NameLabel { get; private set; }
         public HKHUtil.HUDVisibility Visibility { get; set; }
         public bool EquipDelayDisabled { private get; set; }
+        public float ScaleMult { private get; set; }
         public static HKHDisplay Instance
         {
             get
@@ -39,6 +40,7 @@ namespace HotKeyHUD
             playerEntity = GameManager.Instance.PlayerEntity;
             AutoSize = AutoSizeModes.ResizeToFill;
             Size = DaggerfallUI.Instance.DaggerfallHUD.NativePanel.Size;
+            ScaleMult = 1f;
         }
 
         public Func<string, string> Localize { get; set; }
@@ -52,8 +54,9 @@ namespace HotKeyHUD
 
             base.Update();
             var hud = DaggerfallUI.Instance.DaggerfallHUD;
-            if (Scale != hud.NativePanel.LocalScale)
-                SetScale(hud.NativePanel.LocalScale);
+            var factoredScale = hud.NativePanel.LocalScale * ScaleMult;
+            if (Scale != factoredScale)
+                SetScale(factoredScale);
             if (NameLabel.Enabled)
             {
                 textTime -= Time.deltaTime;
@@ -211,6 +214,7 @@ namespace HotKeyHUD
         private void SetScale(Vector2 scale)
         {
             Scale = scale;
+            Position = new Vector2((Size.x - Size.x * ScaleMult) / 2f, Size.y - Size.y * ScaleMult);
             for (var i = 0; i < HotKeyButtons.Length; i++)
                 HotKeyButtons[i].SetScale(scale);
             EquippedButton.SetScale(scale);

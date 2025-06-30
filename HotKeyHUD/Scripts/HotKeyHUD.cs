@@ -147,6 +147,19 @@ namespace HotKeyHUD
         {
             hotKeyDisplay = HKHDisplay.Instance;
             hotKeyDisplay.Visibility = (HKHUtil.HUDVisibility)settings.GetValue<int>("Options", "HUD Visibility");
+            switch (settings.GetValue<int>("Options", "HUD Scale"))
+            {
+                case 0:
+                    hotKeyDisplay.ScaleMult = .5f;
+                    break;
+                case 1:
+                    hotKeyDisplay.ScaleMult = .75f;
+                    break;
+                default:
+                    hotKeyDisplay.ScaleMult = 1f;
+                    break;
+            }
+
             autoRecastEnabled = settings.GetValue<bool>("Options", "Auto Recast");
             var menuKeyText = settings.GetValue<string>("Options", "Hotkey Setup Menu Key");
             if (Enum.TryParse(menuKeyText, out KeyCode result))
