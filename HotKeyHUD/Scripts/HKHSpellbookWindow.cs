@@ -44,7 +44,7 @@ namespace HotKeyHUD
             {
                 var spellBook = GameManager.Instance.PlayerEntity.GetSpells();
                 var spell = spellBook[spellsListBox.SelectedIndex];
-                RaiseKeyItemEvent(new HKHUtil.KeyItemEventArgs(spell, hotKeyMenuPopup.SelectedSlot, PreviousWindow, hotKeyMenuPopup));
+                RaiseKeyItemEvent(new HKHUtil.KeyItemEventArgs(spell, hotKeyMenuPopup.SelectedSlot, this, hotKeyMenuPopup));
                 DaggerfallUI.Instance.PlayOneShot(DaggerfallWorkshop.SoundClips.ButtonClick);
             }
         }

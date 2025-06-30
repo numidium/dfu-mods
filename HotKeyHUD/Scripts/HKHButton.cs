@@ -132,12 +132,22 @@ namespace HotKeyHUD
                 var image = DaggerfallUnity.Instance.ItemHelper.GetInventoryImage(item);
                 itemBgSize = new Vector2(image.width, image.height);
                 itemBgTexSize = new Vector2(image.texture.width, image.texture.height);
+                ConditionBar.Enabled = !StackLabel.Enabled || HKHUtil.IsBow(item);
+                ConditionBarBackground.Enabled = ConditionBar.Enabled;
+                if (ConditionBar.Enabled || StackLabel.Enabled)
+                {
+                    // Resize item images that are too big.
+                    if (itemBgSize.y > Size.y)
+                    {
+                        var scaleFactor = Size.y / itemBgSize.y;
+                        itemBgSize.y = Size.y;
+                        itemBgSize.x *= scaleFactor;
+                    }
+                }
+
                 Icon.BackgroundTexture = image.texture;
                 Icon.Size = new Vector2(image.width == 0 ? itemBgTexSize.x : itemBgSize.x, itemBgSize.y == 0 ? itemBgTexSize.y : itemBgSize.y);
                 StackLabel.Enabled = item.IsStackable() || HKHUtil.IsBow(item);
-                // I'm assuming there aren't any stackables with condition worth tracking.
-                ConditionBar.Enabled = !StackLabel.Enabled || HKHUtil.IsBow(item);
-                ConditionBarBackground.Enabled = ConditionBar.Enabled;
             }
         }
 
@@ -162,8 +172,17 @@ namespace HotKeyHUD
             Scale = scale;
             Position = new Vector2((float)Math.Round((xStart - iconsWidth / 2f + originalPosition.x + 0.5f) * scale.x) + .5f, (float)Math.Round(iconsY * scale.y) + .5f);
             Size = new Vector2((float)Math.Round(buttonWidth * scale.x + .5f), (float)Math.Round(buttonHeight * scale.y) + .5f);
-            if (ConditionBar.Enabled)
+            if (ConditionBar.Enabled || StackLabel.Enabled)
+            {
+                if (itemBgSize.y > Size.y)
+                {
+                    var scaleFactor = Size.y / itemBgSize.y;
+                    itemBgSize.y = Size.y;
+                    itemBgSize.x *= scaleFactor;
+                }
+
                 Icon.Size = new Vector2(itemBgSize.x == 0 ? itemBgTexSize.x : itemBgSize.x, itemBgSize.y == 0 ? itemBgTexSize.y : itemBgSize.y);
+            }
             else
                 Icon.Size = new Vector2(Icon.Parent.Size.x * spellIconScale, Icon.Parent.Size.y * spellIconScale);
             KeyLabel.Scale = scale;

@@ -42,7 +42,7 @@ namespace HotKeyHUD
         {
             if (hotKeyMenuPopup.Enabled && item.currentCondition > 0 && !HKHUtil.GetProhibited(item))
             {
-                RaiseKeyItemEvent(new HKHUtil.KeyItemEventArgs(item, hotKeyMenuPopup.SelectedSlot, PreviousWindow, hotKeyMenuPopup));
+                RaiseKeyItemEvent(new HKHUtil.KeyItemEventArgs(item, hotKeyMenuPopup.SelectedSlot, this, hotKeyMenuPopup));
                 return;
             }
 
@@ -58,7 +58,7 @@ namespace HotKeyHUD
             var item = playerEntity.ItemEquipTable.GetItem(slot);
             if (item != null && hotKeyMenuPopup.Enabled && item.currentCondition > 0 && !HKHUtil.GetProhibited(item))
             {
-                RaiseKeyItemEvent(new HKHUtil.KeyItemEventArgs(item, hotKeyMenuPopup.SelectedSlot, PreviousWindow, hotKeyMenuPopup));
+                RaiseKeyItemEvent(new HKHUtil.KeyItemEventArgs(item, hotKeyMenuPopup.SelectedSlot, this, hotKeyMenuPopup));
                 return;
             }
 
@@ -71,7 +71,7 @@ namespace HotKeyHUD
             var item = playerEntity.ItemEquipTable.GetItem(slot);
             if (item != null && hotKeyMenuPopup.Enabled && item.currentCondition > 0 && !HKHUtil.GetProhibited(item))
             {
-                RaiseKeyItemEvent(new HKHUtil.KeyItemEventArgs(item, hotKeyMenuPopup.SelectedSlot, PreviousWindow, hotKeyMenuPopup));
+                RaiseKeyItemEvent(new HKHUtil.KeyItemEventArgs(item, hotKeyMenuPopup.SelectedSlot, this, hotKeyMenuPopup));
                 return;
             }
 

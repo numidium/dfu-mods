@@ -318,7 +318,12 @@ namespace HotKeyHUD
                 equipTable.GetEquipSlot(dfuItem) != EquipSlots.None &&
                 HKHUtil.GetEnchantedItemIsUseable(dfuItem))
             {
-                var actionSelectDialog = new KeySelectMessageBox(DaggerfallUI.UIManager, DaggerfallMessageBox.CommonMessageBoxButtons.YesNo, mod.Localize(actionTypeSelectKey), args.PreviousWindow);
+                var actionSelectDialog = new KeySelectMessageBox(DaggerfallUI.UIManager, DaggerfallMessageBox.CommonMessageBoxButtons.YesNo, mod.Localize(actionTypeSelectKey), args.PreviousWindow)
+                {
+                    Item = args.Item,
+                    Slot = args.Slot
+                };
+
                 actionSelectDialog.OnButtonClick += ActionSelectDialog_OnButtonClick;
                 actionSelectDialog.Show();
             }
