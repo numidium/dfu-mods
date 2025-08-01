@@ -64,6 +64,7 @@ however. Below is an example JSON file containing two replacements that you may 
 	{
 		"Regions": [01, 52],
 		"FactionId": -1,
+        "LocationTypes": 1,
         "BuildingType": -1,
 		"QualityMin": 1,
 		"QualityMax": 20,
@@ -88,6 +89,13 @@ by a ",". Omitted values will be set to their defaults or wildcard values. The f
 Regions - Integer Array - Region IDs that the replacement should appear in. The supplied values must be enclosed in square brackets ([]) and each value
 must be separated by a ",". Supply a -1 in the first position to make the replacement apply to all regions. Subsequent values will be ignored.
 See https://en.uesp.net/wiki/Daggerfall_Mod:Region_Numbers for region indices.
+
+LocationTypes - Integer - Represents the location type filter that replacement will be subjected to. No filter is applied by default. The following
+values determine the filter:
+0 - All location types (no filter)
+1 - Buildings only
+2 - Dungeons only
+3 - Buildings and Castles (Currently the same as 0. This value will only be useful if more location types are added in a future release.)
 
 FactionId - Integer - A number representing the faction which the interior must belong to in order for the replacement to take place. Supply a -1 to
 ignore the interior's faction.

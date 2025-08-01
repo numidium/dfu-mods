@@ -2,10 +2,18 @@ using FullSerializer;
 
 namespace FlatReplacer
 {
+    public enum LocationTypes
+    {
+        All,
+        Building,
+        Dungeon
+    }
+
     [fsObject(Converter = typeof(ReplacementConverter))]
     public class FlatReplacementRecord
     {
         public int[] Regions;
+        public int LocationTypes;
         public int FactionId;
         public int SocialGroup;
         public int NameBank;
