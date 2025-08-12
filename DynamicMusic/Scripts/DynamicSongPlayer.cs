@@ -52,6 +52,7 @@ namespace DynamicMusic
         void Start()
         {
             AudioSource = GetComponent<AudioSource>();
+            AudioSource.volume = 0f;
             InitSynth();
 
             DaggerfallVidPlayerWindow.OnVideoStart += DaggerfallVidPlayerWindow_OnVideoStart;

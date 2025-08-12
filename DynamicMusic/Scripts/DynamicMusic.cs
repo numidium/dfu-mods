@@ -19,7 +19,7 @@ namespace DynamicMusic
     public sealed class DynamicMusic : MonoBehaviour
     {
         #region Playlists
-        private enum MusicPlaylist
+        private enum MusicPlaylist : byte
         {
             DungeonInterior,
             Sunny,
@@ -37,13 +37,12 @@ namespace DynamicMusic
             Castle,
             Court,
             //Sneaking,
-            Combat,
             MainMenu,
             CharCreation,
             None
         }
 
-        private enum MusicEnvironment
+        private enum MusicEnvironment  : byte
         {
             Castle,
             City,
@@ -59,18 +58,11 @@ namespace DynamicMusic
             Wilderness
         }
 
-        private enum State
+        private enum State : byte
         {
             Normal,
             FadingOut,
-            FadingIn,
-            Combat
-        }
-
-        private enum MusicType
-        {
-            Normal,
-            Combat
+            FadingIn
         }
 
         // Dungeon
@@ -458,6 +450,13 @@ namespace DynamicMusic
         /// </summary>
         private sealed class Playlist
         {
+            public enum Flags : byte
+            {
+                None = 0x00,
+                CrashIn = 0x01,
+                ResumePrevious = 0x02
+            }
+
             private readonly string[] tracks;
             private int index = 0;
             private void ShuffleTracks()
@@ -491,36 +490,69 @@ namespace DynamicMusic
                 return tracks[index];
             }
 
+            public static Flags GetFlagsFromText(string text)
+            {
+                var flagText = text.ToLower();
+                var flagValues = (Flags[])Enum.GetValues(typeof(Flags));
+                for (var i = 0; i < flagValues.Length; i++)
+                {
+                    if (flagValues[i].ToString().ToLower() == flagText)
+                        return flagValues[i];
+                }
+
+                return Flags.None;
+            }
+
             public int TrackCount => tracks.Length;
             public string CurrentTrack => tracks[index];
+            public Flags PlaylistFlags;
         }
 
-        /// <summary>
-        /// Set of vanilla conditions that determine which playlist to use.
-        /// </summary>
-        private struct Conditions
-        {
-            public DFRegion.LocationTypes LocationType; // exterior
-            public DFLocation.BuildingTypes BuildingType; // interior
-            public DaggerfallWorkshop.Game.Weather.WeatherType WeatherType;
-            public uint FactionId;
-            public bool IsNight;
-            public bool IsInInterior;
-            public bool IsInDungeon;
-            public bool IsInDungeonCastle;
-        }
-
-        private delegate bool ConditionMethod(ref Conditions conditions, bool negate, int[] parameters);
         private sealed class ConditionUsage
         {
-            public Conditions ConditionsArg;
-            public bool NegateArg;
-            public int[] ParameterArgs;
-            public ConditionMethod ConditionMethod;
+            public enum Conditions : UInt16
+            {
+                None,
+                Night,
+                Interior,
+                Dungeon,
+                DungeonCastle,
+                LocationType,
+                BuildingType,
+                WeatherType,
+                FactionId,
+                Climate,
+                ClimateIndex,
+                RegionIndex,
+                DungeonType,
+                BuildingQuality,
+                Season,
+                Month,
+                StartMenu,
+                Combat
+            }
+
+            public static Conditions GetConditionFromText(string text)
+            {
+                var conditionText = text.ToLower();
+                var conditionValues = (Conditions[])Enum.GetValues(typeof(Conditions));
+                for (var i = 0; i < conditionValues.Length; i++)
+                {
+                    if (conditionValues[i].ToString().ToLower() == conditionText)
+                        return conditionValues[i];
+                }
+
+                return Conditions.None;
+            }
+
+            public bool NegateArg { get; set; }
+            public int[] ParameterArgs { get; set; }
+            public Conditions Condition { get; set; }
         }
 
         public static DynamicMusic Instance { get; private set; }
         private static Mod mod;
+        private DaggerfallUnity daggerfallUnity;
         private PlayerGPS localPlayerGPS;
         private PlayerEnterExit playerEnterExit;
         private PlayerWeather playerWeather;
@@ -535,26 +567,20 @@ namespace DynamicMusic
         private float fadeInTime;
         private const byte combatTaperLength = 2;
         private byte combatTaper;
-        private SongFiles[] defaultCombatSongs;
-        private Playlist combatPlaylist;
         private Playlist[] customPlaylists;
         private Dictionary<int, ConditionUsage[]> userDefinedConditionSets;
-        private Dictionary<int, ConditionUsage[]> userCombatConditionSets;
         private string currentCustomTrack;
         private bool customTrackQueued;
-        private byte combatPlaylistIndex;
         private bool combatMusicIsEnabled;
-        private bool resumeEnabled = true;
+        private bool isInCombat;
+        private bool resumeIsEnabled = true;
         private bool loopCustomTracks;
         private float previousTimeSinceStartup;
         private float deltaTime;
         private float resumeSeeker = 0f;
         private bool gameLoaded;
         private int currentPlaylist;
-        private int previousLocationIndex;
         private State currentState;
-        private State lastState;
-        private MusicType currentMusicType;
         private string debugPlaylistName;
         private string debugSongName;
         private GUIStyle guiStyle;
@@ -586,6 +612,7 @@ namespace DynamicMusic
             var go = new GameObject(mod.Title);
             Instance = go.AddComponent<DynamicMusic>();
             Instance.dynamicSongPlayer = go.AddComponent<DynamicSongPlayer>();
+            Instance.dynamicSongPlayer.ModSignature = modSignature;
             DontDestroyOnLoad(go);
             SaveLoadManager.OnLoad += SaveLoadManager_OnLoad;
             StartGameBehaviour.OnStartGame += StartGameBehaviour_OnStartGame;
@@ -596,12 +623,13 @@ namespace DynamicMusic
         private void LoadSettings(ModSettings settings, ModSettingsChange change)
         {
             combatMusicIsEnabled = settings.GetValue<bool>("Options", "Enable Combat Music");
-            resumeEnabled = settings.GetValue<bool>("Options", "Enable Track Resume");
+            resumeIsEnabled = settings.GetValue<bool>("Options", "Enable Track Resume");
             loopCustomTracks = settings.GetValue<bool>("Options", "Loop Custom Tracks");
         }
 
         private void Start()
-        {
+        {   
+            daggerfallUnity = DaggerfallUnity.Instance;
             // Load settings that require a restart.
             var settings = mod.GetSettings();
             LoadSettings(settings, new ModSettingsChange());
@@ -612,117 +640,6 @@ namespace DynamicMusic
             var userDefinedPlaylists = new List<Playlist>();
 
             // Load user-defined playlists from disk (user-defined meaning the conditions and tracks are custom).
-            const string combatToken = "combat";
-            var conditionLibrary = new Dictionary<string, ConditionMethod>
-            {
-                // Vanilla conditions:
-                ["night"] = delegate (ref Conditions conditions, bool negate, int[] parameters)
-                {
-                    return negate ? !conditions.IsNight : conditions.IsNight;
-                },
-                ["interior"] = delegate (ref Conditions conditions, bool negate, int[] parameters)
-                {
-                    return negate ? !conditions.IsInInterior : conditions.IsInInterior;
-                },
-                ["dungeon"] = delegate (ref Conditions conditions, bool negate, int[] parameters)
-                {
-                    return negate ? !conditions.IsInDungeon : conditions.IsInDungeon;
-                },
-                ["dungeoncastle"] = delegate (ref Conditions conditions, bool negate, int[] parameters)
-                {
-                    return negate ? !conditions.IsInDungeonCastle : conditions.IsInDungeonCastle;
-                },
-                ["locationtype"] = delegate (ref Conditions conditions, bool negate, int[] parameters)
-                {
-                    if (conditions.IsInDungeon) return false;
-                    var result = false;
-                    foreach (var parameter in parameters)
-                        result |= conditions.LocationType == (DFRegion.LocationTypes)parameter;
-                    return negate ? !result : result;
-                },
-                ["buildingtype"] = delegate (ref Conditions conditions, bool negate, int[] parameters)
-                {
-                    var result = false;
-                    foreach (var parameter in parameters)
-                        result |= conditions.BuildingType == (DFLocation.BuildingTypes)parameter;
-                    return negate ? !result : result;
-                },
-                ["weathertype"] = delegate (ref Conditions conditions, bool negate, int[] parameters)
-                {
-                    var result = false;
-                    foreach (var parameter in parameters)
-                        result |= conditions.WeatherType == (DaggerfallWorkshop.Game.Weather.WeatherType)parameter;
-                    return negate ? !result : result;
-                },
-                ["factionid"] = delegate (ref Conditions conditions, bool negate, int[] parameters)
-                {
-                    var result = false;
-                    foreach (var parameter in parameters)
-                        result |= conditions.FactionId == parameter;
-                    return negate ? !result : result;
-                },
-                // Non-vanilla conditions:
-                ["climate"] = delegate (ref Conditions conditions, bool negate, int[] parameters)
-                {
-                    // TODO: make sure parameter is valid type and catch if not
-                    var result = false;
-                    foreach (var parameter in parameters)
-                        result |= localPlayerGPS.ClimateSettings.ClimateType == (DFLocation.ClimateBaseType)parameter;
-                    return negate ? !result : result;
-                },
-                ["climateindex"] = delegate (ref Conditions conditions, bool negate, int[] parameters)
-                {
-                    var result = false;
-                    foreach (var parameter in parameters)
-                        result |= localPlayerGPS.CurrentClimateIndex == parameter;
-                    return negate ? !result : result;
-                },
-                ["regionindex"] = delegate (ref Conditions conditions, bool negate, int[] parameters)
-                {
-                    var result = false;
-                    foreach (var parameter in parameters)
-                        result |= localPlayerGPS.CurrentRegionIndex == parameter;
-                    return negate ? !result : result;
-                },
-                ["dungeontype"] = delegate (ref Conditions conditions, bool negate, int[] parameters)
-                {
-                    var result = false;
-                    foreach (var parameter in parameters)
-                        result |= (playerEnterExit.Dungeon != null) && playerEnterExit.Dungeon.Summary.DungeonType == (DFRegion.DungeonTypes)parameter;
-                    return negate ? !result : result;
-                },
-                ["buildingquality"] = delegate (ref Conditions conditions, bool negate, int[] parameters)
-                {
-                    var result = false;
-                    foreach (var parameter in parameters)
-                        result |= playerEnterExit.BuildingDiscoveryData.quality == parameter;
-                    return negate ? !result : result;
-                },
-                ["season"] = delegate (ref Conditions conditions, bool negate, int[] parameters)
-                {
-                    var result = false;
-                    foreach (var parameter in parameters)
-                        result |= gameManager.StreamingWorld.CurrentPlayerLocationObject.CurrentSeason == (ClimateSeason)parameter;
-                    return negate ? !result : result;
-                },
-                ["month"] = delegate (ref Conditions conditions, bool negate, int[] parameters)
-                {
-                    var result = false;
-                    foreach (var parameter in parameters)
-                        result |= DaggerfallUnity.Instance.WorldTime.DaggerfallDateTime.MonthOfYear == parameter;
-                    return negate ? !result : result;
-                },
-                ["startmenu"] = delegate (ref Conditions conditions, bool negate, int[] parameters)
-                {
-                    var result = gameManager.StateManager.CurrentState == StateManager.StateTypes.Start;
-                    return negate ? !result : result;
-                },
-                ["combat"] = delegate (ref Conditions conditions, bool negate, int[] parameters)
-                {
-                    return false; // This is a dummy condition - not used like the others.
-                }
-            };
-
             const string userPlaylistsFileName = "UserDefined.txt";
             var filePath = Path.Combine(basePath, userPlaylistsFileName);
             if (Directory.Exists(basePath) && File.Exists(filePath))
@@ -730,7 +647,6 @@ namespace DynamicMusic
                 using (var file = new StreamReader(filePath))
                 {
                     userDefinedConditionSets = new Dictionary<int, ConditionUsage[]>();
-                    userCombatConditionSets = new Dictionary<int, ConditionUsage[]>();
                     ushort lineCounter = 0;
                     string line;
                     while ((line = file.ReadLine()) != null)
@@ -742,8 +658,12 @@ namespace DynamicMusic
                         // Get track names from directory.
                         List<string> trackList;
                         var lineContainsError = false;
-                        var tokens = line.Split(' ', ',');
-                        var playlistName = tokens[0];
+                        string[] flagTokens = null;
+                        const char flagSeparator = '|';
+                        if (line.Split(flagSeparator).Length > 1)
+                            flagTokens = line.Split(flagSeparator)[1].Split(' ', ',');
+                        var conditionTokens = line.Split(flagSeparator)[0].Split(' ', ',');
+                        var playlistName = conditionTokens[0];
                         if (!Directory.Exists(Path.Combine(basePath, playlistName)))
                         {
                             PrintParserError($"Reference to non-existent playlist directory", lineCounter, playlistName);
@@ -763,63 +683,65 @@ namespace DynamicMusic
                         }
 
                         // Parse conditional tokens on current line.
-                        var isCombatPlaylist = false;
                         var playlistKey = (int)MusicPlaylist.None + userDefinedPlaylists.Count;
                         var conditionSet = new List<ConditionUsage>();
                         var tokenIndex = 2;
-                        while (tokenIndex < tokens.Length)
+                        while (tokenIndex < conditionTokens.Length)
                         {
                             var negate = false;
-                            if (tokens[tokenIndex].ToLower() == "not")
+                            if (conditionTokens[tokenIndex].ToLower() == "not")
                             {
                                 tokenIndex++;
                                 negate = true;
                             }
 
-                            if (!conditionLibrary.ContainsKey(tokens[tokenIndex].ToLower()))
+                            var condition = ConditionUsage.GetConditionFromText(conditionTokens[tokenIndex]);
+                            if (condition == ConditionUsage.Conditions.None)
                             {
-                                PrintParserError($"Unrecognized condition", lineCounter, tokens[tokenIndex]);
+                                PrintParserError($"Unrecognized condition", lineCounter, conditionTokens[tokenIndex]);
                                 lineContainsError = true;
                                 break;
                             }
-                            else
-                            {
-                                var conditionToken = tokens[tokenIndex++].ToLower();
-                                if (!lineContainsError && conditionToken == combatToken)
-                                    isCombatPlaylist = true;
-                                else if (!lineContainsError)
-                                {
-                                    var arguments = new List<int>();
-                                    while (tokenIndex < tokens.Length && tokens[tokenIndex] != "")
-                                    {
-                                        if (!int.TryParse(tokens[tokenIndex++], out var result))
-                                        {
-                                            PrintParserError($"Invalid argument", lineCounter, conditionToken);
-                                            lineContainsError = true;
-                                            break;
-                                        }
 
-                                        arguments.Add(result);
+                            tokenIndex++;
+                            if (!lineContainsError)
+                            {
+                                var arguments = new List<int>();
+                                while (tokenIndex < conditionTokens.Length && conditionTokens[tokenIndex] != "")
+                                {
+                                    if (!int.TryParse(conditionTokens[tokenIndex++], out var result))
+                                    {
+                                        PrintParserError($"Invalid argument", lineCounter, condition.ToString());
+                                        lineContainsError = true;
+                                        break;
                                     }
 
-                                    var conditionUsage = new ConditionUsage()
-                                    {
-                                        NegateArg = negate,
-                                        ParameterArgs = arguments.ToArray(),
-                                        ConditionMethod = conditionLibrary[conditionToken]
-                                    };
-
-                                    conditionSet.Add(conditionUsage);
+                                    arguments.Add(result);
                                 }
 
-                                tokenIndex++;
+                                var conditionUsage = new ConditionUsage()
+                                {
+                                    NegateArg = negate,
+                                    ParameterArgs = arguments.ToArray(),
+                                    Condition = condition
+                                };
+
+                                conditionSet.Add(conditionUsage);
                             }
+
+                            tokenIndex++;
+                        }
+
+                        tokenIndex = 0;
+                        if (flagTokens != null)
+                        {
+                            while (tokenIndex < flagTokens.Length)
+                                userDefinedPlaylists[userDefinedPlaylists.Count - 1].PlaylistFlags |= Playlist.GetFlagsFromText(flagTokens[tokenIndex++]);
                         }
 
                         if (lineContainsError)
                             continue; // Don't tolerate errors.
-                        var conditionSets = isCombatPlaylist ? userCombatConditionSets : userDefinedConditionSets;
-                        conditionSets[playlistKey] = conditionSet.ToArray();
+                        userDefinedConditionSets[playlistKey] = conditionSet.ToArray();
                     }
                 }
             }
@@ -849,7 +771,7 @@ namespace DynamicMusic
             for (var i = (int)MusicPlaylist.None + 1; j < userDefinedPlaylists.Count; i++)
                 customPlaylists[i] = userDefinedPlaylists[j++];
 
-            // Remove vanilla song players from memory.
+            // Remove vanilla song players from scene.
             const string songPlayerName = "SongPlayer";
             gameManager = GameManager.Instance;
             Destroy(gameManager.DungeonParent.transform.Find(songPlayerName).gameObject);
@@ -872,17 +794,9 @@ namespace DynamicMusic
             // Set timing variables and state.
             previousTimeSinceStartup = Time.realtimeSinceStartup;
             gameLoaded = false;
-            lastState = currentState = State.Normal;
-            currentMusicType = MusicType.Normal;
-            combatPlaylist = customPlaylists[(int)MusicPlaylist.Combat];
+            currentState = State.FadingIn;
+            fadeInTime = fadeInLength;
             currentPlaylist = (int)MusicPlaylist.None;
-
-            // Define default combat playlist.
-            defaultCombatSongs = new SongFiles[]
-            {
-                SongFiles.song_17, // fighter trainers
-                SongFiles.song_30  // unused sneaking (?) theme
-            };
 
             // Use alternate music if set.
             if (DaggerfallUnity.Settings.AlternateMusic)
@@ -905,9 +819,6 @@ namespace DynamicMusic
                 SneakingSongs = _sneakingSongsFM;
             }
 
-            // Start with a random combat track.
-            combatPlaylistIndex = (byte)UnityEngine.Random.Range(0, combatPlaylist == null ? defaultCombatSongs.Length : combatPlaylist.TrackCount);
-
             // Setup events.
             PlayerEnterExit.OnTransitionInterior += OnTransitionInterior;
             PlayerEnterExit.OnTransitionExterior += OnTransitionExterior;
@@ -929,27 +840,29 @@ namespace DynamicMusic
             if (deltaTime < 0f)
                 deltaTime = 0f;
             var previousPlaylist = currentPlaylist;
-            currentPlaylist = (int)GetMusicPlaylist(localPlayerGPS, playerEnterExit, playerWeather, out var conditions);
+            currentPlaylist = (int)GetMusicPlaylist(localPlayerGPS, playerEnterExit, playerWeather);
+
             // Check if conditions match any user-defined condition sets.
             if (currentPlaylist != (int)MusicPlaylist.None)
             {
-                var key = GetUserDefinedPlaylistKey(userDefinedConditionSets, ref conditions);
+                var key = GetUserDefinedPlaylistKey(userDefinedConditionSets);
                 if (key >= 0)
                     currentPlaylist = key;
             }
 
-            // Reset resume seeker if playlist changed.
-            if (resumeEnabled && previousPlaylist != currentPlaylist)
-                resumeSeeker = 0f;
-
             switch (currentState)
             {
                 case State.Normal:
-                    // Fade out when switching playlists.
                     if (currentPlaylist != previousPlaylist && previousPlaylist != (int)MusicPlaylist.None)
                     {
-                        currentState = State.FadingOut;
-                        break;
+                        if (customPlaylists[currentPlaylist] != null && (customPlaylists[currentPlaylist].PlaylistFlags & Playlist.Flags.CrashIn) == Playlist.Flags.CrashIn)
+                        {
+                            currentState = State.FadingOut;
+                            fadeOutTime = fadeOutLength;
+                            fadeInTime = fadeInLength;
+                        }
+                        else
+                            currentState = State.FadingOut;
                     }
 
                     // Stop music if no playlist found.
@@ -965,42 +878,40 @@ namespace DynamicMusic
                     }
 
                     dynamicSongPlayer.AudioSource.volume = DaggerfallUnity.Settings.MusicVolume;
-                    PlayNormalTrack(previousPlaylist);
-                    lastState = State.Normal;
                     break;
                 case State.FadingOut:
-                    if (currentMusicType == MusicType.Normal)
+                    fadeOutTime += deltaTime;
+                    dynamicSongPlayer.AudioSource.volume = Mathf.Lerp(DaggerfallUnity.Settings.MusicVolume, 0f, fadeOutTime / fadeOutLength);
+                    if (fadeOutTime >= fadeOutLength)
                     {
-                        fadeOutTime += deltaTime;
-                        dynamicSongPlayer.AudioSource.volume = Mathf.Lerp(DaggerfallUnity.Settings.MusicVolume, 0f, fadeOutTime / fadeOutLength);
-                        if (fadeOutTime >= fadeOutLength)
-                        {
-                            // End fade when time elapsed.
-                            fadeOutTime = 0f;
-                            currentState = State.Normal;
-                        }
-                    }
-                    else if (currentMusicType == MusicType.Combat)
-                    {
-                        fadeOutTime += deltaTime;
-                        dynamicSongPlayer.AudioSource.volume = Mathf.Lerp(DaggerfallUnity.Settings.MusicVolume, 0f, fadeOutTime / fadeOutLength);
                         // End fade when time elapsed.
-                        if (fadeOutTime >= fadeOutLength)
+                        fadeOutTime = 0f;
+                        currentState = State.FadingIn;
+                    }
+
+                    break;
+                case State.FadingIn:
+                    if (currentPlaylist != previousPlaylist && previousPlaylist != (int)MusicPlaylist.None)
+                    {
+                        if (customPlaylists[currentPlaylist] != null && (customPlaylists[currentPlaylist].PlaylistFlags & Playlist.Flags.CrashIn) == Playlist.Flags.CrashIn)
                         {
-                            fadeOutTime = 0f;
-                            currentMusicType = MusicType.Normal;
-                            currentState = State.FadingIn;
-                            dynamicSongPlayer.AudioSource.volume = 0f;
-                            if (customPlaylists[currentPlaylist] != null)
-                                customTrackQueued = true;
+                            currentState = State.FadingOut;
+                            fadeOutTime = fadeOutLength;
+                            fadeInTime = fadeInLength;
+                            break;
+                        }
+                        else
+                        {
+                            currentState = State.FadingOut;
+                            fadeInTime = 0f;
+                            break;
                         }
                     }
 
-                    lastState = State.FadingOut;
-                    break;
-                case State.FadingIn:
+                    if (currentPlaylist == (int)MusicPlaylist.None)
+                        break;
                     if (dynamicSongPlayer.AudioSource.volume == 0f)
-                        PlayNormalTrack(previousPlaylist);
+                        PlayTrack(previousPlaylist);
                     fadeInTime += deltaTime;
                     // End fade when time elapsed.
                     if (fadeInTime >= fadeInLength)
@@ -1012,52 +923,6 @@ namespace DynamicMusic
                     }
                     else
                         dynamicSongPlayer.AudioSource.volume = Mathf.Lerp(0f, DaggerfallUnity.Settings.MusicVolume, fadeInTime / fadeInLength);
-                    lastState = State.FadingIn;
-                    break;
-                case State.Combat:
-                    {
-                        // Handle volume/looping.
-                        dynamicSongPlayer.AudioSource.volume = DaggerfallUnity.Settings.MusicVolume;
-                        if (lastState != State.Combat)
-                        {
-                            combatPlaylist = customPlaylists[(int)MusicPlaylist.Combat]; // Start with default.
-                            var combatKey = GetUserDefinedPlaylistKey(userCombatConditionSets, ref conditions);
-                            var isUserDefined = false;
-                            if (combatKey >= 0)
-                            {
-                                combatPlaylist = customPlaylists[combatKey];
-                                isUserDefined = true;
-                            }
-
-                            var songFile = defaultCombatSongs[combatPlaylistIndex % defaultCombatSongs.Length];
-                            if (combatPlaylist != null) // combat music is not MIDI
-                            {
-                                var track = combatPlaylist.GetNextTrack();
-                                GetDebuggingText(track, out debugPlaylistName, out debugSongName, isUserDefined);
-                                dynamicSongPlayer.Play(track);
-                            }
-                            else if (combatPlaylist == null) // combat music is MIDI
-                            {
-                                GetDebuggingText(songFile, out debugPlaylistName, out debugSongName);
-                                dynamicSongPlayer.Play(songFile);
-                            }
-
-                            var playlistCount = defaultCombatSongs.Length;
-                            dynamicSongPlayer.Song = songFile;
-                            combatPlaylistIndex += (byte)UnityEngine.Random.Range(1, playlistCount - 1);
-                            combatPlaylistIndex %= (byte)playlistCount;
-                            lastState = State.Combat;
-                        }
-
-                        // Fade out on arrest.
-                        if (playerEntity.Arrested)
-                        {
-                            currentState = State.FadingOut;
-                            combatTaper = 0;
-                        }
-                    }
-
-                    lastState = State.Combat;
                     break;
             }
 
@@ -1065,20 +930,15 @@ namespace DynamicMusic
             detectionCheckDelta += Time.deltaTime;
             if (detectionCheckDelta < detectionCheckInterval)
                 return;
-            if (currentState == State.Normal || currentState == State.Combat)
+            if (currentState == State.Normal)
             {
                 if (combatMusicIsEnabled && !gameManager.PlayerDeath.DeathInProgress && !playerEntity.Arrested && IsPlayerDetected)
                 {
-                    // Start combat music
-                    lastState = currentState;
-                    currentState = State.Combat;
+                    isInCombat = true;
                     combatTaper = combatTaperLength;
-                    currentMusicType = MusicType.Combat;
-                    if (resumeEnabled && lastState == State.Normal)
-                        resumeSeeker = dynamicSongPlayer.CurrentSecond;
                 }
                 else if (combatTaper > 0 && --combatTaper == 0)
-                    currentState = State.FadingOut;
+                    isInCombat = false;
             }
 
             detectionCheckDelta = 0f;
@@ -1095,14 +955,115 @@ namespace DynamicMusic
             }
         }
 
-        private int GetUserDefinedPlaylistKey(Dictionary<int, ConditionUsage[]> conditionSets, ref Conditions conditions)
+        private bool GetIsConditionTrue(ConditionUsage.Conditions condition, bool negate, int[] parameters)
+        {
+            var conditionResult = false;
+            // Vanilla conditions:
+            if (condition == ConditionUsage.Conditions.Night)
+            {
+                conditionResult = gameManager.StateManager.CurrentState != StateManager.StateTypes.Start && daggerfallUnity.WorldTime.Now.IsNight;
+            }
+            else if (condition == ConditionUsage.Conditions.Interior)
+            {
+                conditionResult = gameManager.StateManager.CurrentState != StateManager.StateTypes.Start && playerEnterExit.IsPlayerInside;
+            }
+            else if (condition == ConditionUsage.Conditions.Dungeon)
+            {
+                conditionResult = gameManager.StateManager.CurrentState != StateManager.StateTypes.Start && playerEnterExit.IsPlayerInsideDungeon;
+            }
+            else if (condition == ConditionUsage.Conditions.DungeonCastle)
+            {
+                conditionResult = gameManager.StateManager.CurrentState != StateManager.StateTypes.Start && playerEnterExit.IsPlayerInsideDungeonCastle;
+            }
+            else if (condition == ConditionUsage.Conditions.LocationType)
+            {
+                if (gameManager.StateManager.CurrentState == StateManager.StateTypes.Start && playerEnterExit.IsPlayerInsideDungeon) return false;
+                foreach (var parameter in parameters)
+                    conditionResult |= localPlayerGPS.CurrentLocationType == (DFRegion.LocationTypes)parameter;
+            }
+            else if (condition == ConditionUsage.Conditions.BuildingType)
+            {
+                if (gameManager.StateManager.CurrentState == StateManager.StateTypes.Start) return false;
+                foreach (var parameter in parameters)
+                    conditionResult |= playerEnterExit.BuildingType == (DFLocation.BuildingTypes)parameter;
+            }
+            else if (condition == ConditionUsage.Conditions.WeatherType)
+            {
+                if (gameManager.StateManager.CurrentState == StateManager.StateTypes.Start) return false;
+                foreach (var parameter in parameters)
+                    conditionResult |= playerWeather.WeatherType == (DaggerfallWorkshop.Game.Weather.WeatherType)parameter;
+            }
+            else if (condition == ConditionUsage.Conditions.FactionId)
+            {
+                if (gameManager.StateManager.CurrentState == StateManager.StateTypes.Start) return false;
+                foreach (var parameter in parameters)
+                    conditionResult |= playerEnterExit.FactionID == parameter;
+            }
+            // Non-vanilla conditions:
+            else if (condition == ConditionUsage.Conditions.Climate)
+            {
+                if (gameManager.StateManager.CurrentState == StateManager.StateTypes.Start) return false;
+                // TODO: make sure parameter is valid type and catch if not
+                foreach (var parameter in parameters)
+                    conditionResult |= localPlayerGPS.ClimateSettings.ClimateType == (DFLocation.ClimateBaseType)parameter;
+            }
+            else if (condition == ConditionUsage.Conditions.ClimateIndex)
+            {
+                if (gameManager.StateManager.CurrentState == StateManager.StateTypes.Start) return false;
+                foreach (var parameter in parameters)
+                    conditionResult |= localPlayerGPS.CurrentClimateIndex == parameter;
+            }
+            else if (condition == ConditionUsage.Conditions.RegionIndex)
+            {
+                if (gameManager.StateManager.CurrentState == StateManager.StateTypes.Start) return false;
+                foreach (var parameter in parameters)
+                    conditionResult |= localPlayerGPS.CurrentRegionIndex == parameter;
+            }
+            else if (condition == ConditionUsage.Conditions.DungeonType)
+            {
+                if (gameManager.StateManager.CurrentState == StateManager.StateTypes.Start) return false;
+                foreach (var parameter in parameters)
+                    conditionResult |= (playerEnterExit.Dungeon != null) && playerEnterExit.Dungeon.Summary.DungeonType == (DFRegion.DungeonTypes)parameter;
+            }
+            else if (condition == ConditionUsage.Conditions.BuildingQuality)
+            {
+                if (gameManager.StateManager.CurrentState == StateManager.StateTypes.Start) return false;
+                foreach (var parameter in parameters)
+                    conditionResult |= playerEnterExit.BuildingDiscoveryData.quality == parameter;
+            }
+            else if (condition == ConditionUsage.Conditions.Season)
+            {
+                if (gameManager.StateManager.CurrentState == StateManager.StateTypes.Start) return false;
+                foreach (var parameter in parameters)
+                    conditionResult |= gameManager.StreamingWorld.CurrentPlayerLocationObject.CurrentSeason == (ClimateSeason)parameter;
+            }
+            else if (condition == ConditionUsage.Conditions.Month)
+            {
+                if (gameManager.StateManager.CurrentState == StateManager.StateTypes.Start) return false;
+                foreach (var parameter in parameters)
+                    conditionResult |= DaggerfallUnity.Instance.WorldTime.DaggerfallDateTime.MonthOfYear == parameter;
+            }
+            else if (condition == ConditionUsage.Conditions.StartMenu)
+            {
+                conditionResult = gameManager.StateManager.CurrentState == StateManager.StateTypes.Start;
+            }
+            else if (condition == ConditionUsage.Conditions.Combat)
+            {
+                if (gameManager.StateManager.CurrentState == StateManager.StateTypes.Start) return false;
+                conditionResult = isInCombat;
+            }
+
+            return negate ? !conditionResult : conditionResult;
+        }
+
+        private int GetUserDefinedPlaylistKey(Dictionary<int, ConditionUsage[]> conditionSets)
         {
             foreach (var key in conditionSets.Keys)
             {
                 var eval = true;
                 foreach (var condition in conditionSets[key])
                 {
-                    eval &= condition.ConditionMethod(ref conditions, condition.NegateArg, condition.ParameterArgs);
+                    eval &= GetIsConditionTrue(condition.Condition, condition.NegateArg, condition.ParameterArgs);
                     if (!eval)
                         break;
                 }
@@ -1123,14 +1084,10 @@ namespace DynamicMusic
 
         private void HandleLocationChange()
         {
-            if (currentState == State.Combat)
-            {
-                currentState = State.FadingOut;
-                combatTaper = 0;
-            }
+            combatTaper = 0;
         }
 
-        private void PlayNormalTrack(int previousPlaylist)
+        private void PlayTrack(int previousPlaylist)
         {
             var currentCustomPlaylist = customPlaylists[currentPlaylist] != null ? currentPlaylist : (int)MusicPlaylist.None;
             var isUsingCustomPlaylist = currentCustomPlaylist != (int)MusicPlaylist.None;
@@ -1142,8 +1099,17 @@ namespace DynamicMusic
                 var playlist = customPlaylists[currentCustomPlaylist];
                 var track = resumeSeeker > 0f || (loopCustomTracks && currentCustomTrack == customPlaylists[currentPlaylist].CurrentTrack) ? playlist.CurrentTrack : playlist.GetNextTrack();
                 GetDebuggingText(track, out debugPlaylistName, out debugSongName, currentPlaylist > (int)MusicPlaylist.None);
-                dynamicSongPlayer.Play(track, resumeSeeker);
-                resumeSeeker = 0f;
+                if (resumeIsEnabled && (customPlaylists[currentPlaylist].PlaylistFlags & Playlist.Flags.ResumePrevious) == Playlist.Flags.ResumePrevious)
+                {
+                    resumeSeeker = dynamicSongPlayer.CurrentSecond;
+                    dynamicSongPlayer.Play(track, 0f);
+                }
+                else
+                {
+                    dynamicSongPlayer.Play(track, resumeSeeker);
+                    resumeSeeker = 0f;
+                }
+
                 currentCustomTrack = playlist.CurrentTrack;
                 dynamicSongPlayer.Song = SongFiles.song_none;
                 customTrackQueued = false;
@@ -1152,18 +1118,14 @@ namespace DynamicMusic
             else if (currentCustomPlaylist == (int)MusicPlaylist.None)
             {
                 // Imported tracks start loading here.
-                if (previousPlaylist == currentPlaylist && !dynamicSongPlayer.IsPlaying)
+                /*if (!dynamicSongPlayer.IsPlaying)
                     dynamicSongPlayer.Play();
-                else if (previousPlaylist != currentPlaylist || previousLocationIndex != localPlayerGPS.CurrentLocationIndex || (lastState != State.Normal && lastState != State.FadingIn))
-                {
-                    var song = GetSong((MusicPlaylist)currentPlaylist);
-                    if (song == dynamicSongPlayer.Song)
-                        return;
-                    GetDebuggingText(song, out debugPlaylistName, out debugSongName);
-                    dynamicSongPlayer.Play(song, resumeSeeker);
-                    previousLocationIndex = localPlayerGPS.CurrentLocationIndex;
-                }
-
+                else*/
+                var song = GetSong((MusicPlaylist)currentPlaylist);
+                if (song == dynamicSongPlayer.Song)
+                    return;
+                GetDebuggingText(song, out debugPlaylistName, out debugSongName);
+                dynamicSongPlayer.Play(song, resumeSeeker);
                 resumeSeeker = 0f;
                 currentCustomTrack = string.Empty; // Should not be a custom track set if one is not playing.
             }
@@ -1173,12 +1135,11 @@ namespace DynamicMusic
                 customTrackQueued = true;
         }
 
-        private MusicPlaylist GetMusicPlaylist(PlayerGPS localPlayerGPS, PlayerEnterExit playerEnterExit, PlayerWeather playerWeather, out Conditions conditions)
+        private MusicPlaylist GetMusicPlaylist(PlayerGPS localPlayerGPS, PlayerEnterExit playerEnterExit, PlayerWeather playerWeather)
         {
             // Note: Code was adapted from SongManager.cs. Credit goes to Interkarma for the original implementation.
             var dfUnity = DaggerfallUnity.Instance;
             var topWindow = DaggerfallUI.UIManager.TopWindow;
-            conditions = new Conditions();
             if (gameManager.StateManager.CurrentState == StateManager.StateTypes.Start && !(topWindow is DaggerfallVidPlayerWindow) && !(topWindow is DaggerfallHUD))
             {
                 if (topWindow is DaggerfallStartWindow ||
@@ -1200,7 +1161,6 @@ namespace DynamicMusic
             {
                 if (localPlayerGPS.IsPlayerInLocationRect)
                 {
-                    conditions.LocationType = localPlayerGPS.CurrentLocationType;
                     switch (localPlayerGPS.CurrentLocationType)
                     {
                         case DFRegion.LocationTypes.DungeonKeep:
@@ -1229,15 +1189,12 @@ namespace DynamicMusic
                 }
                 else
                 {
-                    conditions.LocationType = DFRegion.LocationTypes.None;
                     musicEnvironment = MusicEnvironment.Wilderness;
                 }
             }
             // Dungeons
             else if (playerEnterExit.IsPlayerInsideDungeon)
             {
-                conditions.IsInDungeon = true;
-                conditions.IsInDungeonCastle = playerEnterExit.IsPlayerInsideDungeonCastle;
                 if (playerEnterExit.IsPlayerInsideDungeonCastle)
                     musicEnvironment = MusicEnvironment.Castle;
                 else
@@ -1246,9 +1203,6 @@ namespace DynamicMusic
             // Interiors
             else if (playerEnterExit.IsPlayerInside)
             {
-                conditions.IsInInterior = true;
-                conditions.BuildingType = playerEnterExit.BuildingType;
-                conditions.FactionId = playerEnterExit.FactionID;
                 switch (playerEnterExit.BuildingType)
                 {
                     case DFLocation.BuildingTypes.Alchemist:
@@ -1285,8 +1239,6 @@ namespace DynamicMusic
                 }
             }
 
-            conditions.IsNight = dfUnity.WorldTime.Now.IsNight;
-            conditions.WeatherType = playerWeather.WeatherType;
             if (musicEnvironment == MusicEnvironment.City || musicEnvironment == MusicEnvironment.Wilderness)
             {
                 if (dfUnity.WorldTime.Now.IsNight)
@@ -1492,26 +1444,23 @@ namespace DynamicMusic
         private static void SaveLoadManager_OnLoad(SaveData_v1 saveData)
         {
             Instance.HandleLocationChange();
-            Instance.lastState = State.Normal;
-            Instance.previousLocationIndex = Instance.localPlayerGPS.CurrentLocationIndex;
+            Instance.isInCombat = false;
             Instance.gameLoaded = true;
         }
 
         private static void StartGameBehaviour_OnStartGame(object sender, EventArgs e)
         {
             Instance.HandleLocationChange();
-            Instance.lastState = State.Normal;
-            Instance.previousLocationIndex = Instance.localPlayerGPS.CurrentLocationIndex;
             Instance.gameLoaded = true;
         }
 
         private void OnDeath(DaggerfallEntity entity)
         {
             // Fade out on death.
-            if (currentState == State.Combat)
-                combatTaper = 0;
+            combatTaper = 0;
             currentState = State.FadingOut;
             currentPlaylist = (int)MusicPlaylist.None;
+            isInCombat = false;
             gameLoaded = false;
         }
     }
