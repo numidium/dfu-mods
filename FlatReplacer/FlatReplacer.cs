@@ -19,7 +19,6 @@ namespace FlatReplacer
         private static Mod mod;
         private Dictionary<uint, FlatReplacement[]> flatReplacements;
         private bool replacementsRequested;
-        private StaticDoor lastDoor;
 
         private class FlatReplacement
         {
@@ -120,7 +119,7 @@ namespace FlatReplacer
             var buildingData = gameManager.PlayerEnterExit.BuildingDiscoveryData;
             Transform scene = null;
             Transform npcTransforms;
-            if (lastDoor.doorType == DoorTypes.DungeonEntrance)
+            if (GameManager.Instance.IsPlayerInsideDungeon || GameManager.Instance.IsPlayerInsideCastle)
             {
                 foreach (Transform transform in gameManager.DungeonParent.transform)
                 {
@@ -129,6 +128,12 @@ namespace FlatReplacer
                         scene = transform;
                         break;
                     }
+                }
+
+                if (!scene)
+                {
+                    replacementsRequested = false;
+                    return;
                 }
 
                 // step through dungeon blocks
@@ -143,9 +148,17 @@ namespace FlatReplacer
 
                 replacementsRequested = false;
             }
-            else
+            else if (GameManager.Instance.IsPlayerInsideBuilding)
             {
-                scene = gameManager.InteriorParent.transform.Find(DaggerfallInterior.GetSceneName(playerGps.CurrentLocation, lastDoor));
+                foreach (Transform transform in gameManager.InteriorParent.transform)
+                {
+                    if (transform.name.StartsWith("DaggerfallInterior"))
+                    {
+                        scene = transform;
+                        break;
+                    }
+                }
+
                 npcTransforms = scene.transform.Find("People Flats");
                 if (npcTransforms == null)
                 {
@@ -312,13 +325,11 @@ namespace FlatReplacer
 
         private void OnTransitionInterior(PlayerEnterExit.TransitionEventArgs args)
         {
-            lastDoor = args.StaticDoor;
             replacementsRequested = true;
         }
 
         private void OnTransitionDungeonInterior(PlayerEnterExit.TransitionEventArgs args)
         {
-            lastDoor = args.StaticDoor;
             replacementsRequested = true;
         }
 
