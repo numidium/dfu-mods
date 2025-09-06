@@ -454,7 +454,8 @@ namespace DynamicMusic
             {
                 None = 0x00,
                 CrashIn = 0x01,
-                ResumePrevious = 0x02
+                ResumePrevious = 0x02,
+                PlayUntilCombatEnd = 0x04
             }
 
             private readonly string[] tracks;
@@ -529,7 +530,10 @@ namespace DynamicMusic
                 Season,
                 Month,
                 StartMenu,
-                Combat
+                ReadingBook,
+                Combat,
+                Swimming,
+                BuildingIsOpen
             }
 
             public static Conditions GetConditionFromText(string text)
@@ -573,11 +577,13 @@ namespace DynamicMusic
         private bool customTrackQueued;
         private bool combatMusicIsEnabled;
         private bool isInCombat;
+        private int maxEnemyLevel;
         private bool resumeIsEnabled = true;
         private bool loopCustomTracks;
         private float previousTimeSinceStartup;
         private float deltaTime;
         private float resumeSeeker = 0f;
+        private int resumePlaylist;
         private bool gameLoaded;
         private int currentPlaylist;
         private State currentState;
@@ -586,24 +592,6 @@ namespace DynamicMusic
         private GUIStyle guiStyle;
         private const string fileSearchPattern = "*.ogg";
         private const string modSignature = "Dynamic Music";
-        private bool IsPlayerDetected
-        {
-            get
-            {
-                var entityBehaviours = FindObjectsOfType<DaggerfallEntityBehaviour>();
-                foreach (var entityBehaviour in entityBehaviours)
-                {
-                    if (entityBehaviour.EntityType == EntityTypes.EnemyMonster || entityBehaviour.EntityType == EntityTypes.EnemyClass)
-                    {
-                        var enemySenses = entityBehaviour.GetComponent<EnemySenses>();
-                        if (enemySenses && enemySenses.Target == gameManager.PlayerEntityBehaviour && enemySenses.DetectedTarget && enemySenses.TargetInSight)
-                            return true;
-                    }
-                }
-
-                return false;
-            }
-        }
 
         [Invoke(StateManager.StateTypes.Start, 0)]
         public static void Init(InitParams initParams)
@@ -840,14 +828,17 @@ namespace DynamicMusic
             if (deltaTime < 0f)
                 deltaTime = 0f;
             var previousPlaylist = currentPlaylist;
-            currentPlaylist = (int)GetMusicPlaylist(localPlayerGPS, playerEnterExit, playerWeather);
-
-            // Check if conditions match any user-defined condition sets.
-            if (currentPlaylist != (int)MusicPlaylist.None)
+            if (!isInCombat || customPlaylists[previousPlaylist] == null || (customPlaylists[previousPlaylist].PlaylistFlags & Playlist.Flags.PlayUntilCombatEnd) == 0)
             {
-                var key = GetUserDefinedPlaylistKey(userDefinedConditionSets);
-                if (key >= 0)
-                    currentPlaylist = key;
+                currentPlaylist = (int)GetMusicPlaylist(localPlayerGPS, playerEnterExit, playerWeather);
+
+                // Check if conditions match any user-defined condition sets.
+                if (currentPlaylist != (int)MusicPlaylist.None)
+                {
+                    var key = GetUserDefinedPlaylistKey(userDefinedConditionSets);
+                    if (key >= 0)
+                        currentPlaylist = key;
+                }
             }
 
             switch (currentState)
@@ -860,6 +851,8 @@ namespace DynamicMusic
                             currentState = State.FadingOut;
                             fadeOutTime = fadeOutLength;
                             fadeInTime = fadeInLength;
+                            if ((customPlaylists[currentPlaylist].PlaylistFlags & Playlist.Flags.ResumePrevious) == Playlist.Flags.ResumePrevious)
+                                resumePlaylist = previousPlaylist;
                         }
                         else
                             currentState = State.FadingOut;
@@ -911,7 +904,7 @@ namespace DynamicMusic
                     if (currentPlaylist == (int)MusicPlaylist.None)
                         break;
                     if (dynamicSongPlayer.AudioSource.volume == 0f)
-                        PlayTrack(previousPlaylist);
+                        PlayCurrentTrack();
                     fadeInTime += deltaTime;
                     // End fade when time elapsed.
                     if (fadeInTime >= fadeInLength)
@@ -932,12 +925,12 @@ namespace DynamicMusic
                 return;
             if (currentState == State.Normal)
             {
-                if (combatMusicIsEnabled && !gameManager.PlayerDeath.DeathInProgress && !playerEntity.Arrested && IsPlayerDetected)
+                if (combatMusicIsEnabled && !gameManager.PlayerDeath.DeathInProgress && !playerEntity.Arrested && GetCombatStatus(out maxEnemyLevel))
                 {
                     isInCombat = true;
                     combatTaper = combatTaperLength;
                 }
-                else if (combatTaper > 0 && --combatTaper == 0)
+                else if (combatTaper == 0 || --combatTaper <= 0)
                     isInCombat = false;
             }
 
@@ -1051,6 +1044,22 @@ namespace DynamicMusic
             {
                 if (gameManager.StateManager.CurrentState == StateManager.StateTypes.Start) return false;
                 conditionResult = isInCombat;
+                if (parameters.Length > 0)
+                    conditionResult &= maxEnemyLevel - playerEntity.Level >= parameters[0];
+            }
+            else if (condition == ConditionUsage.Conditions.Swimming)
+            {
+                if (gameManager.StateManager.CurrentState == StateManager.StateTypes.Start) return false;
+                conditionResult = playerEnterExit.IsPlayerSwimming;
+            }
+            else if (condition == ConditionUsage.Conditions.BuildingIsOpen)
+            {
+                if (gameManager.StateManager.CurrentState == StateManager.StateTypes.Start) return false;
+                if ((int)playerEnterExit.Interior.BuildingData.BuildingType >= PlayerActivate.openHours.Length)
+                    conditionResult = true;
+                else
+                    conditionResult = playerEnterExit.IsPlayerInside && !playerEnterExit.IsPlayerInsideDungeon
+                        && PlayerActivate.IsBuildingOpen(playerEnterExit.Interior.BuildingData.BuildingType);
             }
 
             return negate ? !conditionResult : conditionResult;
@@ -1087,7 +1096,7 @@ namespace DynamicMusic
             combatTaper = 0;
         }
 
-        private void PlayTrack(int previousPlaylist)
+        private void PlayCurrentTrack()
         {
             var currentCustomPlaylist = customPlaylists[currentPlaylist] != null ? currentPlaylist : (int)MusicPlaylist.None;
             var isUsingCustomPlaylist = currentCustomPlaylist != (int)MusicPlaylist.None;
@@ -1106,6 +1115,8 @@ namespace DynamicMusic
                 }
                 else
                 {
+                    if (currentCustomPlaylist != resumePlaylist)
+                        resumeSeeker = 0f;
                     dynamicSongPlayer.Play(track, resumeSeeker);
                     resumeSeeker = 0f;
                 }
@@ -1117,14 +1128,12 @@ namespace DynamicMusic
             // Loop the music as usual if no custom soundtracks are found.
             else if (currentCustomPlaylist == (int)MusicPlaylist.None)
             {
-                // Imported tracks start loading here.
-                /*if (!dynamicSongPlayer.IsPlaying)
-                    dynamicSongPlayer.Play();
-                else*/
                 var song = GetSong((MusicPlaylist)currentPlaylist);
                 if (song == dynamicSongPlayer.Song)
                     return;
                 GetDebuggingText(song, out debugPlaylistName, out debugSongName);
+                if (currentPlaylist != resumePlaylist)
+                    resumeSeeker = 0f;
                 dynamicSongPlayer.Play(song, resumeSeeker);
                 resumeSeeker = 0f;
                 currentCustomTrack = string.Empty; // Should not be a custom track set if one is not playing.
@@ -1418,6 +1427,29 @@ namespace DynamicMusic
         {
             playlistName = ((MusicPlaylist)currentPlaylist).ToString();
             songName = song.ToString();
+        }
+
+        private bool GetCombatStatus(out int maxLevel)
+        {
+            bool isEnemyFound = false;
+            int maxLevel_ = 0;
+            var entityBehaviours = FindObjectsOfType<DaggerfallEntityBehaviour>();
+            foreach (var entityBehaviour in entityBehaviours)
+            {
+                if (entityBehaviour.EntityType == EntityTypes.EnemyMonster || entityBehaviour.EntityType == EntityTypes.EnemyClass)
+                {
+                    var enemySenses = entityBehaviour.GetComponent<EnemySenses>();
+                    if (enemySenses && enemySenses.Target == gameManager.PlayerEntityBehaviour && enemySenses.DetectedTarget && enemySenses.TargetInSight)
+                    {
+                        isEnemyFound = true;
+                        if (entityBehaviour.Entity.Level > maxLevel_)
+                            maxLevel_ = entityBehaviour.Entity.Level;
+                    }
+                }
+            }
+
+            maxLevel = maxLevel_;
+            return isEnemyFound;
         }
 
         // Load new location's song player when player moves into it.

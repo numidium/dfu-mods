@@ -59,7 +59,7 @@ are present in your condition then your playlist will not play.
 -------------------------
 Each playlist condition line contains the directory name, a single-character separator, and a set of conditions,
 repectively. In general terms:
-PlaylistName = (Not) Condition0 (param0... paramN,...) ... (Not) ConditionN (param0... paramN)
+PlaylistName = (Not) Condition0 (param0, ...paramN) ... (Not) ConditionN (param0, ... paramN) | Flag0, ...FlagN
 
 Conditions, which are separated by commas, come in two types: Booleans and functions. Boolean conditions may be
 written as-is or preceded with a "Not" for negation. Function conditions take one or more parameters and may NOT
@@ -76,27 +76,64 @@ The preceding set of conditions evaluate to true when the climate is temperate (
 the day (negated night), the sky is sunny (weather code 0), and the player's current location type is either a city,
 hamlet, or village (code 0, 1, or 2). If all these conditions are met then the playlist will play.
 
+Another example with flags included:
+CombatDungeonBoss = Combat 5, Dungeon | CrashIn, ResumePrevious, PlayUntilCombatEnd
+
+These conditions specify that this playlist should play if the player is encountering a hostile enemy that is at least
+5 levels above their own and is inside a dungeon.
+
 
 3b. Condition Lookup
 -------------------------
-Night - Boolean, True if time is between 18:00 and 6:00
-Interior - Boolean, True if player is in a building that isn't a dungeon or castle
-Dungeon - Boolean, True if player is in a dungeon
-DungeonCastle - Boolean, True if player is inside a castle
-LocationType - Function, True if player's outdoor location fits one of the parameters (see 3ci)
-BuildingType - Function, True if player is inside one of the specified building types (see 3cii)
-WeatherType - Function, True if the current weather fits one of the given types (see 3ciii)
-FactionId - Function, True if the faction of the player's current environment fits one of the given values (see 3civ)
-Climate - Function, True if the climate base type fits one of the given values (see 3cv)
-ClimateIndex - Function, True if the climate subtype fits one of the given values. Supersedes  Climate, which is kept for
+i. Condition Functions:
+
+    Night - True if time is between 18:00 and 6:00.
+        Parameters: None
+    Interior - True if player is in a building that isn't a dungeon or castle.
+        Parameters: None
+    Dungeon - True if player is in a dungeon.
+        Parameters: None
+    DungeonCastle - True if player is inside a castle.
+        Parameters: None
+    LocationType - True if player's outdoor location fits one of the parameters (see 3ci).
+        Parameters: LocationType0 LocationType1 ... LocationTypeN
+    BuildingType - True if player is inside one of the specified building types (see 3cii).
+        Parameters: BuildingType0 BuildingType1 ... BuildingTypeN
+    WeatherType - True if the current weather fits one of the given types (see 3ciii).
+        Parameters: WeatherType0 WeatherType1 ... WeatherTypeN
+    FactionId - True if the faction of the player's current environment fits one of the given values (see 3civ).
+        Parameters: FactionId0 FactionId1 ... FactionIdN
+    Climate - True if the climate base type fits one of the given values (see 3cv).
+        Parameters: ClimateType0 ClimateType1 ... ClimateTypeN
+    ClimateIndex - True if the climate subtype fits one of the given values. Supersedes Climate, which is kept for
     backwards compatibility. (see 3cvi)
-RegionIndex - Function, True if the player's location is within one of the given regions (see 3cvii)
-DungeonType - Function, True if the player is inside a dungeon of one of the given types (see 3cviii)
-BuildingQuality - Function, True if the player is inside a building of one of the specified qualities (see 3cix)
-Season - Function, True if the current in-game season matches the specified season code (see 3cx)
-Month - Function, True if the current in-game month matches the specified month code (see 3cxi)
-StartMenu - Boolean, True if the game is on the starting menu (the screen with new game, load game, and exit game)
-Combat - Boolean, True if player is in combat
+        Parameters: ClimateIndex0 ClimateIndex1 ... ClimateIndexN
+    RegionIndex - True if the player's location is within one of the given regions (see 3cvii).
+        Parameters: RegionIndex0 RegionIndex1 ... RegionIndexN
+    DungeonType - True if the player is inside a dungeon of one of the given types (see 3cviii).
+        Parameters: DungeonType0 DungeonType1 ... DungeonTypeN
+    BuildingQuality - True if the player is inside a building of one of the specified qualities (see 3cix).
+        Parameters: QualityLevel0 QualityLevel1 ... QualityLevelN
+    Season - True if the current in-game season matches the specified season code (see 3cx).
+        Parameters: SeasonCode0 SeasonCode1 ... SeasonCodeN
+    Month - True if the current in-game month matches the specified month code (see 3cxi).
+        Parameters: Month0 Month1 ... MonthN
+    StartMenu - True if the game is on the starting menu (the screen with new game, load game, and exit game).
+        Parameters: None
+    Combat - True if player is in combat.
+        Parameters: MinimumLevelDifference (assumed to be 0 if not supplied)
+    ReadingBook - True if the book reading window is open.
+        Parameters: None
+    Swimming - True if the player is in swimming state.
+        Parameters: None
+    BuildingIsOpen - True if the building occupied by the player is currently open (evaluates to true if the building does not have opening/closing hours).
+        Parameters: None
+
+ii: Condition Flags:
+
+    CrashIn - Playlist should bypass Fade Out/Fade In sequence when conditions are met.
+    ResumePrevious - When returning to the previous playlist, start at time offset when playlist last changed.
+    PlayUntilCombatEnd - Do not change to another playlist until the player is out of combat.
 
 
 3c. Value Lookup
