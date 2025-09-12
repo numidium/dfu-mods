@@ -858,6 +858,9 @@ namespace DynamicMusic
                             currentState = State.FadingOut;
                     }
 
+                    if (currentState != State.FadingOut)
+                        PlayCurrentTrack();
+
                     // Stop music if no playlist found.
                     if (currentPlaylist == (int)MusicPlaylist.None)
                     {
