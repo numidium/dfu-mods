@@ -1058,7 +1058,7 @@ namespace DynamicMusic
             else if (condition == ConditionUsage.Conditions.BuildingIsOpen)
             {
                 if (gameManager.StateManager.CurrentState == StateManager.StateTypes.Start) return false;
-                if ((int)playerEnterExit.Interior.BuildingData.BuildingType >= PlayerActivate.openHours.Length)
+                if (playerEnterExit.Interior != null && (int)playerEnterExit.Interior.BuildingData.BuildingType >= PlayerActivate.openHours.Length)
                     conditionResult = true;
                 else
                     conditionResult = playerEnterExit.IsPlayerInside && !playerEnterExit.IsPlayerInsideDungeon
