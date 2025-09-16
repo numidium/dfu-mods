@@ -19,6 +19,8 @@ namespace FlatReplacer
         private static Mod mod;
         private Dictionary<uint, FlatReplacement[]> flatReplacements;
         private bool replacementsRequested;
+        private uint replacementTime;
+        private const uint replacementDelay = 5;
 
         private class FlatReplacement
         {
@@ -114,6 +116,14 @@ namespace FlatReplacer
         {
             if (!replacementsRequested)
                 return;
+            if (replacementTime < replacementDelay)
+            {
+                replacementTime++;
+                return;
+            }
+
+            replacementsRequested = false;
+            replacementTime = 0;
             var gameManager = GameManager.Instance;
             var playerGps = gameManager.PlayerGPS;
             var buildingData = gameManager.PlayerEnterExit.BuildingDiscoveryData;
@@ -131,22 +141,17 @@ namespace FlatReplacer
                 }
 
                 if (!scene)
-                {
-                    replacementsRequested = false;
                     return;
-                }
 
                 // step through dungeon blocks
                 foreach (Transform block in scene)
                 {
-                    npcTransforms = block.Find("Flats").transform;
+                    npcTransforms = block.Find("Flats");
                     if (npcTransforms == null)
                         continue;
                     foreach (Transform npcTransform in npcTransforms)
                         ReplaceBillboard(npcTransform, playerGps, gameManager, in buildingData, LocationTypes.Dungeon);
                 }
-
-                replacementsRequested = false;
             }
             else if (GameManager.Instance.IsPlayerInsideBuilding)
             {
@@ -162,13 +167,11 @@ namespace FlatReplacer
                 npcTransforms = scene.transform.Find("People Flats");
                 if (npcTransforms == null)
                 {
-                    replacementsRequested = false;
                     return;
                 }
 
                 foreach (Transform npcTransform in npcTransforms)
                     ReplaceBillboard(npcTransform, playerGps, gameManager, in buildingData, LocationTypes.Building);
-                replacementsRequested = false;
             }
         }
 
