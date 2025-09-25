@@ -973,7 +973,7 @@ namespace DynamicMusic
             }
             else if (condition == ConditionUsage.Conditions.LocationType)
             {
-                if (gameManager.StateManager.CurrentState == StateManager.StateTypes.Start && playerEnterExit.IsPlayerInsideDungeon) return false;
+                if (gameManager.StateManager.CurrentState == StateManager.StateTypes.Start || playerEnterExit.IsPlayerInsideDungeon || !localPlayerGPS.IsPlayerInLocationRect) return false;
                 foreach (var parameter in parameters)
                     conditionResult |= localPlayerGPS.CurrentLocationType == (DFRegion.LocationTypes)parameter;
             }
