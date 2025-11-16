@@ -26,6 +26,7 @@ namespace FlatReplacer
         {
             public FlatReplacementRecord Record;
             public Texture2D[] AnimationFrames;
+            public byte Specificity = 0;
         }
 
         [Invoke(StateManager.StateTypes.Start, 0)]
@@ -190,12 +191,15 @@ namespace FlatReplacer
             var key = ((uint)archive << 16) + (uint)record;
             if (!flatReplacements.ContainsKey(key))
                 return; // Nothing to replace this with.
+            byte maxSpecificity = 0;
             var candidates = new List<byte>();
             for (var i = (byte)0; i < flatReplacements[key].Length; i++)
             {
                 var replacementRecord = flatReplacements[key][i].Record;
                 if (replacementRecord.LocationTypes != (int)LocationTypes.All && (replacementRecord.LocationTypes & (int)enteredLocationType) == 0)
                     continue;
+                if (replacementRecord.LocationTypes != (int)LocationTypes.All)
+                    flatReplacements[key][i].Specificity++;
                 var regionFound = false;
                 if (replacementRecord.Regions[0] == wildcardOrDefault)
                     regionFound = true;
@@ -205,6 +209,7 @@ namespace FlatReplacer
                         if (playerGps.CurrentRegionIndex == regionIndex)
                         {
                             regionFound = true;
+                            flatReplacements[key][i].Specificity++;
                             break;
                         }
                     }
@@ -223,18 +228,34 @@ namespace FlatReplacer
                         // Don't replace if outside building quality range.
                         (buildingData.quality < replacementRecord.QualityMin || buildingData.quality > replacementRecord.QualityMax));
                 }
-
+                else if (replacementRecord.FactionId != wildcardOrDefault) // Castles are factionless.
+                    continue;
                 if (buildingDoesNotMatch || (replacementRecord.SocialGroup != wildcardOrDefault && replacementRecord.SocialGroup != factionData.sgroup))
                     continue;
+                if (replacementRecord.SocialGroup == factionData.sgroup)
+                    flatReplacements[key][i].Specificity++;
+                if (replacementRecord.FactionId != wildcardOrDefault)
+                    flatReplacements[key][i].Specificity++;
+                if (replacementRecord.BuildingType != wildcardOrDefault)
+                    flatReplacements[key][i].Specificity++;
+                if (flatReplacements[key][i].Specificity > maxSpecificity)
+                    maxSpecificity = flatReplacements[key][i].Specificity;
                 candidates.Add(i);
             }
 
             if (candidates.Count == 0)
                 return;
+            var filteredCandidates = new List<byte>();
+            for (var i = 0; i < candidates.Count; i++)
+            {
+                if (flatReplacements[key][i].Specificity == maxSpecificity)
+                    filteredCandidates.Add(candidates[i]);
+            }
+
             var staticNpc = go.GetComponent<StaticNPC>();
             // Pick a random replacement from any that match the criteria.
-            var randomNumber = candidates.Count > 1 ? new System.Random(staticNpc.Data.nameSeed).Next() : 0;
-            var chosenIndex = candidates[randomNumber % candidates.Count];
+            var randomNumber = filteredCandidates.Count > 1 ? new System.Random(staticNpc.Data.nameSeed).Next() : 0;
+            var chosenIndex = filteredCandidates[randomNumber % filteredCandidates.Count];
             var chosenReplacement = flatReplacements[key][chosenIndex];
             var chosenReplacementRecord = chosenReplacement.Record;
             if (chosenReplacement.Record.NameBank != wildcardOrDefault)
