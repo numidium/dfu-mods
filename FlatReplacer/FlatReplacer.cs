@@ -248,10 +248,12 @@ namespace FlatReplacer
             var filteredCandidates = new List<byte>();
             for (var i = 0; i < candidates.Count; i++)
             {
-                if (flatReplacements[key][i].Specificity == maxSpecificity)
+                if (flatReplacements[key][candidates[i]].Specificity == maxSpecificity)
                     filteredCandidates.Add(candidates[i]);
             }
 
+            if (filteredCandidates.Count == 0)
+                return;
             var staticNpc = go.GetComponent<StaticNPC>();
             // Pick a random replacement from any that match the criteria.
             var randomNumber = filteredCandidates.Count > 1 ? new System.Random(staticNpc.Data.nameSeed).Next() : 0;
