@@ -586,6 +586,7 @@ namespace DynamicMusic
         private int resumePlaylist;
         private bool gameLoaded;
         private int currentPlaylist;
+        private bool randomIndRequested;
         private State currentState;
         private string debugPlaylistName;
         private string debugSongName;
@@ -883,6 +884,7 @@ namespace DynamicMusic
                         // End fade when time elapsed.
                         fadeOutTime = 0f;
                         currentState = State.FadingIn;
+                        randomIndRequested = true;
                     }
 
                     break;
@@ -1412,7 +1414,8 @@ namespace DynamicMusic
                 }
                 else if (currentPlaylist == Instance.MagesGuildSongs/* || currentPlaylist == MusicPlaylist.Sneaking*/)
                 {
-                    index = UnityEngine.Random.Range(0, Instance.MagesGuildSongs.Length);
+                    index = Instance.randomIndRequested ? UnityEngine.Random.Range(0, Instance.MagesGuildSongs.Length) : index;
+                    Instance.randomIndRequested = false;
                 }
             }
 
