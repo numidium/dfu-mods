@@ -15,6 +15,8 @@ namespace FlatReplacer
     {
         private const string modSignature = "Flat Replacer";
         const int wildcardOrDefault = -1;
+        const int qualityMinDefault = 1;
+        const int qualityMaxDefault = 20;
         public static FlatReplacer Instance { get; private set; }
         private static Mod mod;
         private Dictionary<uint, FlatReplacement[]> flatReplacements;
@@ -191,7 +193,7 @@ namespace FlatReplacer
             var key = ((uint)archive << 16) + (uint)record;
             if (!flatReplacements.ContainsKey(key))
                 return; // Nothing to replace this with.
-            byte maxSpecificity = 0;
+            int maxPriority = 0;
             var candidates = new List<byte>();
             for (var i = (byte)0; i < flatReplacements[key].Length; i++)
             {
@@ -210,6 +212,8 @@ namespace FlatReplacer
                         {
                             regionFound = true;
                             flatReplacements[key][i].Specificity++;
+                            if (replacementRecord.Regions.Length == 1)
+                                flatReplacements[key][i].Specificity++;
                             break;
                         }
                     }
@@ -232,24 +236,40 @@ namespace FlatReplacer
                     continue;
                 if (buildingDoesNotMatch || (replacementRecord.SocialGroup != wildcardOrDefault && replacementRecord.SocialGroup != factionData.sgroup))
                     continue;
+                if (replacementRecord.QualityMin != qualityMinDefault)
+                    flatReplacements[key][i].Specificity++;
+                if (replacementRecord.QualityMax != qualityMaxDefault)
+                    flatReplacements[key][i].Specificity++;
                 if (replacementRecord.SocialGroup == factionData.sgroup)
                     flatReplacements[key][i].Specificity++;
                 if (replacementRecord.FactionId != wildcardOrDefault)
                     flatReplacements[key][i].Specificity++;
                 if (replacementRecord.BuildingType != wildcardOrDefault)
                     flatReplacements[key][i].Specificity++;
-                if (flatReplacements[key][i].Specificity > maxSpecificity)
-                    maxSpecificity = flatReplacements[key][i].Specificity;
+                if (flatReplacements[key][i].Record.Priority > maxPriority)
+                    maxPriority = flatReplacements[key][i].Record.Priority;
                 candidates.Add(i);
             }
 
             if (candidates.Count == 0)
                 return;
+            byte maxSpecificity = 0;
             var filteredCandidates = new List<byte>();
             for (var i = 0; i < candidates.Count; i++)
             {
-                if (flatReplacements[key][candidates[i]].Specificity == maxSpecificity)
+                if (flatReplacements[key][candidates[i]].Record.Priority == maxPriority)
+                {
                     filteredCandidates.Add(candidates[i]);
+                    var specificity = flatReplacements[key][candidates[i]].Specificity;
+                    if (specificity > maxSpecificity)
+                        maxSpecificity = specificity;
+                }
+            }
+
+            for (var i = 0; i < filteredCandidates.Count; i++)
+            {
+                if (flatReplacements[key][filteredCandidates[i]].Specificity < maxSpecificity)
+                    filteredCandidates.RemoveAt(i);
             }
 
             if (filteredCandidates.Count == 0)

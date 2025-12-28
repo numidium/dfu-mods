@@ -27,5 +27,6 @@ namespace FlatReplacer
         public string FlatTextureName;
         public bool UseExactDimensions;
         public int FlatPortrait;
+        public int Priority;
     }
 }

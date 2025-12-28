@@ -34,6 +34,7 @@ namespace FlatReplacer
             SetStringValue(data, "FlatTextureName", out model.FlatTextureName);
             SetBoolValue(data, "UseExactDimensions", out model.UseExactDimensions);
             SetIntValue(data, "FlatPortrait", out model.FlatPortrait);
+            SetIntValue(data, "Priority", out model.Priority, 0);
 
             return fsResult.Success;
         }

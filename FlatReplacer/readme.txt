@@ -130,9 +130,7 @@ HighElf = 4
 WoodElf = 5
 Khajiit = 6
 Argonian/Imperial = 7 (Argonians have Imperial names in Daggerfall.)
-Monster1 = 8 (Monster names are used in quests where a non-humanoid creature needs to be slain, typically.)
-Monster2 = 9
-Monster3 = 10
+("Monster" names are excluded as they are not currently usable in a static NPC context.)
 
 TextureArchive - Integer - The index of the archive file of the original flat graphic which will be replaced.
 
@@ -150,6 +148,8 @@ drawn in the low-res, pixelated style of the vanilla game you should probably le
 FlatPortrait - Integer - The index of the NPC's portrait used in the talk window. If greater than 502 then a custom portrait file must be supplied.
 If set to -1 then the default portrait will be used.
 
+Priority - Integer - The order of precedence a replacement should have independent of specificity. If one replacement's priority is higher than another then it will be chosen instead.
+If more than one replacement has the same priority then one of them will be chosen at random. Defaults to 0.
 
 2b. Flat Images
 -------------------------
