@@ -584,13 +584,18 @@ namespace DynamicMusic
         private float deltaTime;
         private float resumeSeeker = 0f;
         private int resumePlaylist;
+        private MusicPlaylist lastVanillaPlaylist;
         private bool gameLoaded;
         private int currentPlaylist;
         private bool randomIndRequested;
+        private int currentLocationIndex;
+        private int lastlocationIndex;
+        private uint lastGameDays;
         private State currentState;
         private string debugPlaylistName;
         private string debugSongName;
         private GUIStyle guiStyle;
+
         private const string fileSearchPattern = "*.ogg";
         private const string modSignature = "Dynamic Music";
 
@@ -1103,6 +1108,8 @@ namespace DynamicMusic
 
         private void PlayCurrentTrack()
         {
+            var gameDays = daggerfallUnity.WorldTime.DaggerfallDateTime.ToClassicDaggerfallTime() / 1440;
+            var song = dynamicSongPlayer.Song;
             var currentCustomPlaylist = customPlaylists[currentPlaylist] != null ? currentPlaylist : (int)MusicPlaylist.None;
             var isUsingCustomPlaylist = currentCustomPlaylist != (int)MusicPlaylist.None;
             // Plays random tracks continuously as long as custom tracks are available for the current context.
@@ -1128,14 +1135,22 @@ namespace DynamicMusic
 
                 currentCustomTrack = playlist.CurrentTrack;
                 dynamicSongPlayer.Song = SongFiles.song_none;
+                lastVanillaPlaylist = MusicPlaylist.None;
                 customTrackQueued = false;
             }
             // Loop the music as usual if no custom soundtracks are found.
             else if (currentCustomPlaylist == (int)MusicPlaylist.None)
             {
-                var song = GetSong((MusicPlaylist)currentPlaylist);
+                if (gameDays != lastGameDays || localPlayerGPS.CurrentLocationIndex != lastlocationIndex || (int)lastVanillaPlaylist != currentPlaylist)
+                    song = GetSong((MusicPlaylist)currentPlaylist);
                 if (song == dynamicSongPlayer.Song)
+                {
+                    lastGameDays = gameDays;
+                    lastlocationIndex = localPlayerGPS.CurrentLocationIndex;
+                    lastVanillaPlaylist = (MusicPlaylist)currentPlaylist;
                     return;
+                }
+
                 GetDebuggingText(song, out debugPlaylistName, out debugSongName);
                 if (currentPlaylist != resumePlaylist)
                     resumeSeeker = 0f;
@@ -1147,6 +1162,9 @@ namespace DynamicMusic
             // Queue next custom track when at the end of the current one.
             if (isUsingCustomPlaylist && dynamicSongPlayer.IsStoppedClip)
                 customTrackQueued = true;
+            lastGameDays = gameDays;
+            lastlocationIndex = localPlayerGPS.CurrentLocationIndex;
+            lastVanillaPlaylist = (MusicPlaylist)currentPlaylist;
         }
 
         private MusicPlaylist GetMusicPlaylist(PlayerGPS localPlayerGPS, PlayerEnterExit playerEnterExit, PlayerWeather playerWeather)
@@ -1303,7 +1321,7 @@ namespace DynamicMusic
         }
 
         // Adapted from SongManager.cs. Credit to Interkarma.
-        private static SongFiles GetSong(MusicPlaylist musicPlaylist)
+        private SongFiles GetSong(MusicPlaylist musicPlaylist)
         { 
             var index = 0;
             // Map playlist enum to SongManager playlist.
@@ -1362,42 +1380,23 @@ namespace DynamicMusic
 
             if (currentPlaylist == null)
             {
+                lastVanillaPlaylist = MusicPlaylist.None;
                 return SongFiles.song_none;
             }
 
             // General MIDI song selection
             {
                 uint gameMinutes = DaggerfallUnity.Instance.WorldTime.DaggerfallDateTime.ToClassicDaggerfallTime();
-                DFRandom.srand(gameMinutes / 1440);
-                uint random = DFRandom.rand();
-                if (currentPlaylist == Instance.NightSongs)
-                    index = (int)(random % Instance.NightSongs.Length);
-                else if (currentPlaylist == Instance.SunnySongs)
-                    index = (int)(random % Instance.SunnySongs.Length);
-                else if (currentPlaylist == Instance.CloudySongs)
-                    index = (int)(random % Instance.CloudySongs.Length);
-                else if (currentPlaylist == Instance.OvercastSongs)
-                    index = (int)(random % Instance.OvercastSongs.Length);
-                else if (currentPlaylist == Instance.RainSongs)
-                    index = (int)(random % Instance.RainSongs.Length);
-                else if (currentPlaylist == Instance.SnowSongs)
-                    index = (int)(random % Instance.SnowSongs.Length);
-                else if (currentPlaylist == Instance.TempleSongs && Instance.playerEnterExit)
+                uint gameDays = gameMinutes / 1440;
+
+                // All taverns share the same song for the day, and are played in sequence
+                // from one day to the next
+                if (currentPlaylist == TavernSongs)
                 {
-                    byte[] templeFactions = { 0x52, 0x54, 0x58, 0x5C, 0x5E, 0x62, 0x6A, 0x24 };
-                    uint factionOfPlayerEnvironment = Instance.playerEnterExit.FactionID;
-                    index = Array.IndexOf(templeFactions, (byte)factionOfPlayerEnvironment);
-                    if (index < 0)
-                    {
-                        byte[] godFactions = { 0x15, 0x16, 0x18, 0x1A, 0x1B, 0x1D, 0x21, 0x23 };
-                        index = Array.IndexOf(godFactions, (byte)factionOfPlayerEnvironment);
-                    }
+                    index = (int)(gameDays % currentPlaylist.Length);
                 }
-                else if (currentPlaylist == Instance.TavernSongs)
-                {
-                    index = (int)(gameMinutes / 1440 % Instance.TavernSongs.Length);
-                }
-                else if (currentPlaylist == Instance.DungeonInteriorSongs)
+                // Dungeons use a special field for the song selection
+                else if (currentPlaylist == DungeonInteriorSongs)
                 {
                     PlayerGPS gps = GameManager.Instance.PlayerGPS;
                     ushort unknown2 = 0;
@@ -1407,18 +1406,27 @@ namespace DynamicMusic
                         unknown2 = (ushort)gps.CurrentLocation.Dungeon.RecordElement.Header.Unknown2;
                         region = gps.CurrentRegionIndex;
                     }
-
                     DFRandom.srand(unknown2 ^ ((byte)region << 8));
-                    random = DFRandom.rand();
-                    index = (int)(random % Instance.DungeonInteriorSongs.Length);
+                    uint random = DFRandom.rand();
+                    index = (int)(random % DungeonInteriorSongs.Length);
                 }
-                else if (currentPlaylist == Instance.MagesGuildSongs/* || currentPlaylist == MusicPlaylist.Sneaking*/)
+                // Mages Guild uses a random track each time
+                // Sneaking is not used, but if it was, it would probably be random like this
+                else if (currentPlaylist == SneakingSongs || currentPlaylist == MagesGuildSongs)
                 {
-                    index = Instance.randomIndRequested ? UnityEngine.Random.Range(0, Instance.MagesGuildSongs.Length) : index;
-                    Instance.randomIndRequested = false;
+                    if (lastVanillaPlaylist != musicPlaylist)
+                        index = UnityEngine.Random.Range(0, currentPlaylist.Length);
                 }
+                // Most other places use a random song for the day
+                else if (currentPlaylist.Length > 1)
+                {
+                    DFRandom.srand(gameDays);
+                    uint random = DFRandom.rand();
+                    index = (int)(random % currentPlaylist.Length);
+                }                
             }
 
+            lastVanillaPlaylist = musicPlaylist;
             return currentPlaylist[index];
         }
 
