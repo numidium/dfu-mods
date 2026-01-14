@@ -1,0 +1,20 @@
+{
+    "Version": "v1",
+    "Sections": [
+        {
+            "Name": "Options",
+            "Description": null,
+            "IsAdvanced": false,
+            "Keys": [
+                {
+                    "Value": false,
+                    "Name": "Loop Single Tracks",
+                    "Description": "Loop one random track when a playlist is chosen.",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
+                }
+            ],
+            "$version": "v1"
+        }
+    ]
+}
