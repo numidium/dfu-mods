@@ -29,12 +29,11 @@ namespace DynamicAmbience
             SetIntArrayValue(data, "Season", out model.Season);
             SetIntArrayValue(data, "Month", out model.Month);
             SetBoolValue(data, "StartMenu", out model.StartMenu);
-            SetBoolValue(data, "ReadingBook",  out model.ReadingBook);
             SetBoolValue(data, "Combat", out model.Combat);
-            SetBoolValue(data, "Swimming", out model.BuildingIsOpen);
+            SetBoolValue(data, "Swimming", out model.Swimming);
+            SetBoolValue(data, "Positional", out model.Positional);
             SetIntValue(data, "MinDelay", out model.MinDelay);
             SetIntValue(data, "MaxDelay", out model.MaxDelay);
-            SetIntArrayValue(data, "FlatRecord", out model.FlatRecord);
 
             return fsResult.Success;
         }

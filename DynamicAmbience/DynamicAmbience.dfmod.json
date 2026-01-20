@@ -9,6 +9,9 @@
         "Assets/Game/Mods/DynamicAmbience/DynamicAmbience.cs",
         "Assets/Game/Mods/DynamicAmbience/modsettings.json",
         "Assets/Game/Mods/DynamicAmbience/AmbienceRecord.cs",
-        "Assets/Game/Mods/DynamicAmbience/AmbienceConverter.cs"
+        "Assets/Game/Mods/DynamicAmbience/AmbienceConverter.cs",
+        "Assets/Game/Mods/DynamicAmbience/Logger.cs",
+        "Assets/Game/Mods/DynamicAmbience/Playlist.cs",
+        "Assets/Game/Mods/DynamicAmbience/AmbientAudioSource.cs"
     ]
 }
