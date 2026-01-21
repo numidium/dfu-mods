@@ -11,6 +11,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using UnityEditor.Localization.Plugins.XLIFF.V12;
 using UnityEngine;
 
 namespace DynamicAmbience
@@ -45,7 +46,6 @@ namespace DynamicAmbience
         private bool resumeIsEnabled = true;
         private int currentPlaylist;
         private State currentState;
-        private bool contextChangeQueued;
         private string debugPlaylistName;
         private string debugTrackName;
         private GUIStyle guiStyle;
@@ -179,70 +179,16 @@ namespace DynamicAmbience
                 lastSwimmingState = false;
                 OnStopSwimming();
             }
-
-            switch (currentState)
-            {
-                case State.Normal:
-                    {
-                        if (contextChangeQueued)
-                        {
-                            currentState = State.FadingOut;
-                            contextChangeQueued = false;
-                        }
-                        else
-                        {
-                            SetAmbientVolume(DaggerfallUnity.Settings.SoundVolume);
-                        }
-                    }
-                    break;
-                case State.FadingIn:
-                    {
-                        if (contextChangeQueued)
-                        {
-                            fadeInTime = 0f;
-                            contextChangeQueued = false;
-                            currentState = State.FadingOut;
-                        }
-                        else if (fadeInTime >= fadeInLength)
-                        {
-                            fadeInTime = 0f;
-                            currentState = State.Normal;
-                        }
-                        else
-                        {
-                            fadeInTime += Time.unscaledDeltaTime;
-                            SetAmbientVolume(Mathf.Lerp(0f, DaggerfallUnity.Settings.SoundVolume, fadeInTime / fadeInLength));
-                        }
-                    }
-                    break;
-                case State.FadingOut:
-                    {
-                        if (fadeOutTime < fadeOutLength)
-                        {
-                            fadeOutTime += Time.unscaledDeltaTime;
-                            SetAmbientVolume(Mathf.Lerp(DaggerfallUnity.Settings.SoundVolume, 0f, fadeOutTime / fadeOutLength));
-                        }
-                        else
-                        {
-                            SetAmbientTracks();
-                            fadeOutTime = 0f;
-                            currentState = State.FadingIn;
-                        }
-                    }
-                    break;
-            }
         }
 
         private void HandleContextChange()
         {
             Logger.PrintLog("Ambience context changed.");
-            contextChangeQueued = true;
+            SetAmbientTracks();
         }
 
         private void SetAmbientTracks()
         {
-            for (var i = 0; i < ambientAudioSources.Length; i++)
-                ambientAudioSources[i].StopAndUnload();
             var isInStartMenu = gameManager.StateManager.CurrentState == StateManager.StateTypes.Start;
             var isNight = daggerfallUnity.WorldTime.Now.IsNight;
             var isInterior = playerEnterExit.IsPlayerInside;
@@ -261,7 +207,8 @@ namespace DynamicAmbience
             var buildingIsOpen = isInterior && !isInDungeon && (int)playerEnterExit.Interior.BuildingData.BuildingType < 18 && 
                 PlayerActivate.IsBuildingOpen(playerEnterExit.Interior.BuildingData.BuildingType);
 
-            var audioSourceIndex = 0;
+            var activePlaylists = new Playlist[ambienceRecords.Length];
+            var activePlaylistCount = 0;
             for (var i = 0; i < ambienceRecords.Length; i++)
             {
                 var record = ambienceRecords[i];
@@ -297,8 +244,30 @@ namespace DynamicAmbience
                     continue;
                 if (record.BuildingIsOpen.HasValue && record.BuildingIsOpen.Value != buildingIsOpen)
                     continue;
-                ambientAudioSources[audioSourceIndex++].SetPlaylist(ambiencePlaylists[i]);
-                audioSourceIndex %= maxAmbientAudioSources;
+                activePlaylists[activePlaylistCount++] = ambiencePlaylists[i];
+            }
+
+            for (var i = 0; i < ambientAudioSources.Length; i++)
+            {
+                var source = ambientAudioSources[i];
+                if (source.Playlist == null)
+                    continue;
+                if (!activePlaylists.Contains(source.Playlist))
+                    source.QueuePlaylist(null);
+            }
+
+            for (var i = 0; i < activePlaylists.Length && activePlaylists[i] != null; i++)
+            {
+                if (SourcesHavePlaylist(activePlaylists[i]))
+                    continue;
+                for (var j = 0; j < ambientAudioSources.Length; j++)
+                {
+                    if (ambientAudioSources[j].Playlist == null)
+                    {
+                        ambientAudioSources[j].QueuePlaylist(activePlaylists[i]);
+                        break;
+                    }
+                }
             }
         }
 
@@ -306,12 +275,6 @@ namespace DynamicAmbience
         {
             playlistName = $"{Path.GetFileName(Path.GetDirectoryName(track))}";
             songName = Path.GetFileName(track);
-        }
-
-        private void SetAmbientVolume(float value)
-        {
-            for (var i = 0; i < ambientAudioSources.Length; i++)
-                ambientAudioSources[i].AudioSource.volume = value;
         }
 
         private bool GetCombatStatus(out int maxLevel)
@@ -335,6 +298,17 @@ namespace DynamicAmbience
 
             maxLevel = maxLevel_;
             return isEnemyFound;
+        }
+
+        private bool SourcesHavePlaylist(Playlist playlist)
+        {
+            for (var i = 0; i < ambientAudioSources.Length; i++)
+            {
+                if (ambientAudioSources[i].Playlist == playlist)
+                    return true;
+            }
+
+            return false;
         }
 
         private void OnTransitionInterior(PlayerEnterExit.TransitionEventArgs args)
@@ -389,7 +363,7 @@ namespace DynamicAmbience
 
         private static void OnStartGame(object sender, EventArgs e)
         {
-            Instance.HandleContextChange();
+            //Instance.HandleContextChange();
         }
 
         private void OnDeath(DaggerfallEntity entity)

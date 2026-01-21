@@ -1,5 +1,6 @@
 using System.Collections;
 using System.IO;
+using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
 using UnityEngine;
 using UnityEngine.Networking;
@@ -8,11 +9,24 @@ namespace DynamicAmbience
 {
     public sealed class AmbientAudioSource : MonoBehaviour
     {
+        private enum State : byte
+        {
+            Idle,
+            Playing,
+            FadingOut,
+            FadingIn
+        }
+
+        private const float fadeOutLength = 2f;
+        private const float fadeInLength = 2f;
         public AudioSource AudioSource { get; private set; }
+        private State currentState;
         private bool clipFileLoaded;
         private bool hasPlayed;
         private float timeSinceLastPlay;
         private float delay;
+        private bool playlistChangeQueued;
+        private float fadeTime;
         public bool IsReady
         { 
             get
@@ -21,13 +35,25 @@ namespace DynamicAmbience
             }
         }
         private AudioClip oldClip;
-        private Playlist playlist;
+        public Playlist Playlist { get; private set; }
+        private Playlist queuedPlaylist; 
 
-        public void SetPlaylist(Playlist playlist_)
+        public void QueuePlaylist(Playlist playlist_)
         {
-            playlist = playlist_;
-            delay = Random.Range(playlist.MinDelay, playlist.MaxDelay);
-            StartNextTrack();
+            var hasPlaylist = playlist_ != null;
+            if (hasPlaylist)
+                delay = Random.Range(playlist_.MinDelay, playlist_.MaxDelay);
+            if (currentState != State.Idle)
+            {
+                queuedPlaylist = playlist_;
+                playlistChangeQueued = true; 
+            }
+            else if (hasPlaylist)
+            {
+                Playlist = playlist_;
+                currentState = State.FadingIn;
+                StartNextTrack();
+            }
         }
 
         public void StopAndUnload()
@@ -43,7 +69,8 @@ namespace DynamicAmbience
         {
             clipFileLoaded = false;
             hasPlayed = false;
-            StartCoroutine(StartClip(playlist.GetNextTrack()));
+            if (Playlist != null)
+                StartCoroutine(StartClip(Playlist.GetNextTrack()));
         }
 
         private IEnumerator StartClip(string path)
@@ -88,14 +115,14 @@ namespace DynamicAmbience
 
         private void Update()
         {
-            if (playlist == null)
+            if (Playlist == null)
                 return;
             timeSinceLastPlay += Time.unscaledDeltaTime;
             if (IsReady && AudioSource.clip.loadState == AudioDataLoadState.Loaded && !AudioSource.isPlaying && timeSinceLastPlay >= delay)
             {
-                if (!hasPlayed || playlist.TrackCount < 2)
+                if (!hasPlayed || Playlist.TrackCount < 2)
                 {
-                    if (playlist.IsPositional)
+                    if (Playlist.IsPositional)
                        AudioSource.PlayClipAtPoint(AudioSource.clip, GameManager.Instance.PlayerObject.transform.position); 
                     else
                         AudioSource.Play();
@@ -104,10 +131,72 @@ namespace DynamicAmbience
                 }
                 else
                     StartNextTrack();
-                if (playlist.MaxDelay > 0f)
-                    delay = Random.Range(playlist.MinDelay, playlist.MaxDelay);
+                if (Playlist.MaxDelay > 0f)
+                    delay = Random.Range(Playlist.MinDelay, Playlist.MaxDelay);
                 else
-                    delay = playlist.MinDelay;
+                    delay = Playlist.MinDelay;
+            }
+            
+            switch (currentState)
+            {
+                case State.Playing:
+                    {
+                        if (playlistChangeQueued)
+                        {
+                            currentState = State.FadingOut;
+                            playlistChangeQueued = false;
+                        }
+                        else
+                        {
+                            AudioSource.volume = DaggerfallUnity.Settings.SoundVolume;
+                        }
+                    }
+                    break;
+                case State.FadingIn:
+                    {
+                        if (playlistChangeQueued)
+                        {
+                            fadeTime = 0f;
+                            playlistChangeQueued = false;
+                            currentState = State.FadingOut;
+                        }
+                        else if (fadeTime >= fadeInLength)
+                        {
+                            fadeTime = 0f;
+                            currentState = State.Playing;
+                        }
+                        else
+                        {
+                            fadeTime += Time.unscaledDeltaTime;
+                            AudioSource.volume = Mathf.Lerp(0f, DaggerfallUnity.Settings.SoundVolume, fadeTime / fadeInLength);
+                        }
+                    }
+                    break;
+                case State.FadingOut:
+                    {
+                        if (fadeTime < fadeOutLength)
+                        {
+                            fadeTime += Time.unscaledDeltaTime;
+                            AudioSource.volume = Mathf.Lerp(DaggerfallUnity.Settings.SoundVolume, 0f, fadeTime / fadeOutLength);
+                        }
+                        else
+                        {
+                            StopAndUnload();
+                            Playlist = queuedPlaylist;
+                            queuedPlaylist = null;
+                            if (Playlist != null)
+                            {
+                                StartNextTrack();
+                                currentState = State.FadingIn;
+                            }
+                            else
+                                currentState = State.Idle;
+                            fadeTime = 0f;
+                        }
+                    }
+                    break;
+                default:
+                    break;
             }
         }
     }
