@@ -19,7 +19,6 @@ namespace DynamicAmbience
 
         private const float fadeOutLength = 2f;
         private const float fadeInLength = 2f;
-        public AudioSource AudioSource { get; private set; }
         private State currentState;
         private bool clipFileLoaded;
         private bool hasPlayed;
@@ -27,6 +26,9 @@ namespace DynamicAmbience
         private float delay;
         private bool playlistChangeQueued;
         private float fadeTime;
+        private AudioClip oldClip;
+        private Playlist queuedPlaylist; 
+        public AudioSource AudioSource { get; private set; }
         public bool IsReady
         { 
             get
@@ -34,9 +36,7 @@ namespace DynamicAmbience
                 return clipFileLoaded && AudioSource.clip != null && AudioSource.clip.loadState == AudioDataLoadState.Loaded;
             }
         }
-        private AudioClip oldClip;
         public Playlist Playlist { get; private set; }
-        private Playlist queuedPlaylist; 
 
         public void QueuePlaylist(Playlist playlist_)
         {
@@ -79,7 +79,10 @@ namespace DynamicAmbience
             {
                 yield return request.SendWebRequest();
                 if (request.responseCode != 200)
+                {   
                     AudioSource.clip = null;
+                    Logger.PrintLog($"Could not load sound file: {path}");
+                }
                 else
                 {
                     if (AudioSource.clip)

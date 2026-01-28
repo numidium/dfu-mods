@@ -31,7 +31,9 @@ namespace DynamicAmbience
             SetBoolValue(data, "StartMenu", out model.StartMenu);
             SetBoolValue(data, "Combat", out model.Combat);
             SetBoolValue(data, "Swimming", out model.Swimming);
+            SetBoolValue(data, "Submerged", out model.Submerged);
             SetBoolValue(data, "Positional", out model.Positional);
+            SetBoolValue(data, "BuildingIsOpen", out model.BuildingIsOpen);
             SetIntValue(data, "MinDelay", out model.MinDelay);
             SetIntValue(data, "MaxDelay", out model.MaxDelay);
 

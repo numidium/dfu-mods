@@ -7,11 +7,16 @@
             "IsAdvanced": false,
             "Keys": [
                 {
-                    "Value": false,
-                    "Name": "Loop Single Tracks",
-                    "Description": "Loop one random track when a playlist is chosen.",
+                    "Options": [
+                        "None",
+                        "Minimal",
+                        "Verbose"
+                    ],
+                    "Value": "0",
+                    "Name": "Logging Level",
+                    "Description": "How much info to send to the logfile.",
                     "$version": "v1",
-                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.MultipleChoiceKey"
                 }
             ],
             "$version": "v1"

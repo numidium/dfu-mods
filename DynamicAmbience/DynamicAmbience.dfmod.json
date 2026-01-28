@@ -1,6 +1,6 @@
 {
     "ModTitle": "Dynamic Ambience",
-    "ModVersion": "0.0.0",
+    "ModVersion": "0.0.3 TEST",
     "ModAuthor": "Numidium3rd",
     "DFUnity_Version": "1.1.1",
     "ModDescription": "A framework for adding custom ambience to Daggerfall.",
@@ -12,6 +12,7 @@
         "Assets/Game/Mods/DynamicAmbience/AmbienceConverter.cs",
         "Assets/Game/Mods/DynamicAmbience/Logger.cs",
         "Assets/Game/Mods/DynamicAmbience/Playlist.cs",
-        "Assets/Game/Mods/DynamicAmbience/AmbientAudioSource.cs"
+        "Assets/Game/Mods/DynamicAmbience/AmbientAudioSource.cs",
+        "Assets/Game/Mods/DynamicAmbience/DynamicAmbience.dfmod.json"
     ]
 }

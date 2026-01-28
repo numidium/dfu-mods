@@ -11,9 +11,11 @@ namespace DynamicAmbience {
         public float MinDelay { get; private set; }
         public float MaxDelay { get; private set; }
         public bool IsPositional { get; private set; }
+        public string Name { get; private set; }
 
-        public Playlist(string[] trackList, float minDelay, float maxDelay, bool isPositional = false)
+        public Playlist(string name, string[] trackList, float minDelay, float maxDelay, bool isPositional = false)
         {
+            Name = name;
             tracks = trackList;
             MinDelay = minDelay;
             MaxDelay = maxDelay;

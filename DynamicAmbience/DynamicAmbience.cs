@@ -3,51 +3,47 @@ using DaggerfallConnect.Utility;
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.Entity;
+using DaggerfallWorkshop.Game.Serialization;
 using DaggerfallWorkshop.Game.Utility;
 using DaggerfallWorkshop.Game.Utility.ModSupport;
 using DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings;
+using DaggerfallWorkshop.Utility;
 using FullSerializer;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using UnityEditor.Localization.Plugins.XLIFF.V12;
+using System.Runtime.CompilerServices;
 using UnityEngine;
 
 namespace DynamicAmbience
 {
     public sealed class DynamicAmbience : MonoBehaviour
     {
-        private enum State : byte
+        private enum LoggingLevel
         {
-            Normal,
-            FadingOut,
-            FadingIn
+            None,
+            Minimal,
+            Verbose
         }
 
         public static DynamicAmbience Instance { get; private set; }
         private static Mod mod;
+        private LoggingLevel loggingLevel;
         private DaggerfallUnity daggerfallUnity;
         private PlayerGPS localPlayerGPS;
         private PlayerEnterExit playerEnterExit;
         private PlayerWeather playerWeather;
         private GameManager gameManager;
         private PlayerEntity playerEntity;
-        private const float fadeOutLength = 2f;
-        private const float fadeInLength = 2f;
-        private float fadeOutTime;
-        private float fadeInTime;
         private AmbienceRecord[] ambienceRecords;
         private Playlist[] ambiencePlaylists;
         private AmbientAudioSource[] ambientAudioSources;
         private const int maxAmbientAudioSources = 10;
         private bool isInCombat;
         private bool lastSwimmingState;
-        private bool resumeIsEnabled = true;
-        private int currentPlaylist;
-        private State currentState;
-        private string debugPlaylistName;
-        private string debugTrackName;
+        private bool lastSubmergedState;
+        private bool lastInsideCastle;
         private GUIStyle guiStyle;
         private const string soundDirectory = "Sound";
         private const string baseDirectory = "DynAmbience";
@@ -56,9 +52,13 @@ namespace DynamicAmbience
         private const string soundSearchPattern = "*.ogg";
         private string basePath;
         private string playlistsPath;
-        private delegate void SwimmingEvent();
-        private event SwimmingEvent OnStartSwimming;
-        private event SwimmingEvent OnStopSwimming;
+        private delegate void StateChangeEvent();
+        private event StateChangeEvent OnStartSwimming;
+        private event StateChangeEvent OnStopSwimming;
+        private event StateChangeEvent OnSubmerge;
+        private event StateChangeEvent OnEmerge;
+        private event StateChangeEvent OnMoveToCastleBlock;
+        private event StateChangeEvent OnMoveFromCastleBlock;
 
         [Invoke(StateManager.StateTypes.Start, 0)]
         public static void Init(InitParams initParams)
@@ -73,6 +73,17 @@ namespace DynamicAmbience
         // Load settings that can change during runtime.
         private void LoadSettings(ModSettings settings, ModSettingsChange change)
         {
+            switch (settings.GetValue<int>("Options", "Logging Level"))
+            {
+                case (int)LoggingLevel.Minimal:
+                    loggingLevel = LoggingLevel.Minimal;
+                    break;
+                case (int)LoggingLevel.Verbose:
+                    loggingLevel = LoggingLevel.Verbose;
+                    break;
+                default:
+                    break;
+            }
         }
 
         private void Start()
@@ -89,11 +100,6 @@ namespace DynamicAmbience
             playerEnterExit = localPlayerGPS.GetComponent<PlayerEnterExit>();
             playerWeather = localPlayerGPS.GetComponent<PlayerWeather>();
 
-            // Set timing variables and state.
-            currentState = State.FadingIn;
-            fadeInTime = 0f;
-            currentPlaylist = -1;
-
             // Setup events.
             StartGameBehaviour.OnStartGame += OnStartGame;
             PlayerEnterExit.OnTransitionInterior += OnTransitionInterior;
@@ -102,11 +108,16 @@ namespace DynamicAmbience
             PlayerEnterExit.OnTransitionDungeonExterior += OnTransitionDungeonExterior;
             PlayerGPS.OnMapPixelChanged += OnMapPixelChanged;
             PlayerGPS.OnEnterLocationRect += OnEnterLocationRect;
-            WorldTime.OnDusk += OnDuskEvent;
-            WorldTime.OnDawn += OnDawnEvent;
+            PlayerGPS.OnExitLocationRect += OnExitLocationRect;
+            WorldTime.OnNewHour += OnNewHourEvent;
             OnStartSwimming += OnStartSwimmingEvent;
             OnStopSwimming += OnStopSwimmingEvent;
-            playerEntity.OnDeath += OnDeath;
+            OnSubmerge += OnSubmergeEvent;
+            OnEmerge += OnEmergeEvent;
+            OnMoveToCastleBlock += OnMoveToCastleBlockEvent;
+            OnMoveFromCastleBlock += OnMoveFromCastleBlockEvent;
+            playerEntity.OnDeath += OnDeathEvent;
+            SaveLoadManager.OnLoad += OnLoadEvent;
             guiStyle = new GUIStyle();
             guiStyle.normal.textColor = Color.black;
             Logger.PrintInitMessage();
@@ -155,7 +166,7 @@ namespace DynamicAmbience
                     }
 
                     records.Add(entry);
-                    playlists.Add(new Playlist(trackFileNames, entry.MinDelay ?? 0, entry.MaxDelay ?? 0, entry.Positional ?? false));
+                    playlists.Add(new Playlist(Path.GetFileName(playlistPath), trackFileNames, entry.MinDelay ?? 0, entry.MaxDelay ?? 0, entry.Positional ?? false));
                 }
             }
 
@@ -168,6 +179,7 @@ namespace DynamicAmbience
 
         private void Update()
         {
+            // Custom state transition events
             var isSwimming = playerEnterExit.IsPlayerSwimming;
             if (isSwimming && !lastSwimmingState)
             {
@@ -179,22 +191,50 @@ namespace DynamicAmbience
                 lastSwimmingState = false;
                 OnStopSwimming();
             }
+
+            var isPlayerSubmerged = playerEnterExit.IsPlayerSubmerged;
+            if (isPlayerSubmerged && !lastSubmergedState)
+            {
+                lastSubmergedState = true;
+                OnSubmerge(); 
+            }
+            else if (!isPlayerSubmerged && lastSubmergedState)
+            {
+                lastSubmergedState = false;
+                OnEmerge();
+            }
+
+            if (playerEnterExit.IsPlayerInsideDungeon)
+            {
+                var isInsideDungeonCastle = playerEnterExit.IsPlayerInsideDungeonCastle;
+                if (isInsideDungeonCastle && !lastInsideCastle)
+                {
+                    lastInsideCastle = false;
+                    OnMoveToCastleBlock();
+                }
+                else if (!isInsideDungeonCastle && lastInsideCastle)
+                {
+                    lastInsideCastle = true;
+                    OnMoveFromCastleBlock();
+                }
+            }
         }
 
-        private void HandleContextChange()
+        private void HandleContextChange(bool isLeavingRect = false, [CallerMemberName] string eventName = null)
         {
-            Logger.PrintLog("Ambience context changed.");
-            SetAmbientTracks();
+            if (loggingLevel == LoggingLevel.Verbose)
+                Logger.PrintLog(eventName);
+            SetAmbientTracks(isLeavingRect);
         }
 
-        private void SetAmbientTracks()
+        private void SetAmbientTracks(bool isLeavingRect)
         {
             var isInStartMenu = gameManager.StateManager.CurrentState == StateManager.StateTypes.Start;
             var isNight = daggerfallUnity.WorldTime.Now.IsNight;
             var isInterior = playerEnterExit.IsPlayerInside;
             var isInDungeon = playerEnterExit.IsPlayerInsideDungeon;
-            var isInsideDungeonCastle = playerEnterExit.IsPlayerInsideDungeonCastle;
-            var locationType = (int)localPlayerGPS.CurrentLocationType;
+            var isInsideDungeonCastle = lastInsideCastle = playerEnterExit.IsPlayerInsideDungeonCastle;
+            var locationType = !isLeavingRect && localPlayerGPS.IsPlayerInLocationRect ? (int)localPlayerGPS.CurrentLocationType : -1;
             var buildingType = (int)playerEnterExit.BuildingType;
             var weatherType = (int)playerWeather.WeatherType;
             var factionId = (int)playerEnterExit.FactionID;
@@ -202,10 +242,12 @@ namespace DynamicAmbience
             var regionIndex = localPlayerGPS.CurrentRegionIndex;
             var dungeonType = isInDungeon ? (int)playerEnterExit.Dungeon.Summary.DungeonType : (int)DFRegion.DungeonTypes.NoDungeon;
             var buildingQuality = playerEnterExit.BuildingDiscoveryData.quality;
-            var season = (int)gameManager.StreamingWorld.CurrentPlayerLocationObject.CurrentSeason;
+            var season = (int)daggerfallUnity.WorldTime.Now.SeasonValue;
             var month = daggerfallUnity.WorldTime.DaggerfallDateTime.MonthOfYear;
-            var buildingIsOpen = isInterior && !isInDungeon && (int)playerEnterExit.Interior.BuildingData.BuildingType < 18 && 
-                PlayerActivate.IsBuildingOpen(playerEnterExit.Interior.BuildingData.BuildingType);
+            var isShop = isInterior && RMBLayout.IsShop(playerEnterExit.Interior.BuildingData.BuildingType);
+            var buildingIsOpen = isInterior && !isInDungeon && isShop && PlayerActivate.IsBuildingOpen(playerEnterExit.Interior.BuildingData.BuildingType);
+            var isSwimming = playerEnterExit.IsPlayerSwimming;
+            var isSubmerged = playerEnterExit.IsPlayerSubmerged;
 
             var activePlaylists = new Playlist[ambienceRecords.Length];
             var activePlaylistCount = 0;
@@ -242,7 +284,11 @@ namespace DynamicAmbience
                     continue;
                 if (record.Month != null && !record.Month.Contains(month))
                     continue;
-                if (record.BuildingIsOpen.HasValue && record.BuildingIsOpen.Value != buildingIsOpen)
+                if (record.BuildingIsOpen.HasValue && isInterior && ((isShop && record.BuildingIsOpen.Value != buildingIsOpen) || !isShop))
+                    continue;
+                if (record.Swimming.HasValue && record.Swimming.Value != isSwimming)
+                    continue;
+                if (record.Submerged.HasValue && record.Submerged.Value != isSubmerged)
                     continue;
                 activePlaylists[activePlaylistCount++] = ambiencePlaylists[i];
             }
@@ -253,7 +299,11 @@ namespace DynamicAmbience
                 if (source.Playlist == null)
                     continue;
                 if (!activePlaylists.Contains(source.Playlist))
+                {
                     source.QueuePlaylist(null);
+                    if (loggingLevel >= LoggingLevel.Minimal)
+                        Logger.PrintLog($"Removing ambience player: {source.Playlist.Name}");
+                }
             }
 
             for (var i = 0; i < activePlaylists.Length && activePlaylists[i] != null; i++)
@@ -265,6 +315,8 @@ namespace DynamicAmbience
                     if (ambientAudioSources[j].Playlist == null)
                     {
                         ambientAudioSources[j].QueuePlaylist(activePlaylists[i]);
+                        if (loggingLevel >= LoggingLevel.Minimal)
+                            Logger.PrintLog($"Adding ambience player: {activePlaylists[i].Name}");
                         break;
                     }
                 }
@@ -340,13 +392,12 @@ namespace DynamicAmbience
         {
             HandleContextChange();
         }
-
-        private void OnDuskEvent()
+        private void OnExitLocationRect()
         {
-            HandleContextChange();
+            HandleContextChange(true);
         }
 
-        private void OnDawnEvent()
+        private void OnNewHourEvent()
         {
             HandleContextChange();
         }
@@ -361,17 +412,39 @@ namespace DynamicAmbience
             HandleContextChange();
         }
 
+        private void OnSubmergeEvent()
+        {
+            HandleContextChange();
+        }
+
+        private void OnEmergeEvent()
+        {
+            HandleContextChange();
+        }
+
+        private void OnMoveToCastleBlockEvent()
+        {
+            HandleContextChange();
+        }
+
+        private void OnMoveFromCastleBlockEvent()
+        {
+            HandleContextChange();
+        }
+
         private static void OnStartGame(object sender, EventArgs e)
         {
             //Instance.HandleContextChange();
         }
 
-        private void OnDeath(DaggerfallEntity entity)
+        private void OnDeathEvent(DaggerfallEntity entity)
         {
-            // Fade out on death.
-            currentState = State.FadingOut;
-            currentPlaylist = -1;
             isInCombat = false;
+        }
+
+        private void OnLoadEvent(SaveData_v1 data)
+        {
+            HandleContextChange();
         }
     }
 }

@@ -21,13 +21,12 @@ namespace DynamicAmbience
         public int[] Season;
         public int[] Month;
         public bool? StartMenu;
-        public bool? ReadingBook;
         public bool? Combat;
         public bool? Swimming;
+        public bool? Submerged;
         public bool? Positional;
         public bool? BuildingIsOpen;
         public int? MinDelay;
         public int? MaxDelay;
-        public int[] FlatRecord;
     }
 }
