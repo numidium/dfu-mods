@@ -7,7 +7,7 @@ using DaggerfallWorkshop.Game.Serialization;
 using DaggerfallWorkshop.Game.Utility;
 using DaggerfallWorkshop.Game.Utility.ModSupport;
 using DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings;
-using DaggerfallWorkshop.Utility;
+using DaggerfallWorkshop.Game.Weather;
 using FullSerializer;
 using System;
 using System.Collections.Generic;
@@ -22,7 +22,6 @@ namespace DynamicAmbience
     {
         private enum LoggingLevel
         {
-            None,
             Minimal,
             Verbose
         }
@@ -50,6 +49,8 @@ namespace DynamicAmbience
         private const string playlistsDirectory = "Playlists";
         private const string playlistSearchPattern = "*.json";
         private const string soundSearchPattern = "*.ogg";
+        private const float newContextTime = .25f;
+        private float newContextCountdown;
         private string basePath;
         private string playlistsPath;
         private delegate void StateChangeEvent();
@@ -75,13 +76,11 @@ namespace DynamicAmbience
         {
             switch (settings.GetValue<int>("Options", "Logging Level"))
             {
-                case (int)LoggingLevel.Minimal:
-                    loggingLevel = LoggingLevel.Minimal;
-                    break;
                 case (int)LoggingLevel.Verbose:
                     loggingLevel = LoggingLevel.Verbose;
                     break;
                 default:
+                    loggingLevel = LoggingLevel.Minimal;
                     break;
             }
         }
@@ -101,23 +100,24 @@ namespace DynamicAmbience
             playerWeather = localPlayerGPS.GetComponent<PlayerWeather>();
 
             // Setup events.
-            StartGameBehaviour.OnStartGame += OnStartGame;
-            PlayerEnterExit.OnTransitionInterior += OnTransitionInterior;
-            PlayerEnterExit.OnTransitionExterior += OnTransitionExterior;
-            PlayerEnterExit.OnTransitionDungeonInterior += OnTransitionDungeonInterior;
-            PlayerEnterExit.OnTransitionDungeonExterior += OnTransitionDungeonExterior;
-            PlayerGPS.OnMapPixelChanged += OnMapPixelChanged;
-            PlayerGPS.OnEnterLocationRect += OnEnterLocationRect;
-            PlayerGPS.OnExitLocationRect += OnExitLocationRect;
-            WorldTime.OnNewHour += OnNewHourEvent;
-            OnStartSwimming += OnStartSwimmingEvent;
-            OnStopSwimming += OnStopSwimmingEvent;
-            OnSubmerge += OnSubmergeEvent;
-            OnEmerge += OnEmergeEvent;
-            OnMoveToCastleBlock += OnMoveToCastleBlockEvent;
-            OnMoveFromCastleBlock += OnMoveFromCastleBlockEvent;
-            playerEntity.OnDeath += OnDeathEvent;
-            SaveLoadManager.OnLoad += OnLoadEvent;
+            StartGameBehaviour.OnStartGame += OnStartGameHandler;
+            PlayerEnterExit.OnTransitionInterior += OnTransitionInteriorHandler;
+            PlayerEnterExit.OnTransitionExterior += OnTransitionExteriorHandler;
+            PlayerEnterExit.OnTransitionDungeonInterior += OnTransitionDungeonInteriorHandler;
+            PlayerEnterExit.OnTransitionDungeonExterior += OnTransitionDungeonExteriorHandler;
+            PlayerGPS.OnMapPixelChanged += OnMapPixelChangedHandler;
+            PlayerGPS.OnEnterLocationRect += OnEnterLocationRectHandler;
+            PlayerGPS.OnExitLocationRect += OnExitLocationRectHandler;
+            WorldTime.OnNewHour += OnNewHourHandler;
+            //WeatherManager.OnWeatherChange += OnWeatherChangeHandler;
+            OnStartSwimming += OnStartSwimmingHandler;
+            OnStopSwimming += OnStopSwimmingHandler;
+            OnSubmerge += OnSubmergeHandler;
+            OnEmerge += OnEmergeHandler;
+            OnMoveToCastleBlock += OnMoveToCastleBlockHandler;
+            OnMoveFromCastleBlock += OnMoveFromCastleBlockHandler;
+            playerEntity.OnDeath += OnDeathEventHandler;
+            SaveLoadManager.OnLoad += OnLoadEventHandler;
             guiStyle = new GUIStyle();
             guiStyle.normal.textColor = Color.black;
             Logger.PrintInitMessage();
@@ -218,16 +218,23 @@ namespace DynamicAmbience
                     OnMoveFromCastleBlock();
                 }
             }
+
+            if (newContextCountdown > 0f)
+            {
+                newContextCountdown -= Time.deltaTime;
+                if (newContextCountdown <= 0f)
+                    HandleContextChange();
+            }
         }
 
-        private void HandleContextChange(bool isLeavingRect = false, [CallerMemberName] string eventName = null)
+        private void HandleContextChange(bool isLeavingRect = false, int weatherType = -1)
         {
-            if (loggingLevel == LoggingLevel.Verbose)
-                Logger.PrintLog(eventName);
-            SetAmbientTracks(isLeavingRect);
+            if (loggingLevel == LoggingLevel.Minimal)
+                Logger.PrintLog("Context changed.");
+            SetAmbientTracks(isLeavingRect, weatherType == -1 ? (int)playerWeather.WeatherType : weatherType);
         }
 
-        private void SetAmbientTracks(bool isLeavingRect)
+        private void SetAmbientTracks(bool isLeavingRect, int weatherType_)
         {
             var isInStartMenu = gameManager.StateManager.CurrentState == StateManager.StateTypes.Start;
             var isNight = daggerfallUnity.WorldTime.Now.IsNight;
@@ -236,7 +243,6 @@ namespace DynamicAmbience
             var isInsideDungeonCastle = lastInsideCastle = playerEnterExit.IsPlayerInsideDungeonCastle;
             var locationType = !isLeavingRect && localPlayerGPS.IsPlayerInLocationRect ? (int)localPlayerGPS.CurrentLocationType : -1;
             var buildingType = (int)playerEnterExit.BuildingType;
-            var weatherType = (int)playerWeather.WeatherType;
             var factionId = (int)playerEnterExit.FactionID;
             var climateIndex = localPlayerGPS.CurrentClimateIndex;
             var regionIndex = localPlayerGPS.CurrentRegionIndex;
@@ -244,8 +250,8 @@ namespace DynamicAmbience
             var buildingQuality = playerEnterExit.BuildingDiscoveryData.quality;
             var season = (int)daggerfallUnity.WorldTime.Now.SeasonValue;
             var month = daggerfallUnity.WorldTime.DaggerfallDateTime.MonthOfYear;
-            var isShop = isInterior && RMBLayout.IsShop(playerEnterExit.Interior.BuildingData.BuildingType);
-            var buildingIsOpen = isInterior && !isInDungeon && isShop && PlayerActivate.IsBuildingOpen(playerEnterExit.Interior.BuildingData.BuildingType);
+            var hasHours = isInterior && playerEnterExit.Interior.BuildingData.BuildingType <= DFLocation.BuildingTypes.Palace;
+            var buildingIsOpen = isInterior && !isInDungeon && hasHours && PlayerActivate.IsBuildingOpen(playerEnterExit.Interior.BuildingData.BuildingType);
             var isSwimming = playerEnterExit.IsPlayerSwimming;
             var isSubmerged = playerEnterExit.IsPlayerSubmerged;
 
@@ -268,7 +274,7 @@ namespace DynamicAmbience
                     continue;
                 if (record.BuildingType != null && !record.BuildingType.Contains(buildingType))
                     continue;
-                if (record.WeatherType != null && !record.WeatherType.Contains(weatherType))
+                if (record.WeatherType != null && !record.WeatherType.Contains(weatherType_))
                     continue;
                 if (record.FactionId != null && !record.FactionId.Contains(factionId))
                     continue;
@@ -284,7 +290,7 @@ namespace DynamicAmbience
                     continue;
                 if (record.Month != null && !record.Month.Contains(month))
                     continue;
-                if (record.BuildingIsOpen.HasValue && isInterior && ((isShop && record.BuildingIsOpen.Value != buildingIsOpen) || !isShop))
+                if (record.BuildingIsOpen.HasValue && isInterior && ((hasHours && record.BuildingIsOpen.Value != buildingIsOpen) || !hasHours))
                     continue;
                 if (record.Swimming.HasValue && record.Swimming.Value != isSwimming)
                     continue;
@@ -363,88 +369,94 @@ namespace DynamicAmbience
             return false;
         }
 
-        private void OnTransitionInterior(PlayerEnterExit.TransitionEventArgs args)
+        private void OnTransitionInteriorHandler(PlayerEnterExit.TransitionEventArgs args)
         {
-            HandleContextChange();
+            newContextCountdown = newContextTime;
         }
 
-        private void OnTransitionExterior(PlayerEnterExit.TransitionEventArgs args)
+        private void OnTransitionExteriorHandler(PlayerEnterExit.TransitionEventArgs args)
         {
-            HandleContextChange();
+            newContextCountdown = newContextTime;
         }
 
-        private void OnTransitionDungeonInterior(PlayerEnterExit.TransitionEventArgs args)
+        private void OnTransitionDungeonInteriorHandler(PlayerEnterExit.TransitionEventArgs args)
         {
-            HandleContextChange();
+            newContextCountdown = newContextTime;
         }
 
-        private void OnTransitionDungeonExterior(PlayerEnterExit.TransitionEventArgs args)
+        private void OnTransitionDungeonExteriorHandler(PlayerEnterExit.TransitionEventArgs args)
         {
-            HandleContextChange();
+            newContextCountdown = newContextTime;
         }
 
-        private void OnMapPixelChanged(DFPosition mapPixel)
+        private void OnMapPixelChangedHandler(DFPosition mapPixel)
         {
-            HandleContextChange();
+            newContextCountdown = newContextTime;
         }
 
-        private void OnEnterLocationRect(DFLocation location)
+        private void OnEnterLocationRectHandler(DFLocation location)
         {
-            HandleContextChange();
+            newContextCountdown = newContextTime;
         }
-        private void OnExitLocationRect()
+        private void OnExitLocationRectHandler()
         {
-            HandleContextChange(true);
-        }
-
-        private void OnNewHourEvent()
-        {
-            HandleContextChange();
+            newContextCountdown = 0f;
+            HandleContextChange(isLeavingRect: true);
         }
 
-        private void OnStartSwimmingEvent()
+        private void OnNewHourHandler()
         {
-            HandleContextChange();
+            newContextCountdown = newContextTime;
         }
 
-        private void OnStopSwimmingEvent()
+        private void OnStartSwimmingHandler()
         {
-            HandleContextChange();
+            newContextCountdown = newContextTime;
         }
 
-        private void OnSubmergeEvent()
+        private void OnStopSwimmingHandler()
         {
-            HandleContextChange();
+            newContextCountdown = newContextTime;
         }
 
-        private void OnEmergeEvent()
+        private void OnSubmergeHandler()
         {
-            HandleContextChange();
+            newContextCountdown = newContextTime;
         }
 
-        private void OnMoveToCastleBlockEvent()
+        private void OnEmergeHandler()
         {
-            HandleContextChange();
+            newContextCountdown = newContextTime;
         }
 
-        private void OnMoveFromCastleBlockEvent()
+        private void OnMoveToCastleBlockHandler()
         {
-            HandleContextChange();
+            newContextCountdown = newContextTime;
         }
 
-        private static void OnStartGame(object sender, EventArgs e)
+        private void OnMoveFromCastleBlockHandler()
+        {
+            newContextCountdown = newContextTime;
+        }
+
+        private void OnWeatherChangeHandler(WeatherType weatherType_)
+        {
+            HandleContextChange(weatherType: (int)weatherType_);
+        }
+
+        private static void OnStartGameHandler(object sender, EventArgs e)
         {
             //Instance.HandleContextChange();
         }
 
-        private void OnDeathEvent(DaggerfallEntity entity)
+        private void OnDeathEventHandler(DaggerfallEntity entity)
         {
             isInCombat = false;
         }
 
-        private void OnLoadEvent(SaveData_v1 data)
+        private void OnLoadEventHandler(SaveData_v1 data)
         {
-            HandleContextChange();
+            newContextCountdown = newContextTime;
         }
     }
 }
