@@ -29,13 +29,9 @@ namespace DynamicAmbience
         private AudioClip oldClip;
         private Playlist queuedPlaylist; 
         public AudioSource AudioSource { get; private set; }
-        public bool IsReady
-        { 
-            get
-            {
-                return clipFileLoaded && AudioSource.clip != null && AudioSource.clip.loadState == AudioDataLoadState.Loaded;
-            }
-        }
+        public bool IsReady => clipFileLoaded && AudioSource.clip != null && AudioSource.clip.loadState == AudioDataLoadState.Loaded;
+        public bool IsFadingOut => currentState == State.FadingOut;
+
         public Playlist Playlist { get; private set; }
 
         public void QueuePlaylist(Playlist playlist_)
@@ -111,6 +107,8 @@ namespace DynamicAmbience
                 Logger.PrintLog("Failed to unload audio clip.");
         }
 
+        private float VolumeLevel => DynamicAmbienceSettings.Instance.VolumeLevel * DaggerfallUnity.Settings.SoundVolume;
+
         private void Awake()
         {
             AudioSource = gameObject.AddComponent<AudioSource>();
@@ -151,7 +149,7 @@ namespace DynamicAmbience
                         }
                         else
                         {
-                            AudioSource.volume = DaggerfallUnity.Settings.SoundVolume;
+                            AudioSource.volume = VolumeLevel;
                         }
                     }
                     break;
@@ -171,7 +169,7 @@ namespace DynamicAmbience
                         else
                         {
                             fadeTime += Time.unscaledDeltaTime;
-                            AudioSource.volume = Mathf.Lerp(0f, DaggerfallUnity.Settings.SoundVolume, fadeTime / fadeInLength);
+                            AudioSource.volume = Mathf.Lerp(0f, VolumeLevel, fadeTime / fadeInLength);
                         }
                     }
                     break;
@@ -180,7 +178,7 @@ namespace DynamicAmbience
                         if (fadeTime < fadeOutLength)
                         {
                             fadeTime += Time.unscaledDeltaTime;
-                            AudioSource.volume = Mathf.Lerp(DaggerfallUnity.Settings.SoundVolume, 0f, fadeTime / fadeOutLength);
+                            AudioSource.volume = Mathf.Lerp(VolumeLevel, 0f, fadeTime / fadeOutLength);
                         }
                         else
                         {

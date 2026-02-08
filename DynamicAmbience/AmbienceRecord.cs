@@ -24,8 +24,8 @@ namespace DynamicAmbience
         public bool? Combat;
         public bool? Swimming;
         public bool? Submerged;
-        public bool? Positional;
         public bool? BuildingIsOpen;
+        public bool? Positional;
         public int? MinDelay;
         public int? MaxDelay;
     }

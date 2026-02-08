@@ -4,31 +4,20 @@ using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.Entity;
 using DaggerfallWorkshop.Game.Serialization;
-using DaggerfallWorkshop.Game.Utility;
 using DaggerfallWorkshop.Game.Utility.ModSupport;
 using DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings;
-using DaggerfallWorkshop.Game.Weather;
 using FullSerializer;
-using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using UnityEngine;
 
 namespace DynamicAmbience
 {
     public sealed class DynamicAmbience : MonoBehaviour
     {
-        private enum LoggingLevel
-        {
-            Minimal,
-            Verbose
-        }
-
         public static DynamicAmbience Instance { get; private set; }
         private static Mod mod;
-        private LoggingLevel loggingLevel;
         private DaggerfallUnity daggerfallUnity;
         private PlayerGPS localPlayerGPS;
         private PlayerEnterExit playerEnterExit;
@@ -43,6 +32,7 @@ namespace DynamicAmbience
         private bool lastSwimmingState;
         private bool lastSubmergedState;
         private bool lastInsideCastle;
+        private bool lastArrestedState;
         private GUIStyle guiStyle;
         private const string soundDirectory = "Sound";
         private const string baseDirectory = "DynAmbience";
@@ -58,6 +48,7 @@ namespace DynamicAmbience
         private event StateChangeEvent OnStopSwimming;
         private event StateChangeEvent OnSubmerge;
         private event StateChangeEvent OnEmerge;
+        private event StateChangeEvent OnPlayerArrested;
         private event StateChangeEvent OnMoveToCastleBlock;
         private event StateChangeEvent OnMoveFromCastleBlock;
 
@@ -74,13 +65,14 @@ namespace DynamicAmbience
         // Load settings that can change during runtime.
         private void LoadSettings(ModSettings settings, ModSettingsChange change)
         {
+            DynamicAmbienceSettings.Instance.VolumeLevel = settings.GetValue<float>("Options", "Volume Level");
             switch (settings.GetValue<int>("Options", "Logging Level"))
             {
-                case (int)LoggingLevel.Verbose:
-                    loggingLevel = LoggingLevel.Verbose;
+                case (int)DynamicAmbienceSettings.LoggingLevels.Verbose:
+                    DynamicAmbienceSettings.Instance.LoggingLevel = DynamicAmbienceSettings.LoggingLevels.Verbose;
                     break;
                 default:
-                    loggingLevel = LoggingLevel.Minimal;
+                    DynamicAmbienceSettings.Instance.LoggingLevel = DynamicAmbienceSettings.LoggingLevels.Minimal;
                     break;
             }
         }
@@ -100,7 +92,6 @@ namespace DynamicAmbience
             playerWeather = localPlayerGPS.GetComponent<PlayerWeather>();
 
             // Setup events.
-            StartGameBehaviour.OnStartGame += OnStartGameHandler;
             PlayerEnterExit.OnTransitionInterior += OnTransitionInteriorHandler;
             PlayerEnterExit.OnTransitionExterior += OnTransitionExteriorHandler;
             PlayerEnterExit.OnTransitionDungeonInterior += OnTransitionDungeonInteriorHandler;
@@ -114,6 +105,7 @@ namespace DynamicAmbience
             OnStopSwimming += OnStopSwimmingHandler;
             OnSubmerge += OnSubmergeHandler;
             OnEmerge += OnEmergeHandler;
+            OnPlayerArrested += OnPlayerArrestedHandler;
             OnMoveToCastleBlock += OnMoveToCastleBlockHandler;
             OnMoveFromCastleBlock += OnMoveFromCastleBlockHandler;
             playerEntity.OnDeath += OnDeathEventHandler;
@@ -219,6 +211,12 @@ namespace DynamicAmbience
                 }
             }
 
+            if (playerEntity.Arrested && !lastArrestedState)
+            {
+                lastArrestedState = true;
+                OnPlayerArrested();
+            }
+
             if (newContextCountdown > 0f)
             {
                 newContextCountdown -= Time.deltaTime;
@@ -227,14 +225,14 @@ namespace DynamicAmbience
             }
         }
 
-        private void HandleContextChange(bool isLeavingRect = false, int weatherType = -1)
+        private void HandleContextChange(bool isLeavingRect = false)
         {
-            if (loggingLevel == LoggingLevel.Minimal)
+            if (DynamicAmbienceSettings.Instance.LoggingLevel > DynamicAmbienceSettings.LoggingLevels.Minimal)
                 Logger.PrintLog("Context changed.");
-            SetAmbientTracks(isLeavingRect, weatherType == -1 ? (int)playerWeather.WeatherType : weatherType);
+            SetAmbientTracks(isLeavingRect);
         }
 
-        private void SetAmbientTracks(bool isLeavingRect, int weatherType_)
+        private void SetAmbientTracks(bool isLeavingRect)
         {
             var isInStartMenu = gameManager.StateManager.CurrentState == StateManager.StateTypes.Start;
             var isNight = daggerfallUnity.WorldTime.Now.IsNight;
@@ -245,6 +243,7 @@ namespace DynamicAmbience
             var buildingType = (int)playerEnterExit.BuildingType;
             var factionId = (int)playerEnterExit.FactionID;
             var climateIndex = localPlayerGPS.CurrentClimateIndex;
+            var weatherType = (int)playerWeather.WeatherType;
             var regionIndex = localPlayerGPS.CurrentRegionIndex;
             var dungeonType = isInDungeon ? (int)playerEnterExit.Dungeon.Summary.DungeonType : (int)DFRegion.DungeonTypes.NoDungeon;
             var buildingQuality = playerEnterExit.BuildingDiscoveryData.quality;
@@ -274,7 +273,7 @@ namespace DynamicAmbience
                     continue;
                 if (record.BuildingType != null && !record.BuildingType.Contains(buildingType))
                     continue;
-                if (record.WeatherType != null && !record.WeatherType.Contains(weatherType_))
+                if (record.WeatherType != null && !record.WeatherType.Contains(weatherType))
                     continue;
                 if (record.FactionId != null && !record.FactionId.Contains(factionId))
                     continue;
@@ -307,7 +306,7 @@ namespace DynamicAmbience
                 if (!activePlaylists.Contains(source.Playlist))
                 {
                     source.QueuePlaylist(null);
-                    if (loggingLevel >= LoggingLevel.Minimal)
+                    if (DynamicAmbienceSettings.Instance.LoggingLevel > DynamicAmbienceSettings.LoggingLevels.Minimal)
                         Logger.PrintLog($"Removing ambience player: {source.Playlist.Name}");
                 }
             }
@@ -321,12 +320,20 @@ namespace DynamicAmbience
                     if (ambientAudioSources[j].Playlist == null)
                     {
                         ambientAudioSources[j].QueuePlaylist(activePlaylists[i]);
-                        if (loggingLevel >= LoggingLevel.Minimal)
+                        if (DynamicAmbienceSettings.Instance.LoggingLevel > DynamicAmbienceSettings.LoggingLevels.Minimal)
                             Logger.PrintLog($"Adding ambience player: {activePlaylists[i].Name}");
                         break;
                     }
                 }
             }
+        }
+
+        private void ClearAllAudioSources()
+        {
+            if (DynamicAmbienceSettings.Instance.LoggingLevel > DynamicAmbienceSettings.LoggingLevels.Minimal)
+                Logger.PrintLog("Removing all audio sources...");
+            for (var i = 0; i < ambientAudioSources.Length; i++)
+                ambientAudioSources[i].QueuePlaylist(null);
         }
 
         private void GetDebuggingText(string track, out string playlistName, out string songName)
@@ -362,7 +369,7 @@ namespace DynamicAmbience
         {
             for (var i = 0; i < ambientAudioSources.Length; i++)
             {
-                if (ambientAudioSources[i].Playlist == playlist)
+                if (!ambientAudioSources[i].IsFadingOut && ambientAudioSources[i].Playlist == playlist)
                     return true;
             }
 
@@ -429,6 +436,11 @@ namespace DynamicAmbience
             newContextCountdown = newContextTime;
         }
 
+        private void OnPlayerArrestedHandler()
+        {
+            ClearAllAudioSources();
+        }
+
         private void OnMoveToCastleBlockHandler()
         {
             newContextCountdown = newContextTime;
@@ -439,19 +451,9 @@ namespace DynamicAmbience
             newContextCountdown = newContextTime;
         }
 
-        private void OnWeatherChangeHandler(WeatherType weatherType_)
-        {
-            HandleContextChange(weatherType: (int)weatherType_);
-        }
-
-        private static void OnStartGameHandler(object sender, EventArgs e)
-        {
-            //Instance.HandleContextChange();
-        }
-
         private void OnDeathEventHandler(DaggerfallEntity entity)
         {
-            isInCombat = false;
+            ClearAllAudioSources();
         }
 
         private void OnLoadEventHandler(SaveData_v1 data)

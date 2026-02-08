@@ -7,6 +7,15 @@
             "IsAdvanced": false,
             "Keys": [
                 {
+                    "Name": "Volume Level",
+                    "Value": 1.0,
+                    "Min": 0.0,
+                    "Max": 1.0,
+                    "Description": "The ambient sound volume relative to main sound volume.",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.SliderFloatKey"
+                },
+                {
                     "Options": [
                         "Minimal",
                         "Verbose"
