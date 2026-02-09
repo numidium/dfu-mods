@@ -17,6 +17,8 @@ namespace FlatReplacer
         public int FactionId;
         public int SocialGroup;
         public int NameBank;
+        public int Race;
+        public int Gender;
         public int BuildingType;
         public int QualityMin;
         public int QualityMax;

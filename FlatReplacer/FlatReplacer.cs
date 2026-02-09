@@ -1,12 +1,15 @@
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
+using DaggerfallWorkshop.Game.Entity;
 using DaggerfallWorkshop.Game.Utility;
 using DaggerfallWorkshop.Game.Utility.ModSupport;
 using DaggerfallWorkshop.Utility;
 using DaggerfallWorkshop.Utility.AssetInjection;
 using FullSerializer;
+using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using UnityEngine;
 
 namespace FlatReplacer
@@ -22,6 +25,7 @@ namespace FlatReplacer
         private Dictionary<uint, FlatReplacement[]> flatReplacements;
         private bool replacementsRequested;
         private uint replacementTime;
+        private FieldInfo npcDataField;
         private const uint replacementDelay = 5;
 
         private class FlatReplacement
@@ -41,6 +45,7 @@ namespace FlatReplacer
 
         private void Start()
         {
+            npcDataField = GetFieldInfo(typeof(StaticNPC), "npcData");
             // Read flat definition
             const string replacementDirectory = "FlatReplacements";
             var replacementPath = Path.Combine(Application.streamingAssetsPath, replacementDirectory);
@@ -178,6 +183,18 @@ namespace FlatReplacer
             }
         }
 
+        private static FieldInfo GetFieldInfo(Type type, string fieldName)
+        {
+            FieldInfo fieldInfo;
+            do
+            {
+                fieldInfo = type.GetField(fieldName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                type = type.BaseType;
+            }
+            while (fieldInfo == null && type != null);
+            return fieldInfo;
+        }
+
         private void ReplaceBillboard(Transform npcTransform, PlayerGPS playerGps, GameManager gameManager, in PlayerGPS.DiscoveredBuilding buildingData, LocationTypes enteredLocationType)
         {
             // Discard vanilla billboard if there is a replacement loaded that fits criteria.
@@ -275,18 +292,37 @@ namespace FlatReplacer
             if (filteredCandidates.Count == 0)
                 return;
             var staticNpc = go.GetComponent<StaticNPC>();
+            var npcData = staticNpc.Data; 
             // Pick a random replacement from any that match the criteria.
             var randomNumber = filteredCandidates.Count > 1 ? new System.Random(staticNpc.Data.nameSeed).Next() : 0;
             var chosenIndex = filteredCandidates[randomNumber % filteredCandidates.Count];
             var chosenReplacement = flatReplacements[key][chosenIndex];
             var chosenReplacementRecord = chosenReplacement.Record;
-            if (chosenReplacement.Record.NameBank != wildcardOrDefault)
+            if (chosenReplacementRecord.NameBank != wildcardOrDefault)
             {
-                if (System.Enum.IsDefined(typeof(NameHelper.BankTypes), chosenReplacementRecord.NameBank))
-                    staticNpc.NameBank = (NameHelper.BankTypes)chosenReplacementRecord.NameBank;
+                if (Enum.IsDefined(typeof(NameHelper.BankTypes), chosenReplacementRecord.NameBank))
+                    npcData.nameBank = (NameHelper.BankTypes)chosenReplacementRecord.NameBank;
                 else
-                    PrintLogText($"Invalid name bank index: {chosenReplacementRecord.NameBank}");
+                    PrintLogText($"Undefined name bank index: {chosenReplacementRecord.NameBank}");
             }
+
+            if (chosenReplacementRecord.Race != wildcardOrDefault)
+            {
+                if (Enum.IsDefined(typeof(Races), chosenReplacementRecord.Race))
+                    npcData.race = (Races)chosenReplacementRecord.Race;
+                else
+                    PrintLogText($"Undefined race index: {chosenReplacementRecord.Race}");
+            }
+
+            if (chosenReplacementRecord.Gender != wildcardOrDefault)
+            {
+                if (Enum.IsDefined(typeof(Genders), chosenReplacementRecord.Gender))
+                    npcData.gender = (Genders)chosenReplacementRecord.Gender;
+                else
+                    PrintLogText($"Undefined gender index: {chosenReplacementRecord.Gender}");
+            }
+
+            npcDataField.SetValue(staticNpc, npcData);
 #if UNITY_EDITOR
             var logText = $"Replacement for flat {chosenReplacementRecord.TextureArchive}-{chosenReplacementRecord.TextureRecord} ";
             if (chosenReplacementRecord.ReplaceTextureArchive > 0 || chosenReplacementRecord.ReplaceTextureRecord > wildcardOrDefault)
@@ -355,7 +391,7 @@ namespace FlatReplacer
             return success;
         }
 
-        private void OnWindowChange(object sender, System.EventArgs e)
+        private void OnWindowChange(object sender, EventArgs e)
         {
             if (DaggerfallUI.UIManager.TopWindow != DaggerfallUI.Instance.TalkWindow || !TalkManager.Instance.StaticNPC)
                 return;

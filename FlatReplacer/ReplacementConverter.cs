@@ -25,6 +25,8 @@ namespace FlatReplacer
             SetIntValue(data, "BuildingType", out model.BuildingType);
             SetIntValue(data, "SocialGroup", out model.SocialGroup);
             SetIntValue(data, "NameBank", out model.NameBank);
+            SetIntValue(data, "Race", out model.Race);
+            SetIntValue(data, "Gender", out model.Gender);
             SetIntValue(data, "QualityMin", out model.QualityMin, 1);
             SetIntValue(data, "QualityMax", out model.QualityMax, 20);
             SetIntValue(data, "TextureArchive", out model.TextureArchive);
