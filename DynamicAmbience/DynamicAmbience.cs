@@ -249,7 +249,7 @@ namespace DynamicAmbience
             var buildingQuality = playerEnterExit.BuildingDiscoveryData.quality;
             var season = (int)daggerfallUnity.WorldTime.Now.SeasonValue;
             var month = daggerfallUnity.WorldTime.DaggerfallDateTime.MonthOfYear;
-            var hasHours = isInterior && playerEnterExit.Interior.BuildingData.BuildingType <= DFLocation.BuildingTypes.Palace;
+            var hasHours = isInterior && !isInDungeon && playerEnterExit.Interior.BuildingData.BuildingType <= DFLocation.BuildingTypes.Palace;
             var buildingIsOpen = isInterior && !isInDungeon && hasHours && PlayerActivate.IsBuildingOpen(playerEnterExit.Interior.BuildingData.BuildingType);
             var isSwimming = playerEnterExit.IsPlayerSwimming;
             var isSubmerged = playerEnterExit.IsPlayerSubmerged;

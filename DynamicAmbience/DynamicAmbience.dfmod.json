@@ -1,6 +1,6 @@
 {
     "ModTitle": "Dynamic Ambience",
-    "ModVersion": "0.0.1",
+    "ModVersion": "0.0.2",
     "ModAuthor": "Numidium3rd",
     "DFUnity_Version": "1.1.1",
     "ModDescription": "A framework for adding custom ambience to Daggerfall.",
