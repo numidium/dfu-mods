@@ -1,6 +1,7 @@
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.Entity;
+using DaggerfallWorkshop.Game.Questing;
 using DaggerfallWorkshop.Game.Utility;
 using DaggerfallWorkshop.Game.Utility.ModSupport;
 using DaggerfallWorkshop.Utility;
@@ -211,8 +212,8 @@ namespace FlatReplacer
             if (!flatReplacements.ContainsKey(key))
                 return; // Nothing to replace this with.
             int maxPriority = 0;
-            var candidates = new List<byte>();
-            for (var i = (byte)0; i < flatReplacements[key].Length; i++)
+            var candidates = new List<uint>();
+            for (var i = (uint)0; i < flatReplacements[key].Length; i++)
             {
                 var replacementRecord = flatReplacements[key][i].Record;
                 if (replacementRecord.LocationTypes != (int)LocationTypes.All && (replacementRecord.LocationTypes & (int)enteredLocationType) == 0)
@@ -271,7 +272,7 @@ namespace FlatReplacer
             if (candidates.Count == 0)
                 return;
             byte maxSpecificity = 0;
-            var filteredCandidates = new List<byte>();
+            var filteredCandidates = new List<uint>();
             for (var i = 0; i < candidates.Count; i++)
             {
                 if (flatReplacements[key][candidates[i]].Record.Priority == maxPriority)
@@ -292,6 +293,9 @@ namespace FlatReplacer
             if (filteredCandidates.Count == 0)
                 return;
             var staticNpc = go.GetComponent<StaticNPC>();
+            var questResourceBehaviour = staticNpc.gameObject.GetComponent<QuestResourceBehaviour>();
+            if (questResourceBehaviour)
+               return; 
             var npcData = staticNpc.Data; 
             // Pick a random replacement from any that match the criteria.
             var randomNumber = filteredCandidates.Count > 1 ? new System.Random(staticNpc.Data.nameSeed).Next() : 0;
