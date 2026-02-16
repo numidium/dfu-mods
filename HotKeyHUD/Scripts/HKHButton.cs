@@ -132,6 +132,7 @@ namespace HotKeyHUD
                 var image = DaggerfallUnity.Instance.ItemHelper.GetInventoryImage(item);
                 itemBgSize = new Vector2(image.width, image.height);
                 itemBgTexSize = new Vector2(image.texture.width, image.texture.height);
+                StackLabel.Enabled = item.IsStackable() || HKHUtil.IsBow(item);
                 ConditionBar.Enabled = !StackLabel.Enabled || HKHUtil.IsBow(item);
                 ConditionBarBackground.Enabled = ConditionBar.Enabled;
                 if (ConditionBar.Enabled || StackLabel.Enabled)
@@ -147,7 +148,6 @@ namespace HotKeyHUD
 
                 Icon.BackgroundTexture = image.texture;
                 Icon.Size = new Vector2(image.width == 0 ? itemBgTexSize.x : itemBgSize.x, itemBgSize.y == 0 ? itemBgTexSize.y : itemBgSize.y);
-                StackLabel.Enabled = item.IsStackable() || HKHUtil.IsBow(item);
             }
         }
 

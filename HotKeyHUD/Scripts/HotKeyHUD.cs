@@ -226,60 +226,51 @@ namespace HotKeyHUD
             if (!hotKeyDisplay.Initialized || !hotKeyDisplay.Enabled)
                 return;
             // Item polling/updating
-            switch (hotKeyDisplay.Visibility)
+            for (var i = 0; i < keyItems.Length; i++)
             {
-                case HKHUtil.HUDVisibility.Full:
-                    for (var i = 0; i < keyItems.Length; i++)
+                var keyItem = keyItems[i];
+                if (keyItem.Item is DaggerfallUnityItem dfuItem)
+                {
+                    // Remove item from hotkeys if it is:
+                    // 1. no longer in inventory
+                    // 2. broken from use
+                    // 3. a consumed stack
+                    if (!dfuItem.IsStackable() || HKHUtil.IsBow(dfuItem))
                     {
-                        var keyItem = keyItems[i];
-                        if (keyItem.Item is DaggerfallUnityItem dfuItem)
+                        if (!GameManager.Instance.PlayerEntity.Items.Contains(dfuItem.UID) || dfuItem.currentCondition <= 0)
                         {
-                            // Remove item from hotkeys if it is:
-                            // 1. no longer in inventory
-                            // 2. broken from use
-                            // 3. a consumed stack
-                            if (!dfuItem.IsStackable() || HKHUtil.IsBow(dfuItem))
-                            {
-                                if (!GameManager.Instance.PlayerEntity.Items.Contains(dfuItem.UID) || dfuItem.currentCondition <= 0)
-                                {
-                                    keyItems[i].Item = null;
-                                    keyItems[i].ForceUse = false;
-                                    RaiseKeyItemSet(new HKHUtil.ItemSetEventArgs(i, null, false));
-                                }
-                                /*
-                                // Scaling fix. Scaling seems to break if the parent panel height > width.
-                                if (keyItem.Icon.InteriorHeight > HotKeyButton.buttonHeight * Scale.y)
-                                    keyItem.Icon.Size *= .9f;
-                                */
-                            }
-                            else if (dfuItem.IsStackable() && dfuItem.stackCount == 0)
-                            {
-                                keyItems[i].Item = null;
-                                keyItems[i].ForceUse = false;
-                                RaiseKeyItemSet(new HKHUtil.ItemSetEventArgs(i, null, false));
-                            }
-
-                            hotKeyDisplay.UpdateItemDisplay(i, dfuItem);
+                            keyItems[i].Item = null;
+                            keyItems[i].ForceUse = false;
+                            RaiseKeyItemSet(new HKHUtil.ItemSetEventArgs(i, null, false));
                         }
                     }
-                    break;
-                case HKHUtil.HUDVisibility.Equipped:
-                    var weaponManager = GameManager.Instance.WeaponManager;
-                    var item = GameManager.Instance.PlayerEntity.ItemEquipTable.GetItem(weaponManager.UsingRightHand ? EquipSlots.RightHand : EquipSlots.LeftHand);
-                    if (item != equippedItem)
+                    else if (dfuItem.IsStackable() && dfuItem.stackCount == 0)
                     {
-                        RaiseKeyItemSet(new HKHUtil.ItemSetEventArgs(HKHUtil.EquippedButtonIndex, item, false));
-                        equippedItem = item;
+                        keyItems[i].Item = null;
+                        keyItems[i].ForceUse = false;
+                        RaiseKeyItemSet(new HKHUtil.ItemSetEventArgs(i, null, false));
                     }
-                    if (equippedItem != null)
-                        hotKeyDisplay.UpdateItemDisplay(HKHUtil.EquippedButtonIndex, equippedItem);
-                    break;
-                default:
-                    break;
+
+                    hotKeyDisplay.UpdateItemDisplay(i, dfuItem);
+                }
+            }
+
+            if (hotKeyDisplay.Visibility == HKHUtil.HUDVisibility.Equipped)
+            {
+                var weaponManager = GameManager.Instance.WeaponManager;
+                var item = GameManager.Instance.PlayerEntity.ItemEquipTable.GetItem(weaponManager.UsingRightHand ? EquipSlots.RightHand : EquipSlots.LeftHand);
+                if (item != equippedItem)
+                {
+                    RaiseKeyItemSet(new HKHUtil.ItemSetEventArgs(HKHUtil.EquippedButtonIndex, item, false));
+                    equippedItem = item;
+                }
+                if (equippedItem != null)
+                    hotKeyDisplay.UpdateItemDisplay(HKHUtil.EquippedButtonIndex, equippedItem);
             }
 
             if (autoRecastEnabled && autoSpell != null && !playerEffectManager.HasReadySpell && !GameManager.Instance.PlayerSpellCasting.IsPlayingAnim)
-                playerEffectManager.SetReadySpell(autoSpell);
+                if (!playerEffectManager.SetReadySpell(autoSpell))
+                    autoSpell = null;
 
             if (!HKHMenuPopup.OverrideMenus)
                 return;
@@ -372,8 +363,16 @@ namespace HotKeyHUD
 
         private void HandleSetupOpen()
         {
-            hkhInput.KeyDownHandler += HKHSetupWindow.Instance.HandleKeyDown;
-            hkhInput.KeyUpHandler += HKHSetupWindow.Instance.HandleKeyUp;
+            var setupWindow = HKHSetupWindow.Instance;
+            hkhInput.KeyDownHandler += setupWindow.HandleKeyDown;
+            hkhInput.KeyUpHandler += setupWindow.HandleKeyUp;
+            var setupButtons = HKHMenuPopup.Instance.HotKeyButtons;
+            for (var i = 0; i < setupButtons.Length; i++)
+            {
+                var item = keyItems[i].Item;
+                if (item is DaggerfallUnityItem dfuItem)
+                    setupButtons[i].UpdateItemDisplay(dfuItem);
+            }
         }
 
         private void HandleSetupClose()

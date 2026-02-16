@@ -140,7 +140,12 @@ namespace HotKeyHUD
             if (args.Item is EffectBundleSettings spell)
                 HotKeyButtons[args.Index].SetSpell(spell);
             else
-                HotKeyButtons[args.Index].SetItem((DaggerfallUnityItem)args.Item);
+            {
+                var item = (DaggerfallUnityItem)args.Item;
+                HotKeyButtons[args.Index].SetItem(item);
+                if (item != null)
+                    HotKeyButtons[args.Index].UpdateItemDisplay(item);
+            }
         }
 
         private void HotKeyMenuPopup_OnMouseClick(BaseScreenComponent sender, Vector2 position)
