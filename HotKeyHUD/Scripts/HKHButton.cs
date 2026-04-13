@@ -39,6 +39,7 @@ namespace HotKeyHUD
         private static Vector2 KeyLabelOriginalPos = new Vector2(1f, 1f);
         private static Vector2 StackLabelOriginalPos = new Vector2(1f, 14f);
         private static Vector2 CondBarOriginalPos = new Vector2(2f, buttonHeight - 3f);
+        private static float XStart => DaggerfallUnity.Settings.RetroModeAspectCorrection != (int)RetroModeAspects.Off && DaggerfallUnity.Settings.RetroRenderingMode != 0 ? retroButtonXStart : buttonXStart;
 
         public HKHButton(Texture2D backdrop, Vector2 position, int keyIndex)
         {
@@ -168,9 +169,8 @@ namespace HotKeyHUD
 
         public void SetScale(Vector2 scale)
         {
-            var xStart = DaggerfallUnity.Settings.RetroModeAspectCorrection != (int)RetroModeAspects.Off && DaggerfallUnity.Settings.RetroRenderingMode != 0 ? retroButtonXStart : buttonXStart;
             Scale = scale;
-            Position = new Vector2((float)Math.Round((xStart - iconsWidth / 2f + originalPosition.x + 0.5f) * scale.x) + .5f, (float)Math.Round(iconsY * scale.y) + .5f);
+            Position = new Vector2((float)Math.Round((XStart - iconsWidth / 2f + originalPosition.x + 0.5f) * scale.x) + .5f, (float)Math.Round(iconsY * scale.y) + .5f);
             Size = new Vector2((float)Math.Round(buttonWidth * scale.x + .5f), (float)Math.Round(buttonHeight * scale.y) + .5f);
             if (ConditionBar.Enabled || StackLabel.Enabled)
             {

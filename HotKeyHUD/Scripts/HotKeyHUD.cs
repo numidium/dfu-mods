@@ -160,7 +160,6 @@ namespace HotKeyHUD
                     break;
             }
 
-            autoRecastEnabled = settings.GetValue<bool>("Options", "Auto Recast");
             var menuKeyText = settings.GetValue<string>("Options", "Hotkey Setup Menu Key");
             if (Enum.TryParse(menuKeyText, out KeyCode result))
                 setupMenuKey = result;
@@ -171,6 +170,18 @@ namespace HotKeyHUD
             }
 
             equipDelayDisabled = settings.GetValue<bool>("Options", "Disable Equip Delay");
+            autoRecastEnabled = settings.GetValue<bool>("Options", "Auto Recast");
+            var xOffText = settings.GetValue<string>("Options", "HUD X Offset");
+            if (float.TryParse(xOffText, out var xOffset))
+                hotKeyDisplay.XOffset = xOffset;
+            else
+                Debug.Log($"{modName}: Invalid custom X offset in settings.");
+            var yOffText = settings.GetValue<string>("Options", "HUD Y Offset");
+            if (float.TryParse(yOffText, out var yOffset))
+                hotKeyDisplay.YOffset = yOffset;
+            else
+                Debug.Log($"{modName}: Invalid custom Y offset in settings.");       
+            hotKeyDisplay.NeedsScaleUpdate = true;
         }
 
         private void Start()

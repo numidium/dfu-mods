@@ -17,7 +17,10 @@ namespace HotKeyHUD
         private readonly PlayerEntity playerEntity;
         private static HKHDisplay instance;
         private float textTime;
+        public float XOffset { private get; set; }
+        public float YOffset { private get; set; }
         public bool Initialized { get; set; }
+        public bool NeedsScaleUpdate { private get; set; }
         public HKHButton[] HotKeyButtons { get; private set; }
         public HKHButton EquippedButton { get; private set; }
         public TextLabel NameLabel { get; private set; }
@@ -53,10 +56,14 @@ namespace HotKeyHUD
                 Initialize();
 
             base.Update();
-            var hud = DaggerfallUI.Instance.DaggerfallHUD;
-            var factoredScale = hud.NativePanel.LocalScale * ScaleMult;
-            if (Scale != factoredScale)
+            if (NeedsScaleUpdate) 
+            {
+                var hud = DaggerfallUI.Instance.DaggerfallHUD;
+                var factoredScale = hud.NativePanel.LocalScale * ScaleMult;
                 SetScale(factoredScale);
+                NeedsScaleUpdate = false;
+            }
+
             if (NameLabel.Enabled)
             {
                 textTime -= Time.deltaTime;
@@ -206,7 +213,7 @@ namespace HotKeyHUD
                 ShadowPosition = DaggerfallUI.DaggerfallDefaultShadowPos
             };
 
-            Components.Add(NameLabel);
+            DaggerfallUI.Instance.DaggerfallHUD.ParentPanel.Components.Add(NameLabel);
             SetScale(hudNativePanel.LocalScale);
             Initialized = true;
         }
@@ -214,13 +221,14 @@ namespace HotKeyHUD
         private void SetScale(Vector2 scale)
         {
             Scale = scale;
-            Position = new Vector2((Size.x - Size.x * ScaleMult) / 2f, Size.y - Size.y * ScaleMult);
+            var hudScale = DaggerfallUI.Instance.DaggerfallHUD.NativePanel.LocalScale;
+            Position = new Vector2((Size.x - Size.x * ScaleMult) / 2f + XOffset * hudScale.x, Size.y - Size.y * ScaleMult + YOffset * hudScale.y);
             for (var i = 0; i < HotKeyButtons.Length; i++)
                 HotKeyButtons[i].SetScale(scale);
             EquippedButton.SetScale(scale);
             NameLabel.Scale = scale;
             NameLabel.TextScale = scale.x;
-            NameLabel.Position = new Vector2(DaggerfallUnity.Settings.RetroModeAspectCorrection != (int)RetroModeAspects.Off && DaggerfallUnity.Settings.RetroRenderingMode != 0 ? retroLeftX * scale.x : leftX * scale.x, (iconsY - 7f) * scale.y);
+            NameLabel.Position = new Vector2(HotKeyButtons[0].Position.x + Position.x, HotKeyButtons[0].Position.y + Position.y - 7f * scale.y);
         }
 
         private void ShowEquipDelayMessage(float countDownValue, EquipSlots equipSlot)

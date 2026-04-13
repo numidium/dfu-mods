@@ -26,7 +26,7 @@
                     ],
                     "Value": "2",
                     "Name": "HUD Scale",
-                    "Description": "Size of element on HUD."
+                    "Description": "Size of element on HUD.",
                     "$version": "v1",
                     "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.MultipleChoiceKey"
                 },
@@ -47,19 +47,32 @@
                 {
                     "Value": "True",
                     "Name": "Disable Equip Delay",
-                    "Description": "Disable vanilla equip delay when using hot keys."
+                    "Description": "Disable vanilla equip delay when using hot keys.",
                     "$version": "v1",
                     "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
                 },
                 {
                     "Value": "False",
                     "Name": "Auto Recast",
-                    "Description": "Ready on-target spells after initial cast."
+                    "Description": "Ready on-target spells after initial cast.",
                     "$version": "v1",
                     "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
+                },
+                {
+                    "Name": "HUD X Offset",
+                    "Value": "0",
+                    "Description": "Where to place the HUD element relative to its default X position",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.TextKey"
+                },
+                {
+                    "Name": "HUD Y Offset",
+                    "Value": "0",
+                    "Description": "Where to place the HUD element relative to its default Y position",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.TextKey"
                 }
-            ],
-            "$version": "v1"
+            ]
         }
     ]
 }
