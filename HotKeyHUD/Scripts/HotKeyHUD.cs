@@ -662,7 +662,7 @@ namespace HotKeyHUD
 
         private void HandleKeyDown(KeyCode key)
         {
-            if (DaggerfallUI.UIManager.TopWindow != daggerfallHud)
+            if (DaggerfallUI.UIManager.TopWindow != daggerfallHud || GameManager.Instance.WeaponManager.ScreenWeapon.WeaponState != WeaponStates.Idle)
                 return;
             if (key >= KeyCode.Alpha1 && key <= KeyCode.Alpha9)
             {
