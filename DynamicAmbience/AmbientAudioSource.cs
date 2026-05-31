@@ -73,6 +73,7 @@ namespace DynamicAmbience
         {
             using (var request = UnityWebRequestMultimedia.GetAudioClip($"file://{path}", AudioType.OGGVORBIS))
             {
+                ((DownloadHandlerAudioClip)request.downloadHandler).streamAudio = true;
                 yield return request.SendWebRequest();
                 if (request.responseCode != 200)
                 {   
