@@ -485,7 +485,7 @@ namespace FlatReplacer
             return material;
         }
 
-        public Material SetMaterial(in BillboardSummary oldSummary, int archive, int record, bool useExactDimensions, int frame = 0)
+        public Material SetMaterial(in BillboardSummary oldSummary, int archive, int record, bool useExactDimensions, Vector2 customDimensions)
         {
             // Get DaggerfallUnity
             DaggerfallUnity dfUnity = DaggerfallUnity.Instance;
@@ -499,8 +499,15 @@ namespace FlatReplacer
             Mesh oldMesh = meshFilter.sharedMesh;
             Mesh mesh = null;
             Vector2 size;
+            Vector2 scale;
             Material material = null;
-            if (material = TextureReplacement.GetStaticBillboardMaterial(gameObject, archive, record, ref summary, out Vector2 scale))
+            if (customDimensions != Vector2.zero && (material = TextureReplacement.GetStaticBillboardMaterial(gameObject, archive, record, ref summary, out scale)))
+            {
+                summary.Size = customDimensions;
+                mesh = dfUnity.MeshReader.GetSimpleBillboardMesh(customDimensions);
+                size = customDimensions;
+            }
+            else if (material = TextureReplacement.GetStaticBillboardMaterial(gameObject, archive, record, ref summary, out scale))
             {
                 mesh = dfUnity.MeshReader.GetBillboardMesh(summary.Rect, meshArchive, meshRecord, out size);
                 summary.AtlasedMaterial = false;
@@ -541,7 +548,7 @@ namespace FlatReplacer
                 material = dfUnity.MaterialReader.GetMaterial(
                     meshArchive,
                     meshRecord,
-                    frame,
+                    0,
                     0,
                     out summary.Rect,
                     4,

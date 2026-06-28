@@ -37,6 +37,8 @@ namespace FlatReplacer
             SetBoolValue(data, "UseExactDimensions", out model.UseExactDimensions);
             SetIntValue(data, "FlatPortrait", out model.FlatPortrait);
             SetIntValue(data, "Priority", out model.Priority, 0);
+            SetFloatValue(data, "Width", out model.Width, 0f);
+            SetFloatValue(data, "Height", out model.Height, 0f);
 
             return fsResult.Success;
         }
@@ -47,6 +49,14 @@ namespace FlatReplacer
                 modelValue = defaultValue;
             else
                 modelValue = (int)value.AsInt64;
+        }
+
+        private void SetFloatValue(Dictionary<string, fsData> data, string key, out float modelValue, float defaultValue = 0f)
+        {
+            if (!data.ContainsKey(key) || !data.TryGetValue(key, out var value))
+                modelValue = defaultValue;
+            else
+                modelValue = (float)value.AsDouble;
         }
 
         private void SetBoolValue(Dictionary<string, fsData> data, string key, out bool modelValue)

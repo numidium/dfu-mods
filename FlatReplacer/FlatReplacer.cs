@@ -340,17 +340,21 @@ namespace FlatReplacer
             Material replacementMaterial = null;
             var replacementBillboard = go.AddComponent<ReplacementBillboard>();
             var oldSummary = billboard.Summary;
+            var matWidth = chosenReplacementRecord.Width;
+            var matHeight = chosenReplacementRecord.Height;
             if (chosenReplacement.AnimationFrames != null) // Custom graphics supplied with custom file name
             {
+
                 replacementMaterial = replacementBillboard.SetMaterial(chosenReplacementRecord.FlatTextureName,
-                    new Vector2(chosenReplacement.AnimationFrames[0].width, chosenReplacement.AnimationFrames[0].height),
+                    new Vector2(matWidth <= 0 ? chosenReplacement.AnimationFrames[0].width : matWidth, 
+                        matHeight <= 0 ? chosenReplacement.AnimationFrames[0].height : matHeight),
                     chosenReplacement.AnimationFrames, chosenReplacementRecord.TextureArchive,
                     chosenReplacementRecord.TextureRecord, chosenReplacementRecord.UseExactDimensions);
             }
             else // Custom or vanilla graphics with vanilla filename
             {
                 replacementMaterial = replacementBillboard.SetMaterial(in oldSummary,
-                    chosenReplacementRecord.ReplaceTextureArchive, chosenReplacementRecord.ReplaceTextureRecord, chosenReplacementRecord.UseExactDimensions);
+                    chosenReplacementRecord.ReplaceTextureArchive, chosenReplacementRecord.ReplaceTextureRecord, chosenReplacementRecord.UseExactDimensions, new Vector2(matWidth, matHeight));
             }
 
             if (!replacementMaterial)

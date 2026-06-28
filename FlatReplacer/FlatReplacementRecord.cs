@@ -30,5 +30,7 @@ namespace FlatReplacer
         public bool UseExactDimensions;
         public int FlatPortrait;
         public int Priority;
+        public float Width;
+        public float Height;
     }
 }
