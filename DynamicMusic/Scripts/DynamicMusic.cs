@@ -455,7 +455,8 @@ namespace DynamicMusic
                 None = 0x00,
                 CrashIn = 0x01,
                 ResumePrevious = 0x02,
-                PlayUntilCombatEnd = 0x04
+                PlayUntilCombatEnd = 0x04,
+                Sting = 0x08
             }
 
             private readonly string[] tracks;
@@ -507,6 +508,7 @@ namespace DynamicMusic
             public int TrackCount => tracks.Length;
             public string CurrentTrack => tracks[index];
             public Flags PlaylistFlags;
+            public bool HasFlags(Flags flags) => (PlaylistFlags & flags) == flags;
         }
 
         private sealed class ConditionUsage
@@ -533,7 +535,8 @@ namespace DynamicMusic
                 ReadingBook,
                 Combat,
                 Swimming,
-                BuildingIsOpen
+                BuildingIsOpen,
+                FastTraveled
             }
 
             public static Conditions GetConditionFromText(string text)
@@ -587,8 +590,8 @@ namespace DynamicMusic
         private MusicPlaylist lastVanillaPlaylist;
         private bool gameLoaded;
         private int currentPlaylist;
-        private bool randomIndRequested;
-        private int currentLocationIndex;
+        private bool isWaitingForTravelSting;
+        private bool isPlayingSting;
         private int lastlocationIndex;
         private uint lastGameDays;
         private State currentState;
@@ -610,8 +613,11 @@ namespace DynamicMusic
             DontDestroyOnLoad(go);
             SaveLoadManager.OnLoad += SaveLoadManager_OnLoad;
             StartGameBehaviour.OnStartGame += StartGameBehaviour_OnStartGame;
+            DaggerfallTravelPopUp.OnPostFastTravel += OnPostFastTravel;
             mod.LoadSettingsCallback = Instance.LoadSettings;
+            DynamicSongPlayer.OnSongEnd += OnSongEnd;
         }
+
 
         // Load settings that can change during runtime.
         private void LoadSettings(ModSettings settings, ModSettingsChange change)
@@ -833,8 +839,16 @@ namespace DynamicMusic
             previousTimeSinceStartup = realTimeSinceStartup;
             if (deltaTime < 0f)
                 deltaTime = 0f;
+
+            if (isPlayingSting && dynamicSongPlayer.HasPlayedOnce)
+            {
+                isPlayingSting = false;
+                currentState = State.FadingOut;
+                fadeOutTime = fadeOutLength;
+            }
+
             var previousPlaylist = currentPlaylist;
-            if (!isInCombat || customPlaylists[previousPlaylist] == null || (customPlaylists[previousPlaylist].PlaylistFlags & Playlist.Flags.PlayUntilCombatEnd) == 0)
+            if (!isPlayingSting && (!isInCombat || customPlaylists[previousPlaylist] == null || customPlaylists[previousPlaylist].HasFlags(Playlist.Flags.PlayUntilCombatEnd)))
             {
                 currentPlaylist = (int)GetMusicPlaylist(localPlayerGPS, playerEnterExit, playerWeather);
 
@@ -842,31 +856,37 @@ namespace DynamicMusic
                 if (currentPlaylist != (int)MusicPlaylist.None)
                 {
                     var key = GetUserDefinedPlaylistKey(userDefinedConditionSets);
-                    if (key >= 0)
+                    if (key >= 0) {
                         currentPlaylist = key;
+                        isPlayingSting = customPlaylists[currentPlaylist].HasFlags(Playlist.Flags.Sting);
+                    }
                 }
             }
 
+
+            isWaitingForTravelSting = false;
             switch (currentState)
             {
                 case State.Normal:
                     if (currentPlaylist != previousPlaylist && previousPlaylist != (int)MusicPlaylist.None)
                     {
-                        if (customPlaylists[currentPlaylist] != null && (customPlaylists[currentPlaylist].PlaylistFlags & Playlist.Flags.CrashIn) == Playlist.Flags.CrashIn)
+                        if (customPlaylists[currentPlaylist] != null && 
+                            customPlaylists[currentPlaylist].HasFlags(Playlist.Flags.CrashIn))
                         {
                             currentState = State.FadingOut;
                             fadeOutTime = fadeOutLength;
                             fadeInTime = fadeInLength;
-                            if ((customPlaylists[currentPlaylist].PlaylistFlags & Playlist.Flags.ResumePrevious) == Playlist.Flags.ResumePrevious)
+                            if (customPlaylists[currentPlaylist].HasFlags(Playlist.Flags.ResumePrevious))
                                 resumePlaylist = previousPlaylist;
                         }
                         else
                             currentState = State.FadingOut;
                     }
 
-                    if (currentState != State.FadingOut)
+                    if (currentState != State.FadingOut && customPlaylists[currentPlaylist] != null && customPlaylists[currentPlaylist].HasFlags(Playlist.Flags.Sting))
+                    {
                         PlayCurrentTrack();
-
+                    }
                     // Stop music if no playlist found.
                     if (currentPlaylist == (int)MusicPlaylist.None)
                     {
@@ -889,14 +909,14 @@ namespace DynamicMusic
                         // End fade when time elapsed.
                         fadeOutTime = 0f;
                         currentState = State.FadingIn;
-                        randomIndRequested = true;
                     }
 
                     break;
                 case State.FadingIn:
                     if (currentPlaylist != previousPlaylist && previousPlaylist != (int)MusicPlaylist.None)
                     {
-                        if (customPlaylists[currentPlaylist] != null && (customPlaylists[currentPlaylist].PlaylistFlags & Playlist.Flags.CrashIn) == Playlist.Flags.CrashIn)
+                        if (customPlaylists[currentPlaylist] != null 
+                            && customPlaylists[currentPlaylist].HasFlags(Playlist.Flags.CrashIn))
                         {
                             currentState = State.FadingOut;
                             fadeOutTime = fadeOutLength;
@@ -911,9 +931,11 @@ namespace DynamicMusic
                         }
                     }
 
+                    if (customPlaylists[currentPlaylist] != null && customPlaylists[currentPlaylist].HasFlags(Playlist.Flags.Sting))
+                        fadeInTime = fadeInLength;
                     if (currentPlaylist == (int)MusicPlaylist.None)
                         break;
-                    if (dynamicSongPlayer.AudioSource.volume == 0f)
+                    if (dynamicSongPlayer.AudioSource.volume == 0f) 
                         PlayCurrentTrack();
                     fadeInTime += deltaTime;
                     // End fade when time elapsed.
@@ -1071,6 +1093,10 @@ namespace DynamicMusic
                     conditionResult = playerEnterExit.IsPlayerInside && !playerEnterExit.IsPlayerInsideDungeon
                         && PlayerActivate.IsBuildingOpen(playerEnterExit.Interior.BuildingData.BuildingType);
             }
+            else if (condition == ConditionUsage.Conditions.FastTraveled)
+            {
+                conditionResult = isWaitingForTravelSting;
+            }
 
             return negate ? !conditionResult : conditionResult;
         }
@@ -1120,7 +1146,7 @@ namespace DynamicMusic
                 var playlist = customPlaylists[currentCustomPlaylist];
                 var track = resumeSeeker > 0f || (loopCustomTracks && currentCustomTrack == customPlaylists[currentPlaylist].CurrentTrack) ? playlist.CurrentTrack : playlist.GetNextTrack();
                 GetDebuggingText(track, out debugPlaylistName, out debugSongName, currentPlaylist > (int)MusicPlaylist.None);
-                if (resumeIsEnabled && (customPlaylists[currentPlaylist].PlaylistFlags & Playlist.Flags.ResumePrevious) == Playlist.Flags.ResumePrevious)
+                if (resumeIsEnabled && customPlaylists[currentPlaylist].HasFlags(Playlist.Flags.ResumePrevious))
                 {
                     resumeSeeker = dynamicSongPlayer.CurrentSecond;
                     dynamicSongPlayer.Play(track, 0f);
@@ -1498,6 +1524,17 @@ namespace DynamicMusic
         {
             Instance.HandleLocationChange();
             Instance.gameLoaded = true;
+        }
+
+        private static void OnPostFastTravel()
+        {
+            Instance.isWaitingForTravelSting = true;
+        }
+        
+        private static void OnSongEnd()
+        {
+            if (Instance.currentState == State.Normal)
+                Instance.isPlayingSting = false;
         }
 
         private void OnDeath(DaggerfallEntity entity)

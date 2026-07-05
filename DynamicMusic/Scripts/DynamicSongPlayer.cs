@@ -37,6 +37,9 @@ namespace DynamicMusic
         public bool IsStoppedClip => clipStarted && AudioSource.clip && AudioSource.clip.loadState == AudioDataLoadState.Loaded && !AudioSource.isPlaying;
         // midiSequencer.CurrentTime is the current sample #. Therefore dividing the sample by sample rate in Hz yields the current second.
         public float CurrentSecond => midiSequencer.IsPlaying ? midiSequencer.CurrentTime / midiSequencer.Synth.SampleRate : AudioSource.time;
+        public bool HasPlayedOnce { get; private set; }
+        public delegate void OnSongEndHandler();
+        public static event OnSongEndHandler OnSongEnd;
         private Synthesizer midiSynthesizer = null;
         private MidiFileSequencer midiSequencer = null;
         private float[] sampleBuffer = new float[0];
@@ -71,7 +74,9 @@ namespace DynamicMusic
                     IsSequencerPlaying = midiSequencer.IsPlaying;
                     Gain = (AudioSource.volume * 5f);
                     if (Song != SongFiles.song_none && !midiSequencer.IsPlaying)
+                    {
                         PlaySequencer(Song);
+                    }
                 }
             }
             // Non-MIDI
@@ -79,9 +84,12 @@ namespace DynamicMusic
             {
                 if (!IsAudioSourcePlaying)
                 {
+                    if (AudioSource.time >= AudioSource.clip.length)
+                        HasPlayedOnce = true;
                     StopSequencer();
-                    if (AudioSource.clip)
+                    if (AudioSource.clip) {
                         AudioSource.Play();
+                    }
 
                     clipStarted = true;
                     if (oldSong)
@@ -125,6 +133,7 @@ namespace DynamicMusic
             else
                 PlaySequencer(song, (int)timeSeek);
             AudioSource.loop = true;
+            HasPlayedOnce = false;
         }
 
         public void Play(string track, float timeSeek = 0f)
@@ -138,6 +147,8 @@ namespace DynamicMusic
                 AudioSource.loop = false;
                 clipStarted = false;
             }
+
+            HasPlayedOnce = false;
         }
 
         public void Stop()

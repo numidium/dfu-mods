@@ -128,12 +128,14 @@ i. Condition Functions:
         Parameters: None
     BuildingIsOpen - True if the building occupied by the player is currently open (evaluates to true if the building does not have opening/closing hours).
         Parameters: None
+    FastTraveled - True if the player just fast traveled to a new location.
 
 ii: Condition Flags:
 
     CrashIn - Playlist should bypass Fade Out/Fade In sequence when conditions are met.
     ResumePrevious - When returning to the previous playlist, start at time offset when playlist last changed.
     PlayUntilCombatEnd - Do not change to another playlist until the player is out of combat.
+    Sting - Only play once when condition is true.
 
 
 3c. Value Lookup
