@@ -586,6 +586,8 @@ namespace DynamicMusic
         private float previousTimeSinceStartup;
         private float deltaTime;
         private float resumeSeeker = 0f;
+        private float stingWaitTime;
+        private float stingDelay = 1f;
         private int resumePlaylist;
         private MusicPlaylist lastVanillaPlaylist;
         private bool gameLoaded;
@@ -840,8 +842,9 @@ namespace DynamicMusic
             if (deltaTime < 0f)
                 deltaTime = 0f;
 
-            if (isPlayingSting && dynamicSongPlayer.HasPlayedOnce)
+            if (isPlayingSting && dynamicSongPlayer.IsStoppedClip && dynamicSongPlayer.IsStinging)
             {
+                dynamicSongPlayer.IsStinging = false;
                 isPlayingSting = false;
                 currentState = State.FadingOut;
                 fadeOutTime = fadeOutLength;
@@ -863,8 +866,10 @@ namespace DynamicMusic
                 }
             }
 
-
-            isWaitingForTravelSting = false;
+            if (stingWaitTime > 0f)
+                stingWaitTime -= deltaTime;
+            else
+                isWaitingForTravelSting = false;
             switch (currentState)
             {
                 case State.Normal:
@@ -883,10 +888,12 @@ namespace DynamicMusic
                             currentState = State.FadingOut;
                     }
 
-                    if (currentState != State.FadingOut && customPlaylists[currentPlaylist] != null && customPlaylists[currentPlaylist].HasFlags(Playlist.Flags.Sting))
+                    if (currentState != State.FadingOut && customPlaylists[currentPlaylist] != null && customPlaylists[currentPlaylist].HasFlags(Playlist.Flags.Sting) && !dynamicSongPlayer.IsStinging)
                     {
                         PlayCurrentTrack();
+                        dynamicSongPlayer.IsStinging = true;
                     }
+
                     // Stop music if no playlist found.
                     if (currentPlaylist == (int)MusicPlaylist.None)
                     {
@@ -1528,6 +1535,7 @@ namespace DynamicMusic
 
         private static void OnPostFastTravel()
         {
+            Instance.stingWaitTime = Instance.stingDelay;
             Instance.isWaitingForTravelSting = true;
         }
         

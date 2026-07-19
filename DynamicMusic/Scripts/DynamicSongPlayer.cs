@@ -35,6 +35,7 @@ namespace DynamicMusic
         public bool IsAudioSourcePlaying => AudioSource.isPlaying || (AudioSource.clip && AudioSource.clip.loadState == AudioDataLoadState.Loading);
         public bool IsPlaying => IsAudioSourcePlaying || (midiSequencer != null && midiSequencer.IsPlaying);
         public bool IsStoppedClip => clipStarted && AudioSource.clip && AudioSource.clip.loadState == AudioDataLoadState.Loaded && !AudioSource.isPlaying;
+        public bool IsStinging { get; set; }
         // midiSequencer.CurrentTime is the current sample #. Therefore dividing the sample by sample rate in Hz yields the current second.
         public float CurrentSecond => midiSequencer.IsPlaying ? midiSequencer.CurrentTime / midiSequencer.Synth.SampleRate : AudioSource.time;
         public bool HasPlayedOnce { get; private set; }
@@ -87,7 +88,7 @@ namespace DynamicMusic
                     if (AudioSource.time >= AudioSource.clip.length)
                         HasPlayedOnce = true;
                     StopSequencer();
-                    if (AudioSource.clip) {
+                    if (AudioSource.clip && !IsStinging) {
                         AudioSource.Play();
                     }
 
