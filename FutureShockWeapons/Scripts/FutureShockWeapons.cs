@@ -170,15 +170,14 @@ namespace FutureShock
 
         private void Update()
         {
-            // When unsheathing, immediately re-sheathe weapon and use HitScanGun in place of FPSWeapon
             var equipChanged = false;
             if (lastEquippedRight != equippedRight)
                 equipChanged = true;
             if (IsGun(equippedRight))
             {
-                var lastNonGunSheathed = gameManager.WeaponManager.Sheathed;
+                var lastNonGunSheathed = gameManager.WeaponManager.ScreenWeapon.ShowWeapon;
                 if (!lastNonGunSheathed && gameManager.WeaponManager.UsingRightHand)
-                    gameManager.WeaponManager.SheathWeapons();
+                    gameManager.WeaponManager.ScreenWeapon.ShowWeapon = gameManager.WeaponManager.enabled = false;
                 if (equipChanged)
                 {
                     ShowWeapon = (!IsGun(lastEquippedRight) && !lastNonGunSheathed) || !fpsGun.IsHolstered;
@@ -191,7 +190,8 @@ namespace FutureShock
             {
                 fpsGun.IsHolstered = true;
                 ShowWeapon = false;
-                gameManager.WeaponManager.Sheathed = false;
+                gameManager.WeaponManager.enabled = true;
+                gameManager.WeaponManager.ScreenWeapon.ShowWeapon = !gameManager.WeaponManager.Sheathed && gameManager.WeaponManager.EquipCountdownRightHand <= 0f; 
             }
 
             if (equipChanged)
@@ -217,12 +217,16 @@ namespace FutureShock
             if (gameManager.WeaponManager.UsingRightHand)
             {
                 fpsGun.IsFiring = !fpsGun.IsHolstered && !gameManager.PlayerEntity.IsParalyzed && InputManager.Instance.HasAction(InputManager.Actions.SwingWeapon);
-                if (InputManager.Instance.ActionStarted(InputManager.Actions.ReadyWeapon) && IsGun(equippedRight) && !fpsGun.IsFiring)
+                if (InputManager.Instance.ActionStarted(InputManager.Actions.ReadyWeapon) && IsGun(equippedRight) && !fpsGun.IsFiring) {
                     ShowWeapon = !ShowWeapon;
-                else if (InputManager.Instance.ActionComplete(InputManager.Actions.SwitchHand) && !fpsGun.IsHolstered)
+                    gameManager.WeaponManager.Sheathed = !ShowWeapon;
+                }
+                else if (InputManager.Instance.ActionComplete(InputManager.Actions.SwitchHand) && !fpsGun.IsHolstered) {
                     gameManager.WeaponManager.Sheathed = false; // Keep fist "unsheathed" when switching to HTH.
+                    gameManager.WeaponManager.enabled = true;
+                }
             }
-            else if (InputManager.Instance.ActionComplete(InputManager.Actions.SwitchHand) && !gameManager.WeaponManager.Sheathed && IsGun(equippedRight))
+            else if (InputManager.Instance.ActionComplete(InputManager.Actions.SwitchHand) && !gameManager.WeaponManager.enabled && IsGun(equippedRight))
                 ShowWeapon = true; // Unholster weapon if switching from unsheathed weapon.
             else if (gameManager.WeaponManager.Sheathed && ShowWeapon)
                 ShowWeapon = false; // Holster weapon if switched to left hand and sheathed.
@@ -233,6 +237,9 @@ namespace FutureShock
                 fpsGun.IsHolstered = false;
                 fpsGun.PlayEquipSound();
             }
+
+            if (!gameManager.WeaponManager.enabled && gameManager.WeaponManager.EquipCountdownRightHand > 0f)
+                gameManager.WeaponManager.EquipCountdownRightHand -= 980f * Time.deltaTime;
         }
 
         private void OnDestroy()
