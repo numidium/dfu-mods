@@ -118,14 +118,13 @@ namespace FutureShock
         private FutureShockGun fpsGun;
         private uint[] impactAnimMap;
         private uint[] projectileAnimMap;
-        //private Dictionary<ProjectileModel, Mesh> projectileMeshBank;
         private Texture2D[][] impactFrameBank;
         private Texture2D[][] projectileFrameBank;
         private readonly Texture2D[] projectileTextures = new Texture2D[3];
         private AudioClip[] weaponSoundBank;
         private DaggerfallUnityItem lastEquippedRight;
         private DaggerfallUnityItem equippedRight;
-        private bool ShowWeapon;
+        private float lastEquipCountdown;
         private GameManager gameManager;
         private string gameDataPath;
         private DFPalette shockPalette;
@@ -168,78 +167,52 @@ namespace FutureShock
             }
         }
 
-        private void Update()
-        {
-            var equipChanged = false;
-            if (lastEquippedRight != equippedRight)
-                equipChanged = true;
-            if (IsGun(equippedRight))
-            {
-                var lastNonGunSheathed = gameManager.WeaponManager.ScreenWeapon.ShowWeapon;
-                if (!lastNonGunSheathed && gameManager.WeaponManager.UsingRightHand)
-                    gameManager.WeaponManager.ScreenWeapon.ShowWeapon = gameManager.WeaponManager.enabled = false;
-                if (equipChanged)
-                {
-                    ShowWeapon = (!IsGun(lastEquippedRight) && !lastNonGunSheathed) || !fpsGun.IsHolstered;
-                    SetWeapon(GetGunFromMaterial(equippedRight.NativeMaterialValue));
-                    fpsGun.PlayEquipSound();
-                    fpsGun.IsHolstered = true;
-                }
-            }
-            else if (!fpsGun.IsHolstered)
-            {
-                fpsGun.IsHolstered = true;
-                ShowWeapon = false;
-                gameManager.WeaponManager.enabled = true;
-                gameManager.WeaponManager.ScreenWeapon.ShowWeapon = !gameManager.WeaponManager.Sheathed && gameManager.WeaponManager.EquipCountdownRightHand <= 0f; 
-            }
-
-            if (equipChanged)
-                lastEquippedRight = equippedRight;
-        }
-
-        // Wait for all other updates to ensure hidden weapon doesn't draw.
         private void LateUpdate()
         {
             equippedRight = gameManager.PlayerEntity.ItemEquipTable.GetItem(EquipSlots.RightHand);
-            fpsGun.PairedItem = equippedRight;
-            if (consoleController.ui.isConsoleOpen || GameManager.IsGamePaused || DaggerfallUI.UIManager.WindowCount != 0)
+            if (equippedRight == null)
                 return;
-            if (equippedRight != null && equippedRight.currentCondition <= 0)
-            {
+            var isGun = IsGun(equippedRight);
+            if (!isGun || equippedRight.ConditionPercentage <= 0f || !gameManager.WeaponManager.UsingRightHand) {
+                fpsGun.IsHolstered = true;
                 fpsGun.IsFiring = false;
-                ShowWeapon = false;
-                fpsGun.IsHolstered = true;
-                return;
+                goto endGunLogic;
             }
 
-            // Handle input.
-            if (gameManager.WeaponManager.UsingRightHand)
-            {
-                fpsGun.IsFiring = !fpsGun.IsHolstered && !gameManager.PlayerEntity.IsParalyzed && InputManager.Instance.HasAction(InputManager.Actions.SwingWeapon);
-                if (InputManager.Instance.ActionStarted(InputManager.Actions.ReadyWeapon) && IsGun(equippedRight) && !fpsGun.IsFiring) {
-                    ShowWeapon = !ShowWeapon;
-                    gameManager.WeaponManager.Sheathed = !ShowWeapon;
-                }
-                else if (InputManager.Instance.ActionComplete(InputManager.Actions.SwitchHand) && !fpsGun.IsHolstered) {
-                    gameManager.WeaponManager.Sheathed = false; // Keep fist "unsheathed" when switching to HTH.
-                    gameManager.WeaponManager.enabled = true;
-                }
+            if (InputManager.Instance.ActionComplete(InputManager.Actions.SwitchHand) && !gameManager.WeaponManager.enabled) {
+                gameManager.WeaponManager.UsingRightHand = false;
+                gameManager.WeaponManager.enabled = true;
+                DaggerfallUI.Instance.PopupMessage(TextManager.Instance.GetLocalizedText("usingLeftHand"));
+                goto endGunLogic; 
             }
-            else if (InputManager.Instance.ActionComplete(InputManager.Actions.SwitchHand) && !gameManager.WeaponManager.enabled && IsGun(equippedRight))
-                ShowWeapon = true; // Unholster weapon if switching from unsheathed weapon.
-            else if (gameManager.WeaponManager.Sheathed && ShowWeapon)
-                ShowWeapon = false; // Holster weapon if switched to left hand and sheathed.
-            if (!ShowWeapon)
-                fpsGun.IsHolstered = true;
-            else if (fpsGun.IsHolstered && gameManager.WeaponManager.EquipCountdownRightHand <= 0)
-            {
-                fpsGun.IsHolstered = false;
+
+            if (gameManager.WeaponManager.ScreenWeapon.ShowWeapon &&
+            gameManager.WeaponManager.EquipCountdownRightHand <= 0f) {
+                gameManager.WeaponManager.enabled = false;
+                gameManager.WeaponManager.ScreenWeapon.ShowWeapon = false;
+                SetWeapon(GetGunFromMaterial(equippedRight.NativeMaterialValue));
+                fpsGun.PairedItem = equippedRight;
                 fpsGun.PlayEquipSound();
+                fpsGun.IsHolstered = gameManager.WeaponManager.Sheathed;
+            } 
+            else if (!gameManager.WeaponManager.enabled && InputManager.Instance.ActionStarted(InputManager.Actions.ReadyWeapon)) {
+                fpsGun.IsHolstered = !fpsGun.IsHolstered;
+                if (!fpsGun.IsHolstered)
+                    fpsGun.PlayEquipSound();
             }
 
-            if (!gameManager.WeaponManager.enabled && gameManager.WeaponManager.EquipCountdownRightHand > 0f)
+            fpsGun.IsFiring = !fpsGun.IsHolstered && InputManager.Instance.HasAction(InputManager.Actions.SwingWeapon);
+            if (!gameManager.WeaponManager.enabled && gameManager.WeaponManager.EquipCountdownRightHand > 0f) {
+                fpsGun.IsHolstered = true;
                 gameManager.WeaponManager.EquipCountdownRightHand -= 980f * Time.deltaTime;
+            }
+
+            endGunLogic:
+            if ((!isGun && !gameManager.WeaponManager.enabled) || 
+            gameManager.WeaponManager.EquipCountdownRightHand > 0f)
+                gameManager.WeaponManager.enabled = true;
+            lastEquipCountdown = gameManager.WeaponManager.EquipCountdownRightHand;
+            lastEquippedRight = equippedRight;
         }
 
         private void OnDestroy()
@@ -408,6 +381,8 @@ namespace FutureShock
             if (lastEquippedRight == null)
                 return;
             SetWeapon(GetGunFromMaterial(equippedRight.NativeMaterialValue));
+            fpsGun.PairedItem = equippedRight;
+            fpsGun.IsHolstered = gameManager.WeaponManager.Sheathed;
         }
 
         private bool TryLoadSound(string soundPath, string name, out AudioClip audioClip)

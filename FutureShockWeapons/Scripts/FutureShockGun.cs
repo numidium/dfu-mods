@@ -121,7 +121,6 @@ namespace FutureShock
 
         private void Update()
         {
-            // Fade out muzzle flash.
             if (muzzleFlash.enabled)
             {
                 muzzleFlash.intensity -= postFlashFade * Time.deltaTime;
@@ -133,54 +132,51 @@ namespace FutureShock
             if (isMuzzleFlashing && Time.frameCount - lastMuzzleFrame >= 20)
                 isMuzzleFlashing = false;
 
-            // Update firing animation.
-            if (frameTimeRemaining <= 0f)
+            if (frameTimeRemaining > 0f)
             {
-                if (IsFiring || currentFrame != 0) // Keep firing until animation is finished.
+                frameTimeRemaining -= Time.deltaTime;
+                return;    
+            }
+
+            if (!IsFiring && currentFrame == 0)
+                return;
+            currentFrame = (currentFrame + 1) % WeaponFrames.Length;
+            frameTimeRemaining = frameTime;
+            var isOnSoundFrame = false;
+            if (firingType == FiringType.Burst || currentFrame == 1)
+            {
+                if (firingType == FiringType.Pellets)
                 {
-                    currentFrame = (currentFrame + 1) % WeaponFrames.Length;
-                    frameTimeRemaining = frameTime;
-                    var isSoundRequested = false;
-                    if (firingType == FiringType.Burst || currentFrame == 1)
-                    {
-                        if (firingType == FiringType.Pellets)
-                        {
-                            FireMultipleRays();
-                            StartMuzzleFlash();
-                        }
-                        else if (firingType == FiringType.Projectile || firingType == FiringType.ProjectileRapid)
-                        {
-                            FireProjectile();
-                        }
-                        else
-                        {
-                            FireSingleRay();
-                            if (currentFrame % 2 != 0)
-                                StartMuzzleFlash();
-                        }
-
-                        PairedItem.LowerCondition(ShotConditionCost);
-                        isSoundRequested = currentFrame == 1;
-                    }
-                    else if (currentFrame == 3 && IsFiring && firingType == FiringType.ProjectileRapid)
-                    {
-                        FireProjectile();
-                        PairedItem.LowerCondition(ShotConditionCost);
-                        isSoundRequested = true;
-                    }
-
-                    if (isSoundRequested)
-                    {
-                        audioSource.clip = ShootSound;
-                        audioSource.volume = DaggerfallUnity.Settings.SoundVolume;
-                        audioSource.Play();
-                    }
+                    FireMultipleRays();
+                    StartMuzzleFlash();
+                }
+                else if (firingType == FiringType.Projectile || firingType == FiringType.ProjectileRapid)
+                {
+                    FireProjectile();
                 }
                 else
-                    return;
+                {
+                    FireSingleRay();
+                    if (currentFrame % 2 != 0)
+                        StartMuzzleFlash();
+                }
+
+                PairedItem.LowerCondition(ShotConditionCost);
+                isOnSoundFrame = currentFrame == 1;
             }
-            else
-                frameTimeRemaining -= Time.deltaTime;
+            else if (currentFrame == 3 && IsFiring && firingType == FiringType.ProjectileRapid)
+            {
+                FireProjectile();
+                PairedItem.LowerCondition(ShotConditionCost);
+                isOnSoundFrame = true;
+            }
+
+            if (isOnSoundFrame)
+            {
+                audioSource.clip = ShootSound;
+                audioSource.volume = DaggerfallUnity.Settings.SoundVolume;
+                audioSource.Play();
+            }
         }
 
         private void OnGUI()

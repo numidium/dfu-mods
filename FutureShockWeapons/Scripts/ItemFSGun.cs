@@ -17,7 +17,7 @@ namespace FutureShock
         public override string LongName => ItemName;
         public override int GroupIndex => 0;
         public override ItemHands GetItemHands() => ItemHands.Both;
-        public override WeaponTypes GetWeaponType() => WeaponTypes.Staff; // Just need something that is 2-handed
+        public override WeaponTypes GetWeaponType() => WeaponTypes.Bow; // Just need something that is 2-handed
         public override int GetWeaponSkillUsed() => (int)DaggerfallConnect.DFCareer.ProficiencyFlags.MissileWeapons;
         public ItemFSGun() : base(ItemGroups.Weapons, customTemplateIndex)
         {
