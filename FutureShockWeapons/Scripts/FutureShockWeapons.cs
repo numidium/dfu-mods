@@ -197,11 +197,12 @@ namespace FutureShock
             } 
             else if (!gameManager.WeaponManager.enabled && InputManager.Instance.ActionStarted(InputManager.Actions.ReadyWeapon)) {
                 fpsGun.IsHolstered = !fpsGun.IsHolstered;
+                gameManager.WeaponManager.Sheathed = fpsGun.IsHolstered;
                 if (!fpsGun.IsHolstered)
                     fpsGun.PlayEquipSound();
             }
 
-            fpsGun.IsFiring = !fpsGun.IsHolstered && InputManager.Instance.HasAction(InputManager.Actions.SwingWeapon);
+            fpsGun.IsFiring = !fpsGun.IsHolstered && !gameManager.PlayerEntity.IsParalyzed && InputManager.Instance.HasAction(InputManager.Actions.SwingWeapon);
             if (!gameManager.WeaponManager.enabled && gameManager.WeaponManager.EquipCountdownRightHand > 0f) {
                 fpsGun.IsHolstered = true;
                 gameManager.WeaponManager.EquipCountdownRightHand -= 980f * Time.deltaTime;
