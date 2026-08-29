@@ -124,7 +124,7 @@ namespace DynamicMusic
 
         // Cloudy FM
         static SongFiles[] _cloudySongsFM = new SongFiles[]
-{
+        {
             SongFiles.song_fday___d,
             SongFiles.song_fm_swim2,
             SongFiles.song_fm_sunny,
@@ -133,7 +133,7 @@ namespace DynamicMusic
             SongFiles.song_22fm,
             SongFiles.song_29fm,
             SongFiles.song_12fm,
-};
+        };
 
         // Overcast/Fog
         static SongFiles[] _overcastSongs = new SongFiles[]
@@ -888,10 +888,17 @@ namespace DynamicMusic
                             currentState = State.FadingOut;
                     }
 
-                    if (currentState != State.FadingOut && customPlaylists[currentPlaylist] != null && customPlaylists[currentPlaylist].HasFlags(Playlist.Flags.Sting) && !dynamicSongPlayer.IsStinging)
+                    if (currentState != State.FadingOut && customPlaylists[currentPlaylist] != null)
                     {
-                        PlayCurrentTrack();
-                        dynamicSongPlayer.IsStinging = true;
+                        if (customPlaylists[currentPlaylist].HasFlags(Playlist.Flags.Sting) && !dynamicSongPlayer.IsStinging)
+                        {
+                            PlayCurrentTrack();
+                            dynamicSongPlayer.IsStinging = true;
+                        }
+                        else if (!customPlaylists[currentPlaylist].HasFlags(Playlist.Flags.Sting))
+                        {
+                            PlayCurrentTrack();
+                        }
                     }
 
                     // Stop music if no playlist found.
