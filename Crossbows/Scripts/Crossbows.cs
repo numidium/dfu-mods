@@ -4,7 +4,6 @@ using UnityEngine;
 using DaggerfallWorkshop;
 using DaggerfallWorkshop.Utility.AssetInjection;
 using DaggerfallWorkshop.Game.Items;
-using Wenzil.Console;
 using DaggerfallWorkshop.Game.Entity;
 using DaggerfallWorkshop.Game.Serialization;
 
@@ -15,13 +14,11 @@ namespace Crossbows
         public static Crossbows Instance { get; private set; }
         private static Mod mod;
         private const int crossbowTemplateIndex = 289;
-        private ConsoleController consoleController;
         private GameManager gameManager;
         private PlayerEntity playerEntity;
         private PovWeapon povWeapon;
         private DaggerfallUnityItem lastEquippedRight;
         private DaggerfallUnityItem equippedRight;
-        private bool ShowWeapon;
 
         [Invoke(StateManager.StateTypes.Start, 0)]
         public static void Init(InitParams initParams)
@@ -51,7 +48,6 @@ namespace Crossbows
             readySound.LoadAudioData();
             ModManager.Instance.TryGetAsset($"{soundPrefix}_fire{soundPostfix}{soundExtension}", false, out AudioClip shootSound);
             shootSound.LoadAudioData();
-            consoleController = GameObject.Find("Console").GetComponent<ConsoleController>();
             gameManager = GameManager.Instance;
             playerEntity = gameManager.PlayerEntity;
             DaggerfallUnity.Instance.ItemHelper.RegisterCustomItem(crossbowTemplateIndex, ItemGroups.Weapons, typeof(ItemCrossbow));
@@ -69,74 +65,56 @@ namespace Crossbows
             mod.IsReady = true;
         }
 
-        private void Update()
-        {
-            // When unsheathing, immediately re-sheathe weapon and use PovWeapon in place of FPSWeapon
-            var equipChanged = false;
-            if (lastEquippedRight != equippedRight)
-                equipChanged = true;
-            if (IsCustomPovWeapon(equippedRight))
-            {
-                var lastNonCustomSheathed = gameManager.WeaponManager.Sheathed;
-                if (!lastNonCustomSheathed && gameManager.WeaponManager.UsingRightHand)
-                    gameManager.WeaponManager.SheathWeapons();
-                if (equipChanged)
-                {
-                    ShowWeapon = (!IsCustomPovWeapon(lastEquippedRight) && !lastNonCustomSheathed) || !povWeapon.IsHolstered;
-                    povWeapon.PlayEquipSound();
-                    povWeapon.IsHolstered = true;
-                    povWeapon.WeaponFrames = LoadPovWeaponTexture((WeaponMaterialTypes)equippedRight.NativeMaterialValue);
-                }
-            }
-            else if (!povWeapon.IsHolstered)
-            {
-                povWeapon.IsHolstered = true;
-                ShowWeapon = false;
-                gameManager.WeaponManager.Sheathed = false;
-            }
-
-            if (equipChanged)
-                lastEquippedRight = equippedRight;
-        }
-
-
-        // Wait for all other updates to ensure hidden weapon doesn't draw.
         private void LateUpdate()
         {
             equippedRight = gameManager.PlayerEntity.ItemEquipTable.GetItem(EquipSlots.RightHand);
-            povWeapon.PairedItem = equippedRight;
-            if (consoleController.ui.isConsoleOpen || GameManager.IsGamePaused || DaggerfallUI.UIManager.WindowCount != 0)
+            const int fswItemIndex = 288;
+            if (equippedRight == null || equippedRight.TemplateIndex == fswItemIndex)
                 return;
-            if (equippedRight != null && (equippedRight.currentCondition <= 0 || playerEntity.Items.GetItem(ItemGroups.Weapons, (int)Weapons.Arrow, allowQuestItem: false) == null))
-            {
-                povWeapon.IsFiring = false;
-                ShowWeapon = false;
-                if (!povWeapon.IsHolstered)
+            var isCustom = IsCustomPovWeapon(equippedRight);
+            var noArrows = !playerEntity.Items.Contains(ItemGroups.Weapons, (int)Weapons.Arrow);
+            if (!isCustom || noArrows || equippedRight.ConditionPercentage <= 0f || !gameManager.WeaponManager.UsingRightHand) {
+                if (!povWeapon.IsHolstered && noArrows)
                     DaggerfallUI.SetMidScreenText(TextManager.Instance.GetLocalizedText("youHaveNoArrows"));
                 povWeapon.IsHolstered = true;
-                return;
+                povWeapon.IsFiring = false;
+                goto endCustomLogic;
             }
 
-            // Handle input.
-            if (gameManager.WeaponManager.UsingRightHand)
-            {
-                povWeapon.IsFiring = !povWeapon.IsHolstered && !playerEntity.IsParalyzed && InputManager.Instance.HasAction(InputManager.Actions.SwingWeapon);
-                if (InputManager.Instance.ActionStarted(InputManager.Actions.ReadyWeapon) && IsCustomPovWeapon(equippedRight) && !povWeapon.IsFiring)
-                    ShowWeapon = !ShowWeapon;
-                else if (InputManager.Instance.ActionComplete(InputManager.Actions.SwitchHand) && !povWeapon.IsHolstered)
-                    gameManager.WeaponManager.Sheathed = false; // Keep fist "unsheathed" when switching to HTH.
+            if (InputManager.Instance.ActionComplete(InputManager.Actions.SwitchHand) && !gameManager.WeaponManager.enabled) {
+                gameManager.WeaponManager.UsingRightHand = false;
+                gameManager.WeaponManager.enabled = true;
+                DaggerfallUI.Instance.PopupMessage(TextManager.Instance.GetLocalizedText("usingLeftHand"));
+                goto endCustomLogic; 
             }
-            else if (InputManager.Instance.ActionComplete(InputManager.Actions.SwitchHand) && !gameManager.WeaponManager.Sheathed && IsCustomPovWeapon(equippedRight))
-                ShowWeapon = true; // Unholster weapon if switching from unsheathed weapon.
-            else if (gameManager.WeaponManager.Sheathed && ShowWeapon)
-                ShowWeapon = false; // Holster weapon if switched to left hand and sheathed.
-            if (!ShowWeapon)
-                povWeapon.IsHolstered = true;
-            else if (povWeapon.IsHolstered && gameManager.WeaponManager.EquipCountdownRightHand <= 0)
-            {
-                povWeapon.IsHolstered = false;
+
+            if (gameManager.WeaponManager.ScreenWeapon.ShowWeapon &&
+            gameManager.WeaponManager.EquipCountdownRightHand <= 0f) {
+                gameManager.WeaponManager.enabled = false;
+                gameManager.WeaponManager.ScreenWeapon.ShowWeapon = false;
+                povWeapon.PairedItem = equippedRight;
+                povWeapon.WeaponFrames = LoadPovWeaponTexture((WeaponMaterialTypes)equippedRight.NativeMaterialValue);
                 povWeapon.PlayEquipSound();
+                povWeapon.IsHolstered = gameManager.WeaponManager.Sheathed;
+            } 
+            else if (!gameManager.WeaponManager.enabled && InputManager.Instance.ActionStarted(InputManager.Actions.ReadyWeapon)) {
+                povWeapon.IsHolstered = !povWeapon.IsHolstered;
+                gameManager.WeaponManager.Sheathed = povWeapon.IsHolstered;
+                if (!povWeapon.IsHolstered)
+                    povWeapon.PlayEquipSound();
             }
+
+            povWeapon.IsFiring = !povWeapon.IsHolstered && !gameManager.PlayerEntity.IsParalyzed && gameManager.PlayerEntity.Items.Contains(ItemGroups.Weapons, (int)Weapons.Arrow) && InputManager.Instance.HasAction(InputManager.Actions.SwingWeapon);
+            if (!gameManager.WeaponManager.enabled && gameManager.WeaponManager.EquipCountdownRightHand > 0f) {
+                povWeapon.IsHolstered = true;
+                gameManager.WeaponManager.EquipCountdownRightHand -= 980f * Time.deltaTime;
+            }
+
+            endCustomLogic:
+            if ((!isCustom && !gameManager.WeaponManager.enabled) || 
+            gameManager.WeaponManager.EquipCountdownRightHand > 0f)
+                gameManager.WeaponManager.enabled = true;
+            lastEquippedRight = equippedRight;
         }
 
         private void OnDestroy()
