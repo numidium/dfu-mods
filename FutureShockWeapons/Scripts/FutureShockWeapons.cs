@@ -170,12 +170,15 @@ namespace FutureShock
         private void LateUpdate()
         {
             equippedRight = gameManager.PlayerEntity.ItemEquipTable.GetItem(EquipSlots.RightHand);
+            const int crossbowItemIndex = 289;
             if (equippedRight == null)
                 return;
             var isGun = IsGun(equippedRight);
             if (!isGun || equippedRight.ConditionPercentage <= 0f || !gameManager.WeaponManager.UsingRightHand) {
                 fpsGun.IsHolstered = true;
                 fpsGun.IsFiring = false;
+                if (equippedRight.TemplateIndex == crossbowItemIndex)
+                    return;
                 goto endGunLogic;
             }
 
@@ -209,8 +212,7 @@ namespace FutureShock
             }
 
             endGunLogic:
-            if ((!isGun && !gameManager.WeaponManager.enabled) || 
-            gameManager.WeaponManager.EquipCountdownRightHand > 0f)
+            if ((!isGun && !gameManager.WeaponManager.enabled) || gameManager.WeaponManager.EquipCountdownRightHand > 0f)
                 gameManager.WeaponManager.enabled = true;
             lastEquipCountdown = gameManager.WeaponManager.EquipCountdownRightHand;
             lastEquippedRight = equippedRight;
@@ -388,10 +390,11 @@ namespace FutureShock
 
         private bool TryLoadSound(string soundPath, string name, out AudioClip audioClip)
         {
+            // I don't want to rewrite this to use the coroutine version.
             string path = Path.Combine(soundPath, name);
             if (File.Exists(path))
             {
-                var www = new WWW("file://" + path); // the "non-deprecated" class gives me compiler errors so it can suck it
+                var www = new WWW("file://" + path); 
                 audioClip = www.GetAudioClip(true, true);
                 return audioClip != null;
             }
