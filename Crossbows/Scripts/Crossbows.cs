@@ -69,7 +69,7 @@ namespace Crossbows
         {
             equippedRight = gameManager.PlayerEntity.ItemEquipTable.GetItem(EquipSlots.RightHand);
             const int fswItemIndex = 288;
-            if (equippedRight == null || equippedRight.TemplateIndex == fswItemIndex)
+            if (equippedRight == null)
                 return;
             var isCustom = IsCustomPovWeapon(equippedRight);
             var noArrows = !playerEntity.Items.Contains(ItemGroups.Weapons, (int)Weapons.Arrow);
@@ -78,6 +78,8 @@ namespace Crossbows
                     DaggerfallUI.SetMidScreenText(TextManager.Instance.GetLocalizedText("youHaveNoArrows"));
                 povWeapon.IsHolstered = true;
                 povWeapon.IsFiring = false;
+                if (equippedRight.TemplateIndex == fswItemIndex)
+                    return;
                 goto endCustomLogic;
             }
 
