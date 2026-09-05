@@ -130,10 +130,13 @@ namespace Crossbows
         private void SaveLoadManager_OnLoad(SaveData_v1 saveData)
         {
             lastEquippedRight = equippedRight = playerEntity.ItemEquipTable.GetItem(EquipSlots.RightHand);
-            if (lastEquippedRight == null)
-                return;
-            if (IsCustomPovWeapon(equippedRight))
+            if (IsCustomPovWeapon(equippedRight)) {
+                povWeapon.PairedItem = equippedRight;
                 povWeapon.WeaponFrames = LoadPovWeaponTexture((WeaponMaterialTypes)equippedRight.NativeMaterialValue);
+                povWeapon.IsHolstered = gameManager.WeaponManager.Sheathed;
+            }
+            else
+                povWeapon.IsHolstered = true;
             // Will need to put code to set weapon attributes here if multiple weapon types are defined.
         }
 

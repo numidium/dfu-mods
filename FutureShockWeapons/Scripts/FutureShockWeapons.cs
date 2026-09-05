@@ -381,8 +381,11 @@ namespace FutureShock
         private void SaveLoadManager_OnLoad(SaveData_v1 saveData)
         {
             lastEquippedRight = equippedRight = GameManager.Instance.PlayerEntity.ItemEquipTable.GetItem(EquipSlots.RightHand);
-            if (lastEquippedRight == null)
+            if (lastEquippedRight == null) {
+                fpsGun.IsHolstered = true;
                 return;
+            }
+
             SetWeapon(GetGunFromMaterial(equippedRight.NativeMaterialValue));
             fpsGun.PairedItem = equippedRight;
             fpsGun.IsHolstered = gameManager.WeaponManager.Sheathed;
