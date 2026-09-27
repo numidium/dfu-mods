@@ -3,6 +3,7 @@ using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.Items;
 using DaggerfallWorkshop.Game.Serialization;
+using DaggerfallWorkshop.Game.Utility.ModSupport;
 using DaggerfallWorkshop.Utility;
 using UnityEngine;
 
@@ -228,6 +229,8 @@ namespace FutureShock
                         break;
                     case FutureShockAttack.ShotResult.HitOther:
                         CreateImpactBillboard(hit.point - ray.direction * .1f);
+                        FutureShockWeapons.Instance.CreateImpactDecal(gameObject, hit, FutureShockWeapons.SmallImpactMaterialName, false);
+                        AudioSource.PlayClipAtPoint(FutureShockWeapons.Instance.GetRicochetSound(), hit.point, DaggerfallUnity.Settings.SoundVolume);
                         break;
                     default:
                         break;
@@ -249,6 +252,8 @@ namespace FutureShock
                             break;
                         case FutureShockAttack.ShotResult.HitOther:
                             CreateImpactBillboard(hit.point - ray.direction * .1f);
+                            FutureShockWeapons.Instance.CreateImpactDecal(gameObject, hit, FutureShockWeapons.SmallImpactMaterialName, false);
+                            AudioSource.PlayClipAtPoint(FutureShockWeapons.Instance.GetRicochetSound(), hit.point, DaggerfallUnity.Settings.SoundVolume / 1.5f);
                             break;
                         default:
                             break;
@@ -299,6 +304,7 @@ namespace FutureShock
             var billboard = go.AddComponent<FSBillboard>();
             billboard.SetFrames(ImpactFrames, new Vector2(.5f, .5f));
         }
+
 
         private void StartMuzzleFlash()
         {

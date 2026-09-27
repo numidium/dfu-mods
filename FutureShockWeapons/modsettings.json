@@ -12,6 +12,13 @@
                     "Description": "Point this to the GAMEDATA folder or the mod won't work.",
                     "$version": "v1",
                     "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.TextKey"
+				},
+				{
+					"Value": "100",
+                    "Name": "Max Decals",
+                    "Description": "The amount of decals that can be left in a scene by bullet/projectile impacts.",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.TextKey"
 				}
             ],
             "$version": "v1"

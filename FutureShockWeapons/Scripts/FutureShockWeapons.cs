@@ -4,12 +4,13 @@ using DaggerfallWorkshop;
 using DaggerfallWorkshop.Game;
 using DaggerfallWorkshop.Game.Items;
 using DaggerfallWorkshop.Game.Serialization;
+using DaggerfallWorkshop.Utility;
 using DaggerfallWorkshop.Game.Utility.ModSupport;
 using DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings;
 using System;
 using System.IO;
 using UnityEngine;
-using Wenzil.Console;
+using System.Collections.Generic;
 
 namespace FutureShock
 {
@@ -114,7 +115,6 @@ namespace FutureShock
         }
 
         private static Mod mod;
-        private static ConsoleController consoleController;
         private FutureShockGun fpsGun;
         private uint[] impactAnimMap;
         private uint[] projectileAnimMap;
@@ -122,13 +122,20 @@ namespace FutureShock
         private Texture2D[][] projectileFrameBank;
         private readonly Texture2D[] projectileTextures = new Texture2D[3];
         private AudioClip[] weaponSoundBank;
+        private AudioClip[] ricochetSoundBank;
         private DaggerfallUnityItem lastEquippedRight;
         private DaggerfallUnityItem equippedRight;
-        private float lastEquipCountdown;
         private GameManager gameManager;
         private string gameDataPath;
         private DFPalette shockPalette;
         private const string textureFilePrefix = "TEXTURE.";
+        private int decalCount;
+        private int decalInd;
+        GameObject[] decalPool;
+        private Mesh smallImpactDecalMesh;
+        private Mesh largeImpactDecalMesh;
+        public const string SmallImpactMaterialName = "BulletDecalMaterial1";
+        public const string LargeImpactMaterialName = "ExplosionDecalMaterial1";
         public static FutureShockWeapons Instance { get; private set; }
         public Type SaveDataType => typeof(FutureShockWeapons);
         public static string ModTitle => mod.Title;
@@ -141,7 +148,6 @@ namespace FutureShock
             Instance = go.AddComponent<FutureShockWeapons>();
             //mod.SaveDataInterface = Instance;
             mod.LoadSettingsCallback = Instance.LoadSettings;
-            consoleController = GameObject.Find("Console").GetComponent<ConsoleController>();
         }
 
         // Load settings that can change during runtime.
@@ -154,6 +160,17 @@ namespace FutureShock
         {
             var settings = mod.GetSettings();
             gameDataPath = settings.GetValue<string>("Options", "FutureShock GAMEDATA path");
+            string countString = null;
+            try {
+                countString = settings.GetValue<string>("Options", "Max Decals");
+            } catch(KeyNotFoundException) {}
+
+            if (countString != null)
+                int.TryParse(countString, out decalCount);
+            if (decalCount > 0)
+                decalPool = new GameObject[decalCount];
+            smallImpactDecalMesh = DaggerfallUnity.Instance.MeshReader.GetSimpleBillboardMesh(new Vector2(.2f, .2f));
+            largeImpactDecalMesh = DaggerfallUnity.Instance.MeshReader.GetSimpleBillboardMesh(new Vector2(.75f, .75f));
             gameManager = GameManager.Instance;
             //LoadSettings(settings, new ModSettingsChange());
             if (InitMod())
@@ -214,7 +231,6 @@ namespace FutureShock
             endGunLogic:
             if ((!isGun && !gameManager.WeaponManager.enabled) || gameManager.WeaponManager.EquipCountdownRightHand > 0f)
                 gameManager.WeaponManager.enabled = true;
-            lastEquipCountdown = gameManager.WeaponManager.EquipCountdownRightHand;
             lastEquippedRight = equippedRight;
         }
 
@@ -339,6 +355,14 @@ namespace FutureShock
                     weaponSoundBank[(int)weaponSound] = clip;
                 }
             }
+            // Load ricochet sounds
+            const int ricochetSoundCount = 8;
+            ricochetSoundBank = new AudioClip[ricochetSoundCount];
+            for (var i = 0; i < ricochetSoundBank.Length; i++)
+            {
+                if (ModManager.Instance.TryGetAsset($"ricochet{i}.ogg", false, out AudioClip ricochetClip))
+                    ricochetSoundBank[i] = ricochetClip;
+            }
 
             // Cache impact/projectile animations.
             impactFrameBank = new Texture2D[(int)ImpactAnimation.Plasma + 1][]
@@ -364,6 +388,35 @@ namespace FutureShock
             DaggerfallUnity.Instance.ItemHelper.RegisterCustomItem(ItemFSGun.customTemplateIndex, ItemGroups.Weapons, typeof(ItemFSGun));
             SaveLoadManager.OnLoad += SaveLoadManager_OnLoad;
             return true;
+        }
+
+        public void CreateImpactDecal(GameObject go, RaycastHit hit, string materialName, bool isExplosive)
+        {
+            if (decalCount < 1)
+                return;
+            GameObject decalGameObject;
+            if (!decalPool[decalInd])
+            {
+                decalGameObject = new GameObject("Bullet Decal", typeof(MeshRenderer), typeof(MeshFilter));
+                decalPool[decalInd] = decalGameObject;
+            }
+            else
+                decalGameObject = decalPool[decalInd];
+            decalInd = (decalInd + 1) % decalCount;
+            decalGameObject.transform.parent = GameObjectHelper.GetBestParent();
+            decalGameObject.layer = go.layer;
+            decalGameObject.transform.position = hit.point + hit.normal * .01f;
+            decalGameObject.transform.rotation = Quaternion.FromToRotation(Vector3.forward, hit.normal);
+            var decalMeshFilter = decalGameObject.GetComponent<MeshFilter>();
+            decalMeshFilter.sharedMesh = isExplosive ? largeImpactDecalMesh : smallImpactDecalMesh;
+            var decalMeshRenderer = decalGameObject.GetComponent<MeshRenderer>();
+            ModManager.Instance.TryGetAsset(materialName, false, out Material decalMaterial);
+            decalMeshRenderer.sharedMaterial = decalMaterial;
+        }
+
+        public AudioClip GetRicochetSound()
+        {
+            return ricochetSoundBank[UnityEngine.Random.Range(0, ricochetSoundBank.Length)];
         }
 
         // Future Shock's data is encrypted by adding a value to each byte from a cipher table.

@@ -57,6 +57,17 @@
         "Assets/Game/Mods/FutureShockWeapons/Textures/1801_1-0_Orcish.xml",
         "Assets/Game/Mods/FutureShockWeapons/Textures/1800_1-0_Orcish.png",
         "Assets/Game/Mods/FutureShockWeapons/Textures/1800_1-0_Dwarven.xml",
-        "Assets/Game/Mods/FutureShockWeapons/Textures/1801_1-0_Daedric.png"
+        "Assets/Game/Mods/FutureShockWeapons/Textures/1801_1-0_Daedric.png",
+        "Assets/Game/Mods/FutureShockWeapons/Materials/BulletDecalMaterial1.mat",
+        "Assets/Game/Mods/FutureShockWeapons/Materials/ExplosionDecalMaterial1.mat",
+        "Assets/Game/Mods/FutureShockWeapons/Sound/ricochet6.ogg",
+        "Assets/Game/Mods/FutureShockWeapons/Sound/ricochet1.ogg",
+        "Assets/Game/Mods/FutureShockWeapons/Sound/ricochet8.ogg",
+        "Assets/Game/Mods/FutureShockWeapons/Sound/ricochet4.ogg",
+        "Assets/Game/Mods/FutureShockWeapons/Sound/ricochet3.ogg",
+        "Assets/Game/Mods/FutureShockWeapons/Sound/ricochet7.ogg",
+        "Assets/Game/Mods/FutureShockWeapons/Sound/ricochet5.ogg",
+        "Assets/Game/Mods/FutureShockWeapons/Sound/ricochet2.ogg",
+        "Assets/Game/Mods/FutureShockWeapons/Sound/ricochet0.ogg"
     ]
 }

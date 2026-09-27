@@ -94,7 +94,8 @@ namespace FutureShock
             adjust = (GameManager.Instance.MainCamera.transform.rotation * -Caster.transform.up) * VerticalAdjust;
             if (!IsGrenade)
             {
-                goProjectile = GameObjectHelper.CreateDaggerfallMeshGameObject(99800, transform, ignoreCollider: true); // TODO: Use proper models
+                const uint arrowModelId = 99800;
+                goProjectile = GameObjectHelper.CreateDaggerfallMeshGameObject(arrowModelId, transform, ignoreCollider: true); // TODO: Use proper models
                 var meshRenderer = goProjectile.GetComponent<MeshRenderer>();
                 if (meshRenderer)
                 {
@@ -216,7 +217,7 @@ namespace FutureShock
                 {
                     // Place self at meeting point with collider and self-destruct.
                     collisionPosition = hitInfo.point - direction * collisionRadius;
-                    HandleCollision(hitInfo.collider);
+                    HandleCollision(hitInfo.collider, hitInfo);
                     return;
                 }
                 else
@@ -227,15 +228,21 @@ namespace FutureShock
             isWaitTick = !isWaitTick;
         }
 
-        private void HandleCollision(Collider other)
+        private void HandleCollision(Collider other, RaycastHit hit)
         {
             if (impactDetected)
                 return;
             // Get entity based on collision type
             DaggerfallEntityBehaviour entityBehaviour;
-            if (other != null)
+            if (other != null) {
                 entityBehaviour = other.gameObject.transform.GetComponent<DaggerfallEntityBehaviour>();
-            else
+                if (!entityBehaviour) {
+                    var materialName = IsExplosive ? FutureShockWeapons.LargeImpactMaterialName : FutureShockWeapons.SmallImpactMaterialName;
+                    var size = IsExplosive ? new Vector2(.75f, .75f) : new Vector2(.2f, .2f);
+                    FutureShockWeapons.Instance.CreateImpactDecal(gameObject, hit, materialName, true);
+                }
+            }
+            else 
                 return;
             if (other != null)
             {
