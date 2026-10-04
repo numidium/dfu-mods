@@ -106,7 +106,10 @@ namespace Crossbows
                     povWeapon.PlayEquipSound();
             }
 
-            povWeapon.IsFiring = !povWeapon.IsHolstered && !gameManager.PlayerEntity.IsParalyzed && gameManager.PlayerEntity.Items.Contains(ItemGroups.Weapons, (int)Weapons.Arrow) && InputManager.Instance.HasAction(InputManager.Actions.SwingWeapon);
+            povWeapon.IsFiring = !povWeapon.IsHolstered && !gameManager.PlayerEntity.IsParalyzed &&
+                !gameManager.PlayerEffectManager.HasReadySpell && !gameManager.PlayerMotor.IsClimbing &&
+                gameManager.PlayerEntity.Items.Contains(ItemGroups.Weapons, (int)Weapons.Arrow) &&
+                InputManager.Instance.HasAction(InputManager.Actions.SwingWeapon);
             if (!gameManager.WeaponManager.enabled && gameManager.WeaponManager.EquipCountdownRightHand > 0f) {
                 povWeapon.IsHolstered = true;
                 gameManager.WeaponManager.EquipCountdownRightHand -= 980f * Time.deltaTime;

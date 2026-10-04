@@ -90,7 +90,7 @@ namespace Crossbows
         private void OnGUI()
         {
             if (IsHolstered || GameManager.IsGamePaused || SaveLoadManager.Instance.LoadInProgress || gameManager.PlayerSpellCasting.IsPlayingAnim
-                || gameManager.ClimbingMotor.IsClimbing || WeaponFrames == null)
+                || gameManager.PlayerEffectManager.HasReadySpell || playerEntity.IsParalyzed || gameManager.ClimbingMotor.IsClimbing || WeaponFrames == null)
                 return;
             // Update weapon when resolution changes
             var screenRect = DaggerfallUI.Instance.CustomScreenRect ?? new Rect(0, 0, Screen.width, Screen.height);
@@ -104,7 +104,7 @@ namespace Crossbows
             }
 
             GUI.depth = 0;
-            if ((cooldownRemaining <= 0f || currentFrame != 0) && Event.current.type.Equals(EventType.Repaint) && gameManager.WeaponManager.UsingRightHand && !playerEntity.IsParalyzed)
+            if ((cooldownRemaining <= 0f || currentFrame != 0) && Event.current.type.Equals(EventType.Repaint) && gameManager.WeaponManager.UsingRightHand)
                 DaggerfallUI.DrawTextureWithTexCoords(weaponPosition, WeaponFrames[currentFrame], DaggerfallUnity.Settings.Handedness == 1 ? leftHanded : rightHanded, true, gameManager.WeaponManager.ScreenWeapon.Tint);
         }
 
