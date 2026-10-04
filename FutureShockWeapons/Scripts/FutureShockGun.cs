@@ -183,7 +183,7 @@ namespace FutureShock
         private void OnGUI()
         {
             if (IsHolstered || GameManager.IsGamePaused || SaveLoadManager.Instance.LoadInProgress || gameManager.PlayerSpellCasting.IsPlayingAnim ||
-                    !gameManager.WeaponManager.UsingRightHand || gameManager.PlayerEntity.IsParalyzed || gameManager.ClimbingMotor.IsClimbing)
+                    gameManager.PlayerEffectManager.HasReadySpell || !gameManager.WeaponManager.UsingRightHand || gameManager.PlayerEntity.IsParalyzed || gameManager.ClimbingMotor.IsClimbing)
                 return;
             // Update weapon when resolution changes
             var screenRect = DaggerfallUI.Instance.CustomScreenRect ?? new Rect(0, 0, Screen.width, Screen.height);
@@ -253,7 +253,7 @@ namespace FutureShock
                         case FutureShockAttack.ShotResult.HitOther:
                             CreateImpactBillboard(hit.point - ray.direction * .1f);
                             FutureShockWeapons.Instance.CreateImpactDecal(gameObject, hit, FutureShockWeapons.SmallImpactMaterialName, false);
-                            AudioSource.PlayClipAtPoint(FutureShockWeapons.Instance.GetRicochetSound(), hit.point, DaggerfallUnity.Settings.SoundVolume / 1.5f);
+                            AudioSource.PlayClipAtPoint(FutureShockWeapons.Instance.GetRicochetSound(), hit.point, DaggerfallUnity.Settings.SoundVolume);
                             break;
                         default:
                             break;

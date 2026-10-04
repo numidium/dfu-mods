@@ -403,7 +403,7 @@ namespace FutureShock
             else
                 decalGameObject = decalPool[decalInd];
             decalInd = (decalInd + 1) % decalCount;
-            decalGameObject.transform.parent = GameObjectHelper.GetBestParent();
+            decalGameObject.transform.parent = hit.transform;
             decalGameObject.layer = go.layer;
             decalGameObject.transform.position = hit.point + hit.normal * .01f;
             decalGameObject.transform.rotation = Quaternion.FromToRotation(Vector3.forward, hit.normal);
